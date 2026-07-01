@@ -1,5 +1,7 @@
 {
-  "briefings_sent": 0,
-  "last_briefing_at": null,
-  "briefing_history": []
+  "briefings_sent": 1,
+  "last_briefing_at": "2026-07-01",
+  "briefing_history": [
+    {"date": "2026-07-01", "recipients": 0}
+  ]
 }
