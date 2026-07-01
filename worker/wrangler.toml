@@ -6,5 +6,13 @@ compatibility_date = "2026-06-01"
 binding = "BOT_STATE"
 id = "4d433b918abf416d913a35ef22fe9729"
 
+[[durable_objects.bindings]]
+name = "BOT_DO"
+class_name = "BotState"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["BotState"]
+
 [vars]
 GITHUB_REPO = "Da6ka/ai-in-ta-telegram-bot"

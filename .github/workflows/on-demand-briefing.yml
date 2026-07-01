@@ -7,6 +7,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: on-demand-briefing
+  cancel-in-progress: false
+
 jobs:
   briefing:
     runs-on: ubuntu-latest
@@ -24,7 +28,7 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          claude -p "$(cat briefing-prompt-ondemand.md)" --dangerously-skip-permissions
+          claude -p "$(cat briefing-prompt-ondemand.md)" --allowedTools "WebSearch" > state/today_briefing.md
 
       - name: Send to requester
         env:

@@ -6,13 +6,25 @@
 // local server.ts + an interactive Claude Code session. Group chats are not
 // supported (the bot has only ever been used in DMs).
 //
-// State lives in the BOT_STATE KV namespace (mirrors what access.json /
-// subscribers.json / usage_stats.json are locally):
-//   access          {dmPolicy, allowFrom: string[], ownerChatId, pending: {}}
-//   subscribers     {subscribers: string[], owner: string}
-//   usage_stats     {briefings_sent, last_briefing_at, briefing_history, command_counts, last_seen}
-//   today_briefing_md    raw markdown of the last generated briefing
-//   today_briefing_date  UTC YYYY-MM-DD it was generated on
+// State:
+//   - `access` and `subscribers` live in the BOT_DO Durable Object (single
+//     "singleton" instance). These are mutated by concurrent users (adduser,
+//     subscribe, approve/deny, ...) and a plain KV read-modify-write here lost
+//     the vast majority of writes under real concurrency (measured: 15
+//     concurrent /subscribe calls -> only 2 landed). Durable Object storage
+//     serializes access to a single instance, so these are safe now.
+//   - `usage_stats` stays in the BOT_STATE KV namespace as before. It's also
+//     written directly by the GitHub Actions pipeline (scripts/sync-kv.mjs),
+//     so fully fixing its concurrency would mean giving that pipeline a way
+//     to call into the Durable Object too. Command_counts/last_seen can still
+//     race against each other Worker-side, but the impact is cosmetic
+//     (slightly-off admin stats), unlike losing a real subscription or
+//     allowlist entry — left as a known, accepted limitation.
+//   - `today_briefing_md` / `today_briefing_date` stay in KV: only the CI
+//     pipeline ever writes them, so there's no concurrent-writer race.
+
+import { DurableObject } from 'cloudflare:workers'
+import { mdToHtml, chunk } from '../../shared/telegram-markdown.mjs'
 
 const DEFAULT_ACCESS = { dmPolicy: 'allowlist', allowFrom: [], ownerChatId: '', pending: {} }
 const DEFAULT_SUBSCRIBERS = { subscribers: [], owner: '' }
@@ -24,6 +36,108 @@ const DEFAULT_USAGE = {
   last_seen: {},
 }
 
+// Durable Object: single source of truth for access/subscribers/dedup so
+// concurrent requests can't race on a KV read-modify-write. All mutation
+// methods here read+write via this.ctx.storage without an intervening await
+// on external I/O, so Cloudflare's per-instance request serialization keeps
+// each one atomic.
+export class BotState extends DurableObject {
+  constructor(ctx, env) {
+    super(ctx, env)
+    this.env = env
+  }
+
+  async getAccess() {
+    let access = await this.ctx.storage.get('access')
+    if (access === undefined) {
+      // First touch: migrate whatever's already in KV (real production data)
+      // into the Durable Object so cutover doesn't lose the existing allowlist.
+      access = (await this.env.BOT_STATE.get('access', 'json')) ?? DEFAULT_ACCESS
+      await this.ctx.storage.put('access', access)
+    }
+    return access
+  }
+
+  async getSubscribers() {
+    let subs = await this.ctx.storage.get('subscribers')
+    if (subs === undefined) {
+      subs = (await this.env.BOT_STATE.get('subscribers', 'json')) ?? DEFAULT_SUBSCRIBERS
+      await this.ctx.storage.put('subscribers', subs)
+    }
+    return subs
+  }
+
+  async addAllowedUser(id) {
+    const access = await this.getAccess()
+    const added = !access.allowFrom.includes(id)
+    if (added) {
+      access.allowFrom.push(id)
+      await this.ctx.storage.put('access', access)
+    }
+    return { access, added }
+  }
+
+  async removeAllowedUser(id) {
+    const access = await this.getAccess()
+    const removed = access.allowFrom.includes(id)
+    access.allowFrom = access.allowFrom.filter(x => x !== id)
+    await this.ctx.storage.put('access', access)
+    const subs = await this.getSubscribers()
+    subs.subscribers = subs.subscribers.filter(x => x !== id)
+    await this.ctx.storage.put('subscribers', subs)
+    return { access, subs, removed }
+  }
+
+  async addPending(id, info) {
+    const access = await this.getAccess()
+    const alreadyPending = Boolean(access.pending[id])
+    if (!alreadyPending) {
+      access.pending[id] = info
+      await this.ctx.storage.put('access', access)
+    }
+    return { access, alreadyPending }
+  }
+
+  async removePending(id) {
+    const access = await this.getAccess()
+    delete access.pending[id]
+    await this.ctx.storage.put('access', access)
+    return access
+  }
+
+  async subscribe(id) {
+    const subs = await this.getSubscribers()
+    const already = subs.subscribers.includes(id)
+    if (!already) {
+      subs.subscribers.push(id)
+      await this.ctx.storage.put('subscribers', subs)
+    }
+    return { subs, already }
+  }
+
+  async unsubscribe(id) {
+    const subs = await this.getSubscribers()
+    const wasSubscribed = subs.subscribers.includes(id)
+    if (wasSubscribed) {
+      subs.subscribers = subs.subscribers.filter(x => x !== id)
+      await this.ctx.storage.put('subscribers', subs)
+    }
+    return { subs, wasSubscribed }
+  }
+
+  // Telegram redelivers updates it thinks weren't acknowledged. Keep a
+  // capped ring of recently-seen update_ids so a redelivery is a no-op
+  // instead of re-running a non-idempotent command like /broadcast.
+  async recordSeenUpdate(updateId) {
+    const seen = (await this.ctx.storage.get('seen_updates')) ?? []
+    if (seen.includes(updateId)) return false
+    seen.push(updateId)
+    while (seen.length > 200) seen.shift()
+    await this.ctx.storage.put('seen_updates', seen)
+    return true
+  }
+}
+
 async function getJSON(env, key, fallback) {
   const v = await env.BOT_STATE.get(key, 'json')
   return v ?? fallback
@@ -32,63 +146,59 @@ async function putJSON(env, key, value) {
   await env.BOT_STATE.put(key, JSON.stringify(value))
 }
 
+// Retries transient failures (429/5xx/network) with a short backoff; gives
+// up immediately on other 4xx since retrying won't help. Callers still get
+// back whatever final Response (or thrown error) resulted.
+async function fetchWithRetry(url, options, { retries = 2 } = {}) {
+  let lastErr
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(url, options)
+      if (res.ok || res.status < 429 || attempt === retries) return res
+      if (res.status === 429 || res.status >= 500) {
+        const retryAfter = Number(res.headers.get('retry-after')) || attempt + 1
+        await new Promise(r => setTimeout(r, retryAfter * 300))
+        continue
+      }
+      return res
+    } catch (err) {
+      lastErr = err
+      if (attempt < retries) {
+        await new Promise(r => setTimeout(r, (attempt + 1) * 300))
+        continue
+      }
+    }
+  }
+  throw lastErr
+}
+
 async function tg(env, method, body) {
-  const res = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/${method}`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body),
-  })
-  return res.json()
+  try {
+    const res = await fetchWithRetry(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/${method}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    const json = await res.json()
+    if (!json.ok) console.error(`Telegram API error on ${method}:`, json.description)
+    return json
+  } catch (err) {
+    console.error(`Telegram API request failed on ${method}:`, err)
+    return { ok: false, description: String(err) }
+  }
 }
 
 function reply(env, chatId, text, extra = {}) {
   return tg(env, 'sendMessage', { chat_id: chatId, text, ...extra })
 }
 
-function escapeHtml(s) {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-}
-
-function mdToHtml(md) {
-  const out = []
-  for (const line of md.split('\n')) {
-    const hm = /^#{1,6}\s+(.+)$/.exec(line)
-    if (hm) {
-      out.push(`<b>${escapeHtml(hm[1])}</b>`)
-      continue
-    }
-    const parts = []
-    let last = 0
-    const linkRe = /\[([^\]]+)\]\(([^)]+)\)/g
-    let m
-    while ((m = linkRe.exec(line))) {
-      parts.push(escapeHtml(line.slice(last, m.index)))
-      parts.push(`<a href="${m[2]}">${escapeHtml(m[1])}</a>`)
-      last = m.index + m[0].length
-    }
-    parts.push(escapeHtml(line.slice(last)))
-    out.push(parts.join(''))
-  }
-  return out.join('\n')
-}
-
-function chunk(text, limit) {
-  const parts = []
-  let rest = text
-  while (rest.length > limit) {
-    let cut = rest.lastIndexOf('\n', limit)
-    if (cut <= 0) cut = limit
-    parts.push(rest.slice(0, cut))
-    rest = rest.slice(cut)
-  }
-  parts.push(rest)
-  return parts
-}
-
 async function sendHtml(env, chatId, html) {
+  let allOk = true
   for (const part of chunk(html, 3500)) {
-    await reply(env, chatId, part, { parse_mode: 'HTML', link_preview_options: { is_disabled: true } })
+    const res = await reply(env, chatId, part, { parse_mode: 'HTML', link_preview_options: { is_disabled: true } })
+    if (!res.ok) allOk = false
   }
+  return allOk
 }
 
 function todayUTC() {
@@ -110,37 +220,47 @@ async function touchLastSeen(env, senderId) {
 // Like the old dmCommandGate(): DM only, dmPolicy check. No pairing-code
 // machinery here — /start's approve/deny buttons are the only approval path
 // in the commands-only scope.
-async function dmCommandGate(env, message) {
+async function dmCommandGate(stub, message) {
   if (message.chat?.type !== 'private') return null
   if (!message.from) return null
   const senderId = String(message.from.id)
-  const access = await getJSON(env, 'access', DEFAULT_ACCESS)
+  const access = await stub.getAccess()
   if (access.dmPolicy === 'disabled') return null
   if (access.dmPolicy === 'allowlist' && !access.allowFrom.includes(senderId)) {
     // Still let /start through so unapproved users can request access.
-    return { access, senderId, isAllowed: false }
+    return { access, stub, senderId, isAllowed: false }
   }
-  return { access, senderId, isAllowed: access.allowFrom.includes(senderId) }
+  return { access, stub, senderId, isAllowed: access.allowFrom.includes(senderId) }
 }
 
 async function dispatchBriefing(env, chatId) {
-  await fetch(`https://api.github.com/repos/${env.GITHUB_REPO}/dispatches`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${env.GITHUB_TOKEN}`,
-      Accept: 'application/vnd.github+json',
-      'User-Agent': 'ai-in-ta-telegram-bot-worker',
-    },
-    body: JSON.stringify({
-      event_type: 'newbriefing',
-      client_payload: { chat_id: String(chatId) },
-    }),
-  })
+  try {
+    const res = await fetchWithRetry(`https://api.github.com/repos/${env.GITHUB_REPO}/dispatches`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${env.GITHUB_TOKEN}`,
+        Accept: 'application/vnd.github+json',
+        'User-Agent': 'ai-in-ta-telegram-bot-worker',
+      },
+      body: JSON.stringify({
+        event_type: 'newbriefing',
+        client_payload: { chat_id: String(chatId) },
+      }),
+    }, { retries: 1 })
+    if (!res.ok) {
+      console.error('GitHub dispatch failed', res.status, await res.text())
+      return false
+    }
+    return true
+  } catch (err) {
+    console.error('GitHub dispatch request failed', err)
+    return false
+  }
 }
 
 const COMMAND_HANDLERS = {
   async start(env, message, gated) {
-    const { access, senderId, isAllowed } = gated
+    const { access, senderId, isAllowed, stub } = gated
     if (isAllowed) {
       await reply(env, senderId,
         "Welcome to AI in TA News!\n\n" +
@@ -150,7 +270,8 @@ const COMMAND_HANDLERS = {
     const from = message.from
     const displayName = [from.first_name, from.last_name].filter(Boolean).join(' ')
     const username = from.username ? `@${from.username}` : 'no username'
-    if (access.ownerChatId) {
+    const { alreadyPending } = await stub.addPending(senderId, { displayName, username, createdAt: Date.now() })
+    if (!alreadyPending && access.ownerChatId) {
       await tg(env, 'sendMessage', {
         chat_id: access.ownerChatId,
         text: `New access request\n\nName: ${displayName}\nUsername: ${username}\nID: ${from.id}`,
@@ -163,13 +284,20 @@ const COMMAND_HANDLERS = {
       })
     }
     await reply(env, senderId,
-      `Welcome to AI in TA News!\n\nThis is a private bot. Your access request has been sent to the owner.\n\n` +
-      `Your Telegram ID: <code>${from.id}</code>\n\nYou'll be able to use /briefing and /subscribe once approved.`,
+      alreadyPending
+        ? `Your access request is still waiting on the owner — no need to send /start again.\n\nYour Telegram ID: <code>${from.id}</code>`
+        : `Welcome to AI in TA News!\n\nThis is a private bot. Your access request has been sent to the owner.\n\n` +
+          `Your Telegram ID: <code>${from.id}</code>\n\nYou'll be able to use /briefing and /subscribe once approved.`,
       { parse_mode: 'HTML' })
   },
 
   async help(env, message, gated) {
-    await reply(env, gated.senderId,
+    const { senderId, isAllowed } = gated
+    if (!isAllowed) {
+      await reply(env, senderId, 'You need to be approved first. Send /start to request access.')
+      return
+    }
+    await reply(env, senderId,
       "This is AI in TA News — a curated digest of AI in talent acquisition.\n\n" +
       "Here you'll find:\n" +
       "- How recruiters are using Claude & Anthropic tools\n" +
@@ -183,7 +311,7 @@ const COMMAND_HANDLERS = {
   },
 
   async status(env, message, gated) {
-    const { access, senderId, isAllowed } = gated
+    const { senderId, isAllowed } = gated
     if (isAllowed) {
       const name = message.from.username ? `@${message.from.username}` : senderId
       await reply(env, senderId, `Paired as ${name}`)
@@ -195,35 +323,28 @@ const COMMAND_HANDLERS = {
   },
 
   async subscribe(env, message, gated) {
-    const { senderId, isAllowed } = gated
+    const { senderId, isAllowed, stub } = gated
     if (!isAllowed) {
       await reply(env, senderId, 'You need to be approved first. Send /start to request access.')
       return
     }
-    const subs = await getJSON(env, 'subscribers', DEFAULT_SUBSCRIBERS)
-    if (subs.subscribers.includes(senderId)) {
-      await reply(env, senderId, "You're already subscribed to the daily AI recruitment briefing. You'll receive it every morning at 9:00 AM UTC.")
-      return
-    }
-    subs.subscribers.push(senderId)
-    await putJSON(env, 'subscribers', subs)
-    await reply(env, senderId, "You're subscribed! You'll receive the daily AI recruitment briefing every morning at 9:00 AM UTC. Send /unsubscribe any time to stop.")
+    const { already } = await stub.subscribe(senderId)
+    await reply(env, senderId, already
+      ? "You're already subscribed to the daily AI recruitment briefing. You'll receive it every morning at 9:00 AM UTC."
+      : "You're subscribed! You'll receive the daily AI recruitment briefing every morning at 9:00 AM UTC. Send /unsubscribe any time to stop.")
   },
 
   async unsubscribe(env, message, gated) {
-    const { senderId } = gated
-    const subs = await getJSON(env, 'subscribers', DEFAULT_SUBSCRIBERS)
-    if (subs.owner && senderId === subs.owner) {
+    const { senderId, stub } = gated
+    const subsBefore = await stub.getSubscribers()
+    if (subsBefore.owner && senderId === subsBefore.owner) {
       await reply(env, senderId, "You're the bot owner — you can't unsubscribe from your own briefing.")
       return
     }
-    if (!subs.subscribers.includes(senderId)) {
-      await reply(env, senderId, "You're not currently subscribed.")
-      return
-    }
-    subs.subscribers = subs.subscribers.filter(id => id !== senderId)
-    await putJSON(env, 'subscribers', subs)
-    await reply(env, senderId, "You've been unsubscribed. Send /subscribe any time to start receiving the briefing again.")
+    const { wasSubscribed } = await stub.unsubscribe(senderId)
+    await reply(env, senderId, wasSubscribed
+      ? "You've been unsubscribed. Send /subscribe any time to start receiving the briefing again."
+      : "You're not currently subscribed.")
   },
 
   async briefing(env, message, gated) {
@@ -236,12 +357,16 @@ const COMMAND_HANDLERS = {
     if (date === todayUTC()) {
       const md = await env.BOT_STATE.get('today_briefing_md')
       if (md) {
-        await sendHtml(env, senderId, mdToHtml(md))
+        const ok = await sendHtml(env, senderId, mdToHtml(md))
+        if (!ok) await reply(env, senderId, "Something went wrong sending today's briefing — please try /briefing again in a moment.")
         return
       }
     }
     await reply(env, senderId, "Generating today's briefing, one moment...")
-    await dispatchBriefing(env, senderId)
+    const dispatched = await dispatchBriefing(env, senderId)
+    if (!dispatched) {
+      await reply(env, senderId, "Couldn't start briefing generation right now — please try again shortly, or contact the bot owner if this keeps happening.")
+    }
   },
 
   async newbriefing(env, message, gated) {
@@ -251,16 +376,19 @@ const COMMAND_HANDLERS = {
       return
     }
     await reply(env, senderId, 'Generating a fresh briefing, this will take a minute...')
-    await dispatchBriefing(env, senderId)
+    const dispatched = await dispatchBriefing(env, senderId)
+    if (!dispatched) {
+      await reply(env, senderId, "Couldn't start briefing generation right now — please try again shortly, or contact the bot owner if this keeps happening.")
+    }
   },
 
   async admin(env, message, gated) {
-    const { access, senderId } = gated
+    const { access, senderId, stub } = gated
     if (senderId !== access.ownerChatId) {
       await reply(env, senderId, 'This command is only available to the bot owner.')
       return
     }
-    const subs = await getJSON(env, 'subscribers', DEFAULT_SUBSCRIBERS)
+    const subs = await stub.getSubscribers()
     const stats = await getJSON(env, 'usage_stats', DEFAULT_USAGE)
     const c = stats.command_counts
     await reply(env, senderId,
@@ -286,12 +414,12 @@ const COMMAND_HANDLERS = {
   },
 
   async listusers(env, message, gated) {
-    const { access, senderId } = gated
+    const { access, senderId, stub } = gated
     if (senderId !== access.ownerChatId) {
       await reply(env, senderId, 'This command is only available to the bot owner.')
       return
     }
-    const subs = await getJSON(env, 'subscribers', DEFAULT_SUBSCRIBERS)
+    const subs = await stub.getSubscribers()
     const lines = access.allowFrom.map(id => {
       const tags = []
       if (id === access.ownerChatId) tags.push('[owner]')
@@ -304,7 +432,7 @@ const COMMAND_HANDLERS = {
   },
 
   async adduser(env, message, gated, args) {
-    const { access, senderId } = gated
+    const { access, senderId, stub } = gated
     if (senderId !== access.ownerChatId) {
       await reply(env, senderId, 'This command is only available to the bot owner.')
       return
@@ -314,17 +442,20 @@ const COMMAND_HANDLERS = {
       await reply(env, senderId, 'Usage: /adduser <chat_id>')
       return
     }
-    if (access.allowFrom.includes(id)) {
+    if (!/^-?\d+$/.test(id)) {
+      await reply(env, senderId, `"${id}" doesn't look like a Telegram chat id (should be numeric). Usage: /adduser <chat_id>`)
+      return
+    }
+    const { added } = await stub.addAllowedUser(id)
+    if (!added) {
       await reply(env, senderId, `User \`${id}\` is already on the allowlist.`)
       return
     }
-    access.allowFrom.push(id)
-    await putJSON(env, 'access', access)
     await reply(env, senderId, `User \`${id}\` added to the allowlist. They can now use the bot. They'll need to /subscribe for daily briefings.`)
   },
 
   async removeuser(env, message, gated, args) {
-    const { access, senderId } = gated
+    const { access, senderId, stub } = gated
     if (senderId !== access.ownerChatId) {
       await reply(env, senderId, 'This command is only available to the bot owner.')
       return
@@ -338,20 +469,16 @@ const COMMAND_HANDLERS = {
       await reply(env, senderId, "You can't remove the bot owner.")
       return
     }
-    const subs = await getJSON(env, 'subscribers', DEFAULT_SUBSCRIBERS)
-    if (!access.allowFrom.includes(id) && !subs.subscribers.includes(id)) {
+    const { removed } = await stub.removeAllowedUser(id)
+    if (!removed) {
       await reply(env, senderId, `User \`${id}\` not found.`)
       return
     }
-    access.allowFrom = access.allowFrom.filter(x => x !== id)
-    subs.subscribers = subs.subscribers.filter(x => x !== id)
-    await putJSON(env, 'access', access)
-    await putJSON(env, 'subscribers', subs)
     await reply(env, senderId, `User \`${id}\` removed from the allowlist and unsubscribed.`)
   },
 
   async broadcast(env, message, gated, args, rawText) {
-    const { access, senderId } = gated
+    const { access, senderId, stub } = gated
     if (senderId !== access.ownerChatId) {
       await reply(env, senderId, 'This command is only available to the bot owner.')
       return
@@ -361,12 +488,21 @@ const COMMAND_HANDLERS = {
       await reply(env, senderId, 'Usage: /broadcast <message>')
       return
     }
-    const subs = await getJSON(env, 'subscribers', DEFAULT_SUBSCRIBERS)
+    const subs = await stub.getSubscribers()
     await reply(env, senderId, `Broadcasting to ${subs.subscribers.length} subscribers...`)
+    const parts = chunk(msg, 4000)
+    let failedRecipients = 0
     for (const chatId of subs.subscribers) {
-      await reply(env, chatId, msg)
+      let recipientOk = true
+      for (const part of parts) {
+        const res = await reply(env, chatId, part)
+        if (!res.ok) recipientOk = false
+      }
+      if (!recipientOk) failedRecipients++
     }
-    await reply(env, senderId, `Done. Message sent to ${subs.subscribers.length} subscribers.`)
+    await reply(env, senderId, failedRecipients === 0
+      ? `Done. Message sent to ${subs.subscribers.length} subscribers.`
+      : `Done, but delivery failed for ${failedRecipients} of ${subs.subscribers.length} subscriber(s) — check Worker logs for details.`)
   },
 
   async pending(env, message, gated) {
@@ -380,19 +516,20 @@ const COMMAND_HANDLERS = {
       await reply(env, senderId, 'No pending pairing requests.')
       return
     }
-    const lines = entries.map(([, p]) => `${p.chatId ?? p.senderId} — requested ${p.createdAt ? new Date(p.createdAt).toISOString() : ''}`)
+    const lines = entries.map(([id, p]) =>
+      `${id} — ${p.displayName || 'unknown'} (${p.username || 'no username'}), requested ${p.createdAt ? new Date(p.createdAt).toISOString() : ''}`)
     await reply(env, senderId, `Pending pairings (${entries.length})\n\n${lines.join('\n')}\n\nUse /adduser <id> to approve or ignore to deny.`)
   },
 }
 
-async function handleCallbackQuery(env, callbackQuery) {
+async function handleCallbackQuery(env, stub, callbackQuery) {
   const data = callbackQuery.data ?? ''
   const am = /^acc:([YN]):(\d+)$/.exec(data)
   if (!am) {
     await tg(env, 'answerCallbackQuery', { callback_query_id: callbackQuery.id })
     return
   }
-  const access = await getJSON(env, 'access', DEFAULT_ACCESS)
+  const access = await stub.getAccess()
   const senderId = String(callbackQuery.from.id)
   if (!access.ownerChatId || senderId !== access.ownerChatId) {
     await tg(env, 'answerCallbackQuery', { callback_query_id: callbackQuery.id, text: 'Not authorized.' })
@@ -401,20 +538,19 @@ async function handleCallbackQuery(env, callbackQuery) {
   const [, decision, targetId] = am
   const msg = callbackQuery.message
   if (decision === 'Y') {
-    if (!access.allowFrom.includes(targetId)) {
-      access.allowFrom.push(targetId)
-      await putJSON(env, 'access', access)
-    }
+    await stub.addAllowedUser(targetId)
+    await stub.removePending(targetId)
     await tg(env, 'answerCallbackQuery', { callback_query_id: callbackQuery.id, text: 'Approved' })
     if (msg?.text) await tg(env, 'editMessageText', { chat_id: msg.chat.id, message_id: msg.message_id, text: `${msg.text}\n\nApproved` })
     await reply(env, targetId, 'Paired! Send /briefing or /subscribe to get started.')
   } else {
+    await stub.removePending(targetId)
     await tg(env, 'answerCallbackQuery', { callback_query_id: callbackQuery.id, text: 'Denied' })
     if (msg?.text) await tg(env, 'editMessageText', { chat_id: msg.chat.id, message_id: msg.message_id, text: `${msg.text}\n\nDenied` })
   }
 }
 
-async function handleMessage(env, message) {
+async function handleMessage(env, stub, message) {
   const text = message.text
   if (!text || !text.startsWith('/')) return // commands-only scope
   const m = /^\/(\w+)(?:@\S+)?(?:\s+(.*))?$/s.exec(text.trim())
@@ -423,7 +559,7 @@ async function handleMessage(env, message) {
   const handler = COMMAND_HANDLERS[cmd]
   if (!handler) return
 
-  const gated = await dmCommandGate(env, message)
+  const gated = await dmCommandGate(stub, message)
   if (!gated) return
 
   await touchLastSeen(env, gated.senderId)
@@ -446,9 +582,16 @@ export default {
       return new Response('bad request', { status: 400 })
     }
 
+    const stub = env.BOT_DO.get(env.BOT_DO.idFromName('singleton'))
+
+    if (typeof update.update_id === 'number') {
+      const isNew = await stub.recordSeenUpdate(update.update_id)
+      if (!isNew) return new Response('ok') // Telegram redelivery of an update we already processed
+    }
+
     try {
-      if (update.callback_query) await handleCallbackQuery(env, update.callback_query)
-      else if (update.message) await handleMessage(env, update.message)
+      if (update.callback_query) await handleCallbackQuery(env, stub, update.callback_query)
+      else if (update.message) await handleMessage(env, stub, update.message)
     } catch (err) {
       console.error('handler error', err)
     }

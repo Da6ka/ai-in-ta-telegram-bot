@@ -26,19 +26,40 @@ jobs:
       - name: Install Claude Code
         run: npm install -g @anthropic-ai/claude-code
 
+      - name: Check idempotency
+        id: idempotency
+        run: |
+          TODAY=$(date -u +%F)
+          LAST=$(node -e "try{console.log(JSON.parse(require('fs').readFileSync('state/usage_stats.json','utf8')).last_briefing_at||'')}catch{console.log('')}")
+          if [ "$LAST" = "$TODAY" ]; then
+            echo "A briefing was already generated today ($TODAY) — skipping."
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Generate briefing
+        if: steps.idempotency.outputs.should_run == 'true'
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          claude -p "$(cat briefing-prompt.md)" --dangerously-skip-permissions
+          claude -p "$(cat briefing-prompt.md)" --allowedTools "WebSearch" > state/today_briefing.md
+
+      - name: Update usage stats
+        if: steps.idempotency.outputs.should_run == 'true'
+        env:
+          TELEGRAM_SUBSCRIBER_CHAT_IDS: ${{ secrets.TELEGRAM_SUBSCRIBER_CHAT_IDS }}
+        run: node scripts/update-usage-stats.mjs
 
       - name: Send to Telegram
+        if: steps.idempotency.outputs.should_run == 'true'
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_SUBSCRIBER_CHAT_IDS: ${{ secrets.TELEGRAM_SUBSCRIBER_CHAT_IDS }}
         run: node scripts/send-briefing.mjs
 
       - name: Check freshness
+        if: steps.idempotency.outputs.should_run == 'true'
         id: freshness
         run: |
           TODAY=$(date -u '+%-d %B %Y')
@@ -49,7 +70,7 @@ jobs:
           fi
 
       - name: Sync to Cloudflare KV
-        if: steps.freshness.outputs.fresh == 'true'
+        if: steps.idempotency.outputs.should_run == 'true' && steps.freshness.outputs.fresh == 'true'
         env:
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
@@ -60,6 +81,7 @@ jobs:
           node scripts/sync-kv.mjs
 
       - name: Commit updated state
+        if: steps.idempotency.outputs.should_run == 'true'
         run: |
           git config user.name "daily-briefing-bot"
           git config user.email "actions@users.noreply.github.com"

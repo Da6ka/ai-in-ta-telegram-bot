@@ -4,6 +4,7 @@
 // run (idempotency short-circuit) never gets re-sent.
 
 import { readFileSync } from 'node:fs'
+import { mdToHtml, chunk } from '../shared/telegram-markdown.mjs'
 
 const token = process.env.TELEGRAM_BOT_TOKEN
 const chatIds = (process.env.TELEGRAM_SUBSCRIBER_CHAT_IDS ?? '')
@@ -25,55 +26,19 @@ if (!md.includes(today)) {
   process.exit(0)
 }
 
-// Minimal Markdown -> Telegram HTML: headers to bold lines, links to <a>, escape the rest.
-function escapeHtml(s) {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-}
-
-function mdToHtml(source) {
-  return source
-    .split('\n')
-    .map(line => {
-      const header = /^#{1,3}\s+(.*)/.exec(line)
-      if (header) return `<b>${escapeHtml(header[1])}</b>`
-      // [text](url) -> <a href="url">text</a>, escaping the surrounding text
-      const parts = []
-      let last = 0
-      const linkRe = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g
-      let m
-      while ((m = linkRe.exec(line))) {
-        parts.push(escapeHtml(line.slice(last, m.index)))
-        parts.push(`<a href="${m[2]}">${escapeHtml(m[1])}</a>`)
-        last = m.index + m[0].length
-      }
-      parts.push(escapeHtml(line.slice(last)))
-      return parts.join('')
-    })
-    .join('\n')
-}
-
 const html = mdToHtml(md)
 
-// Telegram caps messages at 4096 chars — chunk on blank lines if needed.
-const LIMIT = 4000
-const chunks = []
-let rest = html
-while (rest.length > LIMIT) {
-  let cut = rest.lastIndexOf('\n\n', LIMIT)
-  if (cut <= 0) cut = LIMIT
-  chunks.push(rest.slice(0, cut))
-  rest = rest.slice(cut)
-}
-chunks.push(rest)
+// Telegram caps messages at 4096 chars — chunk if needed.
+const chunks = chunk(html, 4000)
 
 for (const chatId of chatIds) {
-  for (const chunk of chunks) {
+  for (const part of chunks) {
     const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         chat_id: chatId,
-        text: chunk,
+        text: part,
         parse_mode: 'HTML',
         link_preview_options: { is_disabled: true },
       }),
