@@ -1,0 +1,47 @@
+name: Daily AI-in-TA Briefing
+
+on:
+  schedule:
+    # 09:00 UTC == 12:00 MSK, matching the local launchd job it replaces
+    - cron: '0 9 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-briefing
+  cancel-in-progress: false
+
+jobs:
+  briefing:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Generate briefing
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          claude -p "$(cat briefing-prompt.md)" --dangerously-skip-permissions
+
+      - name: Send to Telegram
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_SUBSCRIBER_CHAT_IDS: ${{ secrets.TELEGRAM_SUBSCRIBER_CHAT_IDS }}
+        run: node scripts/send-briefing.mjs
+
+      - name: Commit updated state
+        run: |
+          git config user.name "daily-briefing-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add state/
+          git diff --cached --quiet && echo "No state changes to commit" || git commit -m "Update briefing state for $(date -u +%F)"
+          git push
