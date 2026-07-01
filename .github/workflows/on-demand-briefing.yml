@@ -1,0 +1,49 @@
+name: On-Demand Briefing
+
+on:
+  repository_dispatch:
+    types: [newbriefing]
+
+permissions:
+  contents: write
+
+jobs:
+  briefing:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Generate briefing
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          claude -p "$(cat briefing-prompt-ondemand.md)" --dangerously-skip-permissions
+
+      - name: Send to requester
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ github.event.client_payload.chat_id }}
+        run: node scripts/send-to-chat.mjs
+
+      - name: Sync to Cloudflare KV
+        env:
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CF_KV_NAMESPACE_ID: ${{ secrets.CF_KV_NAMESPACE_ID }}
+          RECIPIENT_COUNT: 1
+        run: node scripts/sync-kv.mjs
+
+      - name: Commit updated state
+        run: |
+          git config user.name "daily-briefing-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add state/
+          git diff --cached --quiet && echo "No state changes to commit" || git commit -m "Update briefing state (on-demand, $(date -u +%F))"
+          git push

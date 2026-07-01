@@ -38,6 +38,27 @@ jobs:
           TELEGRAM_SUBSCRIBER_CHAT_IDS: ${{ secrets.TELEGRAM_SUBSCRIBER_CHAT_IDS }}
         run: node scripts/send-briefing.mjs
 
+      - name: Check freshness
+        id: freshness
+        run: |
+          TODAY=$(date -u '+%-d %B %Y')
+          if grep -q "$TODAY" state/today_briefing.md; then
+            echo "fresh=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "fresh=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Sync to Cloudflare KV
+        if: steps.freshness.outputs.fresh == 'true'
+        env:
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CF_KV_NAMESPACE_ID: ${{ secrets.CF_KV_NAMESPACE_ID }}
+          RECIPIENT_COUNT: ${{ secrets.TELEGRAM_SUBSCRIBER_CHAT_IDS }}
+        run: |
+          export RECIPIENT_COUNT=$(echo -n "$RECIPIENT_COUNT" | tr ',' '\n' | grep -c .)
+          node scripts/sync-kv.mjs
+
       - name: Commit updated state
         run: |
           git config user.name "daily-briefing-bot"

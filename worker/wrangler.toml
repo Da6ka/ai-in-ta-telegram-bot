@@ -1,0 +1,10 @@
+name = "ai-in-ta-telegram-bot"
+main = "src/index.js"
+compatibility_date = "2026-06-01"
+
+[[kv_namespaces]]
+binding = "BOT_STATE"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
+
+[vars]
+GITHUB_REPO = "Da6ka/ai-in-ta-telegram-bot"

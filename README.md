@@ -31,3 +31,54 @@ Trigger a run manually any time from the Actions tab ("Run workflow"), or:
 ```
 gh workflow run daily-briefing.yml --repo <owner>/ai-in-ta-telegram-bot
 ```
+
+## On-demand commands via Cloudflare Worker (`worker/`)
+
+`/newbriefing`, `/briefing`, `/admin`, `/subscribe`, etc. are handled anytime — independent of
+any local Mac or Claude Code session — by a Cloudflare Worker that receives Telegram's webhook
+directly. Free-form chat with Claude is out of scope here; that still requires the local
+`server.ts` + an interactive session. Group chats aren't supported.
+
+State (`access`, `subscribers`, `usage_stats`, `today_briefing_md`, `today_briefing_date`) lives
+in a Cloudflare KV namespace bound as `BOT_STATE`. Briefing generation is still delegated to
+GitHub Actions (`on-demand-briefing.yml`, triggered via `repository_dispatch`), which writes the
+result back into KV via `scripts/sync-kv.mjs` so `/briefing` can serve a cached copy without
+re-generating.
+
+### One-time setup
+
+1. **Cloudflare account** — free tier, no credit card needed.
+2. `npm install -g wrangler` then `wrangler login` (opens a browser to authorize).
+3. Create the KV namespace and paste the returned id into `worker/wrangler.toml`:
+   ```
+   cd worker
+   npx wrangler kv namespace create BOT_STATE
+   ```
+4. Seed KV with the current allowlist/subscribers/usage so existing users aren't dropped
+   (ask Claude to do this — it can read the local `~/.claude/channels/telegram/*.json` files
+   and write the equivalent `wrangler kv key put` commands without ever printing the bot token).
+5. Set Worker secrets:
+   ```
+   npx wrangler secret put TELEGRAM_BOT_TOKEN
+   npx wrangler secret put TELEGRAM_WEBHOOK_SECRET   # any random string you generate
+   npx wrangler secret put GITHUB_TOKEN              # needs `repo` scope, for repository_dispatch
+   ```
+6. Deploy: `npx wrangler deploy` (from `worker/`). Note the `*.workers.dev` URL it prints.
+7. Add these **repo secrets** (for `scripts/sync-kv.mjs`, run from GitHub Actions):
+   ```
+   gh secret set CF_ACCOUNT_ID --repo <owner>/ai-in-ta-telegram-bot
+   gh secret set CF_API_TOKEN --repo <owner>/ai-in-ta-telegram-bot       # needs Workers KV Storage: Edit
+   gh secret set CF_KV_NAMESPACE_ID --repo <owner>/ai-in-ta-telegram-bot # same id as step 3
+   ```
+8. **Test before cutover** — send fake Telegram updates straight to the deployed Worker URL with
+   curl (including the `X-Telegram-Bot-Api-Secret-Token` header) and confirm replies/KV state look
+   right. Do this before touching the live webhook — once set, Telegram stops delivering to the
+   old long-polling `server.ts` for *all* commands, not just `/newbriefing`.
+9. **Cutover** (only once step 8 checks out):
+   ```
+   curl "https://api.telegram.org/bot<TOKEN>/setWebhook" \
+     -d "url=https://<your-worker>.workers.dev" \
+     -d "secret_token=<same value as TELEGRAM_WEBHOOK_SECRET>"
+   ```
+   To roll back: `curl "https://api.telegram.org/bot<TOKEN>/deleteWebhook"` and restart the local
+   `bun server.ts` poller.
