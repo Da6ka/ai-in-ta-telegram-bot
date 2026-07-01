@@ -1,17 +1,17 @@
 # Daily AI Recruitment Briefing — 1 July 2026
 
 ## Claude & Anthropic in TA
-- Anthropic's [Claude Corps Fellowship 2026](https://www.anthropic.com/news/claude-corps) places 100 early-career professionals inside nonprofits and public-interest organizations for a year — first-cohort applications close 17 July, worth flagging to junior talent in your network.
-- Claude's large context window lets recruiters process full resumes, portfolios, and interview transcripts in one pass, and reportedly scale personalized outreach to ~200 messages a day versus ~20 manual ones ([Metaview](https://www.metaview.ai/resources/blog/claude-for-recruiters)).
-- Practical adoption guides now position Claude as an operational "copilot" that triggers actions across your ATS and workflows, not just a text generator ([HeroHunt](https://www.herohunt.ai/blog/recruiting-with-claude-ai-the-complete-2026-guide/)).
+- Claude is increasingly framed as an "operational copilot" for talent teams — moving beyond text generation to analyzing recruiting data and connecting directly to ATS/hiring systems via MCP to pull candidate info and analytics in real time. ([Metaview](https://www.metaview.ai/resources/blog/claude-for-recruiters))
+- The teams getting real leverage from Claude in 2026 aren't just automating tasks — they've reassessed which roles to hire, retrain, or stop hiring for as its capabilities expand across functions. ([HeroHunt](https://www.herohunt.ai/blog/recruiting-with-claude-ai-the-complete-2026-guide/))
+- Anthropic and CodePath opened the Claude Corps Fellowship, placing 100 early-career professionals in nonprofits and public-interest orgs starting October 2026 — a signal of how AI-native talent pipelines are forming. ([Anthropic](https://www.anthropic.com/news/claude-corps))
 
 ## AI in Recruitment — What's New
-- AI use across HR tasks jumped to 43% in 2026 (from 26% in 2024), and 95% of US hiring managers expect to invest more in hiring AI ([MSH](https://www.talentmsh.com/insights/ai-in-recruitment)).
-- The defining 2026 trend is end-to-end automation — sourcing, scheduling, and conversation summaries handled by AI so recruiters focus on strategic work ([Bullhorn](https://www.bullhorn.com/blog/best-recruitment-ai-tools/)).
-- Teams pairing AI screening with human-led final interviews cut time-to-hire by 40% and improved first-year retention by 25% — a strong case for co-pilot over autopilot ([SelectSoftware Reviews](https://www.selectsoftwarereviews.com/blog/ai-recruiting-statistics)).
-- Trust remains the bottleneck: only 26% of applicants trust AI to evaluate them fairly, making visible human oversight and clear explanations table stakes ([ATSOnDemand](https://power.atsondemand.com/top-ai-recruiting-trends-2026-the-rise-of-human-ai-partnership-in-talent-acquisition/)).
-- EU AI Act obligations for general-purpose AI took effect in August 2026, raising compliance expectations for anyone deploying hiring tech ([SmartRecruiters](https://www.smartrecruiters.com/resources/article/ai-in-recruitment/)).
+- AI use across HR tasks jumped to 43% in 2026 (up from 26% in 2024), and 95% of U.S. hiring managers expect to invest more in AI hiring tools. ([MSH](https://www.talentmsh.com/insights/ai-in-recruitment))
+- The "co-pilot, not autopilot" model is winning: teams that combine AI screening with human-led final interviews cut time-to-hire by 40% while improving first-year retention by 25%. ([ATSOndemand](https://power.atsondemand.com/top-ai-recruiting-trends-2026-the-rise-of-human-ai-partnership-in-talent-acquisition/))
+- Skills-based hiring keeps rising — degrees, titles, and brand-name employers are losing weight as semantic search matches candidates on actual fit rather than exact resume keywords. ([Metaview](https://www.metaview.ai/resources/blog/recruiting-trends))
+- Compliance just got real: EU AI Act obligations for general-purpose AI took effect in August 2026. Pair that with only 26% of applicants trusting AI to evaluate them fairly — visible human oversight is now table stakes. ([SelectSoftware Reviews](https://www.selectsoftwarereviews.com/blog/ai-recruiting-statistics))
+- Over half of firms using AI screening reported KPIs improving by more than 25%, with some employers seeing up to a 75% reduction in time-to-hire. ([Bullhorn](https://www.bullhorn.com/blog/best-recruitment-ai-tools/))
 
 ## Worth Reading
-- [AI Recruiting in 2026: How to Hire Faster Without Losing the Human Edge](https://recruiterflow.com/blog/ai-recruiting/) — a comprehensive walkthrough of where to hand tasks to AI and where to keep human judgment.
-- [AI in Recruiting: Strategic Guide for 2026 (Paychex)](https://www.paychex.com/articles/human-resources/understanding-ai-in-recruiting) — practical rollout advice: start with one team, measure time-to-hire, audit outputs across demographic groups on a schedule.
+- A practical, human-centered playbook on where AI actually helps vs. where recruiter judgment is irreplaceable — useful for setting bias audits, feedback loops, and the metrics that matter (time-to-fill, drop-off, early turnover). ([Paychex: AI in Recruiting — Strategic Guide for 2026](https://www.paychex.com/articles/human-resources/understanding-ai-in-recruiting))
+- An honest look at what works and what doesn't in AI recruiting this year — worth reading before embedding new "AI features" that rarely stick unless tied to real workflows. ([Disher Talent: What Actually Works (and What Doesn't)](https://dishertalent.com/blog/ai-in-recruiting-2026/))
