@@ -28,7 +28,12 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          claude -p "$(cat briefing-prompt-ondemand.md)" --allowedTools "WebSearch" > state/today_briefing.md
+          TODAY_HUMAN=$(date -u '+%-d %B %Y')
+          NOTE="Today's date (UTC) is ${TODAY_HUMAN}. Use this exact date in the title, and use it to judge which search results are genuinely from the past 24-48 hours."
+          claude -p "$(cat briefing-prompt-ondemand.md)"$'\n\n'"$NOTE" --allowedTools "WebSearch" > state/today_briefing.md
+
+      - name: Force-correct briefing date
+        run: node scripts/force-briefing-date.mjs
 
       - name: Send to requester
         env:

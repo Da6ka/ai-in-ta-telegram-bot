@@ -25,14 +25,20 @@ export function mdToHtml(md) {
     }
     const parts = []
     let last = 0
+    // Links and inline **bold** are the only Markdown the model reliably
+    // produces inline -- match both in one pass so escaping stays ordered.
     // Only http(s) links are treated as real links -- anything else (e.g. a
     // malformed or non-http scheme slipping through from generated content)
     // falls through to the plain-text escaping below instead of becoming <a>.
-    const linkRe = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g
+    const tokenRe = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|\*\*([^*]+)\*\*/g
     let m
-    while ((m = linkRe.exec(line))) {
+    while ((m = tokenRe.exec(line))) {
       parts.push(escapeHtml(line.slice(last, m.index)))
-      parts.push(`<a href="${escapeHtmlAttr(m[2])}">${escapeHtml(m[1])}</a>`)
+      if (m[1] !== undefined) {
+        parts.push(`<a href="${escapeHtmlAttr(m[2])}">${escapeHtml(m[1])}</a>`)
+      } else {
+        parts.push(`<b>${escapeHtml(m[3])}</b>`)
+      }
       last = m.index + m[0].length
     }
     parts.push(escapeHtml(line.slice(last)))
