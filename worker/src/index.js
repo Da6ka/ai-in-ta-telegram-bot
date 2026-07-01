@@ -353,7 +353,10 @@ const COMMAND_HANDLERS = {
       await reply(env, senderId, 'You need to be approved first — send /start to request access.')
       return
     }
-    const date = await getJSON(env, 'today_briefing_date', null)
+    // Stored as a plain "YYYY-MM-DD" string by scripts/sync-kv.mjs, not JSON
+    // -- reading it with the 'json' KV type throws (unquoted text isn't
+    // valid JSON), which silently broke /briefing with no reply at all.
+    const date = await env.BOT_STATE.get('today_briefing_date')
     if (date === todayUTC()) {
       const md = await env.BOT_STATE.get('today_briefing_md')
       if (md) {
