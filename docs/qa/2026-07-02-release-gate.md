@@ -6,11 +6,14 @@
 >
 > **2026-07-02 re-audit (Phase 15 re-run):** BUG-1/2/3/8 verified fixed in the
 > current tree; full suite now 84/84 green. One **new High (NEW-1)** found and
-> fixed the same session — see below. Follow-up commit then cleared **SEC-2,
-> BUG-5, BUG-6, BUG-7** (all Worker-side; "KNOWN BUG" tests flipped to assert
-> correct behavior). Still open: **BUG-4** (multi-chunk broadcast at scale),
-> **L6** (tag-aware chunking), **SEC-1** (fine-grained GitHub token) — none
-> release-blocking at the current private scale.
+> fixed the same session — see below. Follow-up commits then cleared **SEC-2,
+> BUG-5, BUG-6, BUG-7** (Worker-side), then **BUG-4** (broadcast delivery moved
+> to the Actions runner — `broadcast.yml` + `scripts/broadcast.mjs`, no more
+> Worker subrequest ceiling) and **L6** (tag-aware `chunk()`). "KNOWN BUG" tests
+> flipped to assert correct behavior; broadcast tests reworked for dispatch.
+> **SEC-1** is documented (README scope table + rotation checklist); only the
+> one-time manual token rotation remains. Full suite 86/86 green. **All audit
+> findings are now resolved in code** — no open code items remain.
 
 ---
 

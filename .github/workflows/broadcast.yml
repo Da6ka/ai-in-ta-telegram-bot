@@ -1,0 +1,49 @@
+name: Broadcast to subscribers
+
+# Triggered by the Worker's /broadcast command via repository_dispatch. Delivery
+# runs here (not in the Worker) so the send fan-out isn't bounded by the Worker's
+# per-invocation subrequest cap (BUG-4). The message and the owner's chat id come
+# in via client_payload and are read as env vars — never interpolated into a
+# shell command — so a message with shell metacharacters is inert.
+on:
+  repository_dispatch:
+    types: [broadcast]
+
+permissions:
+  contents: read
+
+# Broadcasts are independent of briefing generation, but serialize them with
+# each other so two rapid /broadcast taps don't interleave their sends.
+concurrency:
+  group: broadcast
+  cancel-in-progress: false
+
+jobs:
+  broadcast:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Deliver broadcast
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CF_KV_NAMESPACE_ID: ${{ secrets.CF_KV_NAMESPACE_ID }}
+          MESSAGE: ${{ github.event.client_payload.message }}
+          OWNER_CHAT_ID: ${{ github.event.client_payload.owner }}
+        run: node scripts/broadcast.mjs
+
+      # If delivery threw before the script could report back, tell the owner so
+      # a failed broadcast isn't silent.
+      - name: Notify owner on failure
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ github.event.client_payload.owner }}
+          ALERT_TEXT: "[ai-in-ta] Broadcast delivery FAILED — subscribers may not have received your message. Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        run: node scripts/send-alert.mjs

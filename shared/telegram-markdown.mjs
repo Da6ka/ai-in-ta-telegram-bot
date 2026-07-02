@@ -51,8 +51,29 @@ export function chunk(text, limit) {
   const parts = []
   let rest = text
   while (rest.length > limit) {
+    // Prefer a newline; then a space (so a single long line doesn't get cut
+    // mid-word); only hard-cut at the limit if there's no whitespace at all.
     let cut = rest.lastIndexOf('\n', limit)
+    if (cut <= 0) cut = rest.lastIndexOf(' ', limit)
     if (cut <= 0) cut = limit
+    // Never split inside an HTML tag or across an <a>…</a> pair — Telegram
+    // rejects a chunk with an unbalanced entity (L6). If the slice would end
+    // inside a tag, or with an opened-but-unclosed anchor, back the cut up to
+    // just before the offending '<'.
+    let slice = rest.slice(0, cut)
+    const lastOpen = slice.lastIndexOf('<')
+    const lastClose = slice.lastIndexOf('>')
+    if (lastOpen > lastClose && lastOpen > 0) {
+      cut = lastOpen
+    } else {
+      const opens = (slice.match(/<a\b/g) ?? []).length
+      const closes = (slice.match(/<\/a>/g) ?? []).length
+      if (opens > closes) {
+        const aPos = slice.lastIndexOf('<a')
+        if (aPos > 0) cut = aPos
+      }
+    }
+    if (cut <= 0) cut = limit // degenerate: a single tag longer than the limit
     parts.push(rest.slice(0, cut))
     rest = rest.slice(cut)
   }

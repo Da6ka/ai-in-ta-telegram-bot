@@ -82,3 +82,30 @@ export async function sendHtmlToMany(token, chatIds, html, { onError, paceMs = D
   }
   return { total: chatIds.length, failed }
 }
+
+// Broadcast one PLAIN-TEXT message to many chats (no parse_mode, so the owner's
+// message is delivered verbatim rather than interpreted as HTML), paced and
+// retried. This is what /broadcast uses now that delivery runs on the Actions
+// runner instead of in the Worker — the Worker's per-invocation subrequest cap
+// bounded broadcast fan-out to ~45 recipients (BUG-4); the runner has no such
+// cap. Returns { total, failed }.
+export async function sendTextToMany(token, chatIds, text, { onError, paceMs = DEFAULT_PACE_MS, retries = 3 } = {}) {
+  let failed = 0
+  for (let i = 0; i < chatIds.length; i++) {
+    let ok = true
+    for (const part of chunk(text, 4000)) {
+      const res = await tgRequest(token, 'sendMessage', {
+        chat_id: chatIds[i],
+        text: part,
+        link_preview_options: { is_disabled: true },
+      }, { retries })
+      if (!res.ok) {
+        ok = false
+        if (onError) await onError(chatIds[i], res)
+      }
+    }
+    if (!ok) failed++
+    if (i < chatIds.length - 1 && paceMs > 0) await sleep(paceMs)
+  }
+  return { total: chatIds.length, failed }
+}

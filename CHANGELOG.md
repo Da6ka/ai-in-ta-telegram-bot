@@ -1,5 +1,31 @@
 # Changelog
 
+## 2026-07-03
+
+### Clear the last audit findings: BUG-4 (broadcast at scale) + L6 (chunking)
+
+- **BUG-4** — `/broadcast` delivery moved off the Worker onto the Actions runner.
+  The Worker now validates the owner + message and fires a `broadcast`
+  `repository_dispatch`; the new `broadcast.yml` workflow runs
+  `scripts/broadcast.mjs`, which fans the message out to every subscriber
+  (paced + retried, de-duped at send time via the shared `sendTextToMany`) and
+  reports delivery back to the owner. This removes the Worker's per-invocation
+  subrequest ceiling that silently dropped recipients past ~45 — including the
+  multi-chunk case the earlier `MAX_USERS=30` cap didn't cover. The message and
+  owner id travel as `client_payload` and are read as env vars (never
+  interpolated into a shell), so a message with shell metacharacters is inert.
+- **L6** — `chunk()` is now tag-aware: it prefers a newline, then a space, and
+  never splits inside an HTML tag or across an `<a>…</a>` pair, so a single
+  >3500-char line of links no longer produces chunks Telegram would reject.
+- **SEC-1** — already documented (least-privilege scope table + rotation
+  checklist in the README); the remaining step is the one-time manual rotation
+  of the live `GITHUB_TOKEN` Worker secret to a fine-grained, this-repo-only
+  `Contents: write` PAT.
+
+Behavioral tests updated for the dispatch-based broadcast; new shared tests for
+`sendTextToMany` (plain-text verbatim delivery + blocked-recipient resilience).
+Full suite 86/86 green.
+
 ## 2026-07-02
 
 ### Clear remaining Worker findings: SEC-2, BUG-5, BUG-6, BUG-7

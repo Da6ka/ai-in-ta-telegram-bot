@@ -61,6 +61,12 @@ GitHub Actions (`on-demand-briefing.yml`, triggered via `repository_dispatch`), 
 result back into KV via `scripts/sync-kv.mjs` so `/briefing` can serve a cached copy without
 re-generating.
 
+`/broadcast` delivery is likewise delegated to Actions (`broadcast.yml`, also triggered via
+`repository_dispatch`): the Worker validates the owner + message and dispatches it, then
+`scripts/broadcast.mjs` fans the message out to every subscriber (paced + retried) and sends the
+owner a delivery report. Running the fan-out on the runner instead of in the Worker avoids the
+Worker's per-invocation subrequest cap, which silently dropped recipients past ~45.
+
 ### One-time setup
 
 1. **Cloudflare account** — free tier, no credit card needed.

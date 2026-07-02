@@ -2,7 +2,7 @@
 // fetch is mocked; paceMs/baseDelayMs are set to 0 so the suite stays fast.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { tgRequest, sendHtml, sendHtmlToMany, isValidBriefing } from './telegram.mjs'
+import { tgRequest, sendHtml, sendHtmlToMany, sendTextToMany, isValidBriefing } from './telegram.mjs'
 
 const realFetch = globalThis.fetch
 function mockFetch(handler) {
@@ -83,6 +83,36 @@ test('isValidBriefing accepts a real briefing and rejects garbage generations', 
   assert.equal(isValidBriefing('# Daily AI Recruitment Briefing —\n'), false, 'header with no title text rejected')
   assert.equal(isValidBriefing(null), false, 'null rejected, no throw')
   assert.equal(isValidBriefing(undefined), false, 'undefined rejected, no throw')
+})
+
+test('sendTextToMany sends plain text (no parse_mode) so HTML is delivered verbatim', async () => {
+  const calls = mockFetch(() => ok())
+  try {
+    await sendTextToMany('T', ['1', '2'], '<b>bold</b> & stuff', { paceMs: 0, retries: 0 })
+    assert.equal(calls.length, 2)
+    for (const c of calls) {
+      assert.equal(c.body.parse_mode, undefined, 'plain text, not HTML')
+      assert.equal(c.body.text, '<b>bold</b> & stuff', 'delivered verbatim')
+    }
+  } finally { globalThis.fetch = realFetch }
+})
+
+test('sendTextToMany continues past a blocked recipient and counts the failure (R4)', async () => {
+  // Recipient "2" is a blocked bot (403); the fan-out must not stop there.
+  const calls = mockFetch((_n, { opts }) => {
+    const b = JSON.parse(opts.body)
+    return String(b.chat_id) === '2' ? tg(403) : ok()
+  })
+  try {
+    const errs = []
+    const { total, failed } = await sendTextToMany('T', ['1', '2', '3'], 'hi', {
+      paceMs: 0, retries: 0, onError: (id) => errs.push(id),
+    })
+    assert.equal(total, 3)
+    assert.equal(failed, 1)
+    assert.deepEqual(errs, ['2'])
+    assert.equal(calls.length, 3, 'all three attempted despite the middle failure')
+  } finally { globalThis.fetch = realFetch }
 })
 
 test('sendHtmlToMany paces all recipients and counts failures', async () => {
