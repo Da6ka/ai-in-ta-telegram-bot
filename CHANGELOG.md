@@ -2,6 +2,14 @@
 
 ## 2026-07-03
 
+### Improved AI news briefing quality (#9, #10)
+
+- Improved the freshness, relevance, and reliability of AI recruitment news briefings.
+- Reduced stale or repeated content by strengthening WebSearch and source selection.
+- Enhanced article verification and fallback logic for more consistent daily briefings.
+
+## 2026-07-03
+
 ### Final release audit (GO) + fixes for AUD-1 (thin-briefing gate) and AUD-2 (bold-safe chunking)
 
 Full audit report: `docs/qa/2026-07-03-final-release-audit.md`. Verdict: **GO**
