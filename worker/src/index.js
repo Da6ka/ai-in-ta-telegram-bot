@@ -28,7 +28,7 @@
 //     pipeline ever writes them, so there's no concurrent-writer race.
 
 import { DurableObject } from 'cloudflare:workers'
-import { mdToHtml, chunk } from '../../shared/telegram-markdown.mjs'
+import { mdToHtml, chunk, escapeHtml } from '../../shared/telegram-markdown.mjs'
 
 // Each briefing generation is a paid GitHub Actions + Claude API run, and the
 // result is shared (one today_briefing for everyone) — so the cooldown is
@@ -36,6 +36,28 @@ import { mdToHtml, chunk } from '../../shared/telegram-markdown.mjs'
 // /newbriefing every hour all day.
 const DISPATCH_COOLDOWN_MS = 60 * 60 * 1000
 const DAILY_DISPATCH_CAP = 3
+
+// Storage-limitation retention: the per-user last_seen activity log is pruned
+// to entries from the last RETENTION_DAYS. Access/subscription state is kept
+// as long as the user is a user (erased on /forgetme or owner /removeuser).
+const RETENTION_DAYS = 90
+
+const PRIVACY_TEXT =
+  "<b>Privacy notice — AI in TA News</b>\n\n" +
+  "<b>What we store</b>\n" +
+  "- Your Telegram user ID — to control access and deliver the briefing\n" +
+  "- Your name and @username — shown to the owner when you request access\n" +
+  "- The date you last used the bot — an activity log, auto-deleted after 90 days\n\n" +
+  "We never read or store your ordinary messages — only slash commands are processed.\n\n" +
+  "<b>Why</b>\n" +
+  "To run the private allowlist and send the daily AI-recruitment briefing you asked for. Legal basis is your consent, which you can withdraw any time.\n\n" +
+  "<b>Where</b>\n" +
+  "On Cloudflare infrastructure, which may process data outside your country. Telegram also handles your messages under its own privacy policy.\n\n" +
+  "<b>Your rights</b>\n" +
+  "- /mydata — see everything stored about you\n" +
+  "- /unsubscribe — stop the daily briefing\n" +
+  "- /forgetme — erase all your data from the bot\n\n" +
+  "Questions? Contact the bot owner."
 
 const DEFAULT_ACCESS = { dmPolicy: 'allowlist', allowFrom: [], ownerChatId: '', pending: {} }
 const DEFAULT_SUBSCRIBERS = { subscribers: [], owner: '' }
@@ -88,16 +110,22 @@ export class BotState extends DurableObject {
     return { access, added }
   }
 
-  async removeAllowedUser(id) {
+  // Full erasure of one user's identifying state (right to be forgotten):
+  // allowlist entry, subscription, and any pending request. The per-user
+  // last_seen log lives in KV, so the Worker purges that separately.
+  async forgetUser(id) {
     const access = await this.getAccess()
-    const removed = access.allowFrom.includes(id)
+    const wasAllowed = access.allowFrom.includes(id)
+    const wasPending = Boolean(access.pending[id])
     access.allowFrom = access.allowFrom.filter(x => x !== id)
+    delete access.pending[id]
     await this.ctx.storage.put('access', access)
     const subs = await this.getSubscribers()
+    const wasSubscribed = subs.subscribers.includes(id)
     subs.subscribers = subs.subscribers.filter(x => x !== id)
     await this.ctx.storage.put('subscribers', subs)
     await this.mirrorSubscribers(subs)
-    return { access, subs, removed }
+    return { wasAllowed, wasPending, wasSubscribed }
   }
 
   async addPending(id, info) {
@@ -272,7 +300,28 @@ async function bumpCommandCount(env, name) {
 async function touchLastSeen(env, senderId) {
   const stats = await getJSON(env, 'usage_stats', DEFAULT_USAGE)
   stats.last_seen[senderId] = todayUTC()
+  // Retention sweep: drop activity entries older than RETENTION_DAYS. Runs on
+  // every command, so inactive users' stale entries get cleaned up over time
+  // even though they never trigger this themselves. YYYY-MM-DD compares
+  // lexicographically, so a string < is a valid date comparison here.
+  const cutoff = new Date(Date.now() - RETENTION_DAYS * 86400000).toISOString().slice(0, 10)
+  for (const [id, date] of Object.entries(stats.last_seen)) {
+    if (typeof date === 'string' && date < cutoff) delete stats.last_seen[id]
+  }
   await putJSON(env, 'usage_stats', stats)
+}
+
+// Remove one user's per-user entry from the usage_stats activity log (KV).
+// command_counts is aggregate-by-command, not per-user, so there's nothing
+// personal to purge there.
+async function purgeUsageStats(env, id) {
+  const stats = await getJSON(env, 'usage_stats', DEFAULT_USAGE)
+  if (stats.last_seen && id in stats.last_seen) {
+    delete stats.last_seen[id]
+    await putJSON(env, 'usage_stats', stats)
+    return true
+  }
+  return false
 }
 
 // Like the old dmCommandGate(): DM only, dmPolicy check. No pairing-code
@@ -397,7 +446,10 @@ const COMMAND_HANDLERS = {
       "/briefing — get today's briefing\n" +
       "/subscribe — get the daily briefing every morning\n" +
       "/unsubscribe — stop the daily briefing\n" +
-      "/status — check your access status")
+      "/status — check your access status\n" +
+      "/privacy — how your data is handled\n" +
+      "/mydata — see what's stored about you\n" +
+      "/forgetme — erase your data")
   },
 
   async status(env, message, gated) {
@@ -421,7 +473,8 @@ const COMMAND_HANDLERS = {
     const { already } = await stub.subscribe(senderId)
     await reply(env, senderId, already
       ? "You're already subscribed to the daily AI recruitment briefing. You'll receive it every morning at 9:00 AM UTC."
-      : "You're subscribed! You'll receive the daily AI recruitment briefing every morning at 9:00 AM UTC. Send /unsubscribe any time to stop.")
+      : "You're subscribed! You'll receive the daily AI recruitment briefing every morning at 9:00 AM UTC.\n\n" +
+        "By subscribing you consent to the bot storing your Telegram ID to deliver it. See /privacy for details. Send /unsubscribe to stop, or /forgetme to erase your data.")
   },
 
   async unsubscribe(env, message, gated) {
@@ -435,6 +488,52 @@ const COMMAND_HANDLERS = {
     await reply(env, senderId, wasSubscribed
       ? "You've been unsubscribed. Send /subscribe any time to start receiving the briefing again."
       : "You're not currently subscribed.")
+  },
+
+  // Available to anyone, approved or not — a privacy notice you can't read
+  // until you're approved isn't much of a notice.
+  async privacy(env, message, gated) {
+    await reply(env, gated.senderId, PRIVACY_TEXT, { parse_mode: 'HTML', link_preview_options: { is_disabled: true } })
+  },
+
+  // Subject access request: shows the sender exactly what the bot holds about
+  // them. Ungated on purpose — even a pending/unapproved user can see (and via
+  // /forgetme erase) their own data.
+  async mydata(env, message, gated) {
+    const { senderId, access, stub } = gated
+    const subs = await stub.getSubscribers()
+    const stats = await getJSON(env, 'usage_stats', DEFAULT_USAGE)
+    const pending = access.pending[senderId]
+    const lines = [
+      '<b>Your data on file</b>\n',
+      `Telegram ID: <code>${senderId}</code>`,
+    ]
+    if (pending) {
+      lines.push(`Name on file: ${escapeHtml(pending.displayName || '—')}`)
+      lines.push(`Username on file: ${escapeHtml(pending.username || '—')}`)
+      lines.push(`Access requested: ${pending.createdAt ? new Date(pending.createdAt).toISOString().slice(0, 10) : '—'}`)
+    }
+    lines.push(`Allowlisted: ${access.allowFrom.includes(senderId) ? 'yes' : 'no'}`)
+    lines.push(`Subscribed to daily briefing: ${subs.subscribers.includes(senderId) ? 'yes' : 'no'}`)
+    lines.push(`Last active: ${stats.last_seen?.[senderId] ?? '—'}`)
+    lines.push('\nTo erase all of this, send /forgetme. See /privacy for how it\'s used.')
+    await reply(env, senderId, lines.join('\n'), { parse_mode: 'HTML', link_preview_options: { is_disabled: true } })
+  },
+
+  // Right to erasure. The owner can't erase themselves (it would break the
+  // bot); they'd remove the deployment instead.
+  async forgetme(env, message, gated) {
+    const { senderId, access, stub } = gated
+    if (senderId === access.ownerChatId) {
+      await reply(env, senderId, "You're the bot owner — your data can't be erased while you run the bot.")
+      return
+    }
+    const r = await stub.forgetUser(senderId)
+    const purged = await purgeUsageStats(env, senderId)
+    const hadData = r.wasAllowed || r.wasSubscribed || r.wasPending || purged
+    await reply(env, senderId, hadData
+      ? "Done — everything the bot stored about you has been erased: allowlist access, subscription, any pending request, and your activity log. Send /start if you ever want to come back."
+      : "There's nothing on file to erase. Send /start if you'd like to request access.")
   },
 
   async briefing(env, message, gated) {
@@ -554,12 +653,13 @@ const COMMAND_HANDLERS = {
       await reply(env, senderId, "You can't remove the bot owner.")
       return
     }
-    const { removed } = await stub.removeAllowedUser(id)
-    if (!removed) {
+    const r = await stub.forgetUser(id)
+    const purged = await purgeUsageStats(env, id)
+    if (!r.wasAllowed && !r.wasSubscribed && !r.wasPending && !purged) {
       await reply(env, senderId, `User \`${id}\` not found.`)
       return
     }
-    await reply(env, senderId, `User \`${id}\` removed from the allowlist and unsubscribed.`)
+    await reply(env, senderId, `User \`${id}\` removed and all their data erased (allowlist, subscription, pending request, activity log).`)
   },
 
   async broadcast(env, message, gated, args, rawText) {
