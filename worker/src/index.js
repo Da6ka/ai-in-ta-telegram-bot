@@ -737,16 +737,24 @@ async function handleCallbackQuery(env, stub, callbackQuery) {
 
 async function handleMessage(env, stub, message) {
   const text = message.text
-  if (!text || !text.startsWith('/')) return // commands-only scope
-  const m = /^\/(\w+)(?:@\S+)?(?:\s+(.*))?$/s.exec(text.trim())
-  if (!m) return
-  const [, cmd, argStr] = m
-  const handler = COMMAND_HANDLERS[cmd]
-  if (!handler) return
+  if (!text) return // non-text (sticker/photo/voice/etc.) — stay silent
 
   const gated = await dmCommandGate(stub, message)
-  if (!gated) return
+  if (!gated) return // not a private chat, or DMs disabled — stay silent (no group replies)
 
+  // Commands-only scope, but don't leave plain text or typos unanswered —
+  // a short nudge beats silence. We neither store nor act on the content;
+  // the reply is a fixed string, not an echo.
+  const m = /^\/(\w+)(?:@\S+)?(?:\s+(.*))?$/s.exec(text.trim())
+  const handler = m && COMMAND_HANDLERS[m[1]]
+  if (!handler) {
+    await reply(env, gated.senderId, gated.isAllowed
+      ? "I only understand commands. Tap /briefing for today's digest, or /help to see everything I can do."
+      : "I only understand commands. Send /start to request access.")
+    return
+  }
+
+  const [, cmd, argStr] = m
   await touchLastSeen(env, gated.senderId)
   await bumpCommandCount(env, cmd)
 
