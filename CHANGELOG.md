@@ -28,6 +28,19 @@ Full suite 86/86 green.
 
 ## 2026-07-02
 
+### Phase 14 regression + consolidated audit status
+
+Full-suite regression after the Phase 9–13 audit and the UX fixes:
+`docs/qa/2026-07-02-phase14-regression.md`. All sources parse; `main` 75/75 and
+the integrated `fix/phase13-ux-polish` tip 77/77, both green — the UX work added
+two tests and regressed nothing, and the six `KNOWN BUG`/`L6` markers still pass
+(open by design). The report also consolidates every phase's open findings into
+one register with a priority block. Verdict: regression PASS, release GO for the
+current private single-operator deployment; before opening enrollment past
+~30–50 subscribers, do the priority cluster (a shared resilient send helper
+closes REL-1/PERF-3/CQ-2 and hosts PERF-1's runner-side fan-out; a one-line
+`getJSON` guard closes SEC-4). Phase coverage 1–14 complete. Report-only.
+
 ### Phase 13 UX review
 
 Walked every user-facing reply and the onboarding/approval flow across all
