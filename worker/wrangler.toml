@@ -50,8 +50,20 @@ id = "5b93a48b300f4da4be177ff3504596c3"
 name = "BOT_DO"
 class_name = "BotState"
 
+# v2/v3 were a one-time reset of the staging Durable Object (delete + recreate)
+# to re-seed owner/allowlist/subscribers from KV. They're already applied; the
+# tags must stay here so `wrangler deploy --env staging` matches the Worker's
+# migration history. Prod (top-level migrations) is untouched, still at v1.
 [[env.staging.migrations]]
 tag = "v1"
+new_sqlite_classes = ["BotState"]
+
+[[env.staging.migrations]]
+tag = "v2"
+deleted_classes = ["BotState"]
+
+[[env.staging.migrations]]
+tag = "v3"
 new_sqlite_classes = ["BotState"]
 
 [env.staging.vars]
