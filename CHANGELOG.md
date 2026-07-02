@@ -2,6 +2,24 @@
 
 ## 2026-07-02
 
+### Editorial prompt overhaul + behavioral test suite in-repo
+
+Follow-ups from the release-gate audit:
+
+- Both briefing prompts rewritten against the editorial findings (ED-1..3):
+  news-phrased search queries instead of trends/guide bait, hard 7-day
+  publish-date filter with the date shown per bullet, drop-if-unverifiable,
+  no evergreen guides/listicles, no repeated domains, and regulatory dates/
+  stats only from primary or authoritative sources. Sections shrink or
+  disappear rather than get padded.
+- The audit's 57-scenario behavioral harness now lives in
+  `test/worker.behavior.test.mjs` and runs in CI via `npm test`. It drives
+  the real Worker source (a `node:module` hook stubs only the
+  `cloudflare:workers` import) against mocked KV/DO/fetch, covering auth,
+  pairing, rate limiting, admin commands, hostile input, Telegram protocol
+  edges, concurrency, and failure injection. Tests named `KNOWN BUG-n`
+  intentionally assert current buggy behavior to track open findings.
+
 ### Release-gate QA audit + three must-fix bugs fixed
 
 Full QA/security audit (57 behavioral scenarios against the worker code under

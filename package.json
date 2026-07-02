@@ -4,6 +4,6 @@
   "private": true,
   "description": "AI-in-TA Telegram briefing bot (Cloudflare Worker + GitHub Actions delivery)",
   "scripts": {
-    "test": "node --test \"shared/**/*.test.mjs\""
+    "test": "node --test \"shared/**/*.test.mjs\" \"test/**/*.test.mjs\""
   }
 }
