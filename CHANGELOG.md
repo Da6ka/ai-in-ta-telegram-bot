@@ -28,6 +28,47 @@ Full suite 86/86 green.
 
 ## 2026-07-02
 
+### Phase 13 UX review
+
+Walked every user-facing reply and the onboarding/approval flow across all
+three roles: `docs/qa/2026-07-02-phase13-ux.md`. Core conversational UX is
+strong — no dead-ends, self-service identity in every unapproved reply,
+immediate async acknowledgement, ungated privacy commands. No blocker. Polish
+findings: UX-1 (medium) — commands are case-sensitive, so mobile
+autocapitalization breaks `/Start`/`/Briefing` (one-line `.toLowerCase()` fix);
+UX-2 (low–med) — `/help` omits `/newbriefing` even though the menu lists it;
+UX-3 (low) — four admin id replies render literal backticks (Markdown without
+`parse_mode`); UX-4 (low) — denied applicants get no notification; UX-5 (low) —
+"Paired" wording is a leftover from the removed pairing-code model. Report-only,
+no code changes.
+
+### Phase 14 regression + consolidated audit status
+
+Full-suite regression after the Phase 9–13 audit and the UX fixes:
+`docs/qa/2026-07-02-phase14-regression.md`. All sources parse; `main` 75/75 and
+the integrated `fix/phase13-ux-polish` tip 77/77, both green — the UX work added
+two tests and regressed nothing, and the six `KNOWN BUG`/`L6` markers still pass
+(open by design). The report also consolidates every phase's open findings into
+one register with a priority block. Verdict: regression PASS, release GO for the
+current private single-operator deployment; before opening enrollment past
+~30–50 subscribers, do the priority cluster (a shared resilient send helper
+closes REL-1/PERF-3/CQ-2 and hosts PERF-1's runner-side fan-out; a one-line
+`getJSON` guard closes SEC-4). Phase coverage 1–14 complete. Report-only.
+
+### Phase 13 UX review
+
+Walked every user-facing reply and the onboarding/approval flow across all
+three roles: `docs/qa/2026-07-02-phase13-ux.md`. Core conversational UX is
+strong — no dead-ends, self-service identity in every unapproved reply,
+immediate async acknowledgement, ungated privacy commands. No blocker. Polish
+findings: UX-1 (medium) — commands are case-sensitive, so mobile
+autocapitalization breaks `/Start`/`/Briefing` (one-line `.toLowerCase()` fix);
+UX-2 (low–med) — `/help` omits `/newbriefing` even though the menu lists it;
+UX-3 (low) — four admin id replies render literal backticks (Markdown without
+`parse_mode`); UX-4 (low) — denied applicants get no notification; UX-5 (low) —
+"Paired" wording is a leftover from the removed pairing-code model. Report-only,
+no code changes.
+
 ### Clear remaining Worker findings: SEC-2, BUG-5, BUG-6, BUG-7
 
 Low-severity / hardening fixes from the Phase 15 release-gate audit, all in
