@@ -2,6 +2,29 @@
 
 ## 2026-07-02
 
+### Operational resilience: failure alerts, retries, observability, tighter scopes
+
+Addresses the production-readiness review (secret scopes, failure handling,
+observability, webhook cutover risk):
+
+- **Failure alerting** — new `scripts/send-alert.mjs` (best-effort, never throws,
+  reuses the runner's `tgRequest`). `daily-briefing.yml` now pings the owner on
+  `failure()` and on a stale-but-non-fresh generation (previously silent:
+  subscribers got nothing and nobody knew). `on-demand-briefing.yml` notifies the
+  waiting requester on failure instead of leaving them hanging. Requires a new
+  `OWNER_CHAT_ID` repo variable.
+- **Generation retry** — the `claude -p` step in both workflows retries once
+  before failing, so a transient web-search/API hiccup doesn't cost the run.
+- **Workers observability** — `[observability] enabled = true` in `wrangler.toml`,
+  so the Worker's `console.error` calls persist as queryable logs.
+- **Least-privilege secrets** — README gains a scope table + rotation checklist;
+  `GITHUB_TOKEN` guidance switched from classic `repo` scope to a fine-grained,
+  this-repo-only `Contents: write` PAT. Retired the obsolete
+  `TELEGRAM_SUBSCRIBER_CHAT_IDS` repo secret (subscribers live in KV now).
+- **Staging env** — optional `[env.staging]` block (separate Worker + KV + bot)
+  for dry-running command changes before touching the live webhook; ignored by
+  the default `wrangler deploy`.
+
 ### UX polish fixes (Phase 13 findings)
 
 Fixed all five findings from the Phase 13 UX review:

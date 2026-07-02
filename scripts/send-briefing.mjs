@@ -7,7 +7,8 @@
 // a skipped run (idempotency short-circuit) never gets re-sent.
 
 import { readFileSync, appendFileSync } from 'node:fs'
-import { mdToHtml, chunk } from '../shared/telegram-markdown.mjs'
+import { mdToHtml } from '../shared/telegram-markdown.mjs'
+import { sendHtmlToMany } from '../shared/telegram.mjs'
 
 const token = process.env.TELEGRAM_BOT_TOKEN
 const { CF_ACCOUNT_ID, CF_API_TOKEN, CF_KV_NAMESPACE_ID } = process.env
@@ -51,27 +52,13 @@ if (!md.includes(today)) {
   process.exit(0)
 }
 
-const html = mdToHtml(md)
+// sendHtmlToMany chunks each message, retries 429/5xx (honoring Retry-After),
+// and paces sends under Telegram's ~30 msg/s ceiling so large subscriber lists
+// don't silently drop recipients to rate limiting.
+const { total, failed } = await sendHtmlToMany(token, chatIds, mdToHtml(md), {
+  onError: async (chatId, res) => console.error(`Failed to send to ${chatId}: ${res.status} ${await res.text()}`),
+})
 
-// Telegram caps messages at 4096 chars — chunk if needed.
-const chunks = chunk(html, 4000)
-
-for (const chatId of chatIds) {
-  for (const part of chunks) {
-    const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: part,
-        parse_mode: 'HTML',
-        link_preview_options: { is_disabled: true },
-      }),
-    })
-    if (!res.ok) {
-      console.error(`Failed to send to ${chatId}: ${res.status} ${await res.text()}`)
-    }
-  }
-}
-
-console.log(`Sent briefing to ${chatIds.length} subscriber(s).`)
+console.log(failed === 0
+  ? `Sent briefing to ${total} subscriber(s).`
+  : `Sent briefing to ${total - failed}/${total} subscriber(s); ${failed} had delivery failures (see above).`)

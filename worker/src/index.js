@@ -37,6 +37,13 @@ import { mdToHtml, chunk, escapeHtml } from '../../shared/telegram-markdown.mjs'
 const DISPATCH_COOLDOWN_MS = 60 * 60 * 1000
 const DAILY_DISPATCH_CAP = 3
 
+// Capacity cap for the current private, single-operator deployment. The daily
+// send stays comfortably under Telegram's rate limit at this size, and (on the
+// Workers free plan) /broadcast is subrequest-capped around here too. The
+// (MAX_USERS+1)th person to request access is told the bot is full rather than
+// queued. Raise this once broadcast delivery moves to the Actions runner.
+const MAX_USERS = 30
+
 // Storage-limitation retention: the per-user last_seen activity log is pruned
 // to entries from the last RETENTION_DAYS. Access/subscription state is kept
 // as long as the user is a user (erased on /forgetme or owner /removeuser).
@@ -100,14 +107,16 @@ export class BotState extends DurableObject {
     return subs
   }
 
+  // Enforced here (not in the handlers) so the capacity check + the write are
+  // one atomic DO operation — two concurrent approvals can't both slip past a
+  // handler-side length check and overshoot MAX_USERS.
   async addAllowedUser(id) {
     const access = await this.getAccess()
-    const added = !access.allowFrom.includes(id)
-    if (added) {
-      access.allowFrom.push(id)
-      await this.ctx.storage.put('access', access)
-    }
-    return { access, added }
+    if (access.allowFrom.includes(id)) return { access, added: false, atCapacity: false }
+    if (access.allowFrom.length >= MAX_USERS) return { access, added: false, atCapacity: true }
+    access.allowFrom.push(id)
+    await this.ctx.storage.put('access', access)
+    return { access, added: true, atCapacity: false }
   }
 
   // Full erasure of one user's identifying state (right to be forgotten):
@@ -225,8 +234,15 @@ export class BotState extends DurableObject {
 }
 
 async function getJSON(env, key, fallback) {
-  const v = await env.BOT_STATE.get(key, 'json')
-  return v ?? fallback
+  // A corrupt value (invalid JSON) would otherwise throw here, bubble up, be
+  // swallowed by the top-level handler catch, and leave the user with no reply
+  // for EVERY command. Degrade to the fallback instead (SEC-4 / BUG-8).
+  try {
+    const v = await env.BOT_STATE.get(key, 'json')
+    return v ?? fallback
+  } catch {
+    return fallback
+  }
 }
 async function putJSON(env, key, value) {
   await env.BOT_STATE.put(key, JSON.stringify(value))
@@ -408,6 +424,14 @@ const COMMAND_HANDLERS = {
       return
     }
     const from = message.from
+    // Capacity cap: don't queue a request the owner has no room to approve.
+    // An already-pending user still falls through to their "still waiting"
+    // status below — only brand-new requests are turned away.
+    if (!access.pending[senderId] && access.allowFrom.length >= MAX_USERS) {
+      await reply(env, senderId,
+        "Thanks for your interest in AI in TA News! The bot is currently at capacity, so new access requests are paused for now. Please check back later.")
+      return
+    }
     const displayName = [from.first_name, from.last_name].filter(Boolean).join(' ')
     const username = from.username ? `@${from.username}` : 'no username'
     const { alreadyPending } = await stub.addPending(senderId, { displayName, username, createdAt: Date.now() })
@@ -632,7 +656,11 @@ const COMMAND_HANDLERS = {
       await reply(env, senderId, `"${id}" doesn't look like a Telegram chat id (should be numeric). Usage: /adduser <chat_id>`)
       return
     }
-    const { added } = await stub.addAllowedUser(id)
+    const { added, atCapacity } = await stub.addAllowedUser(id)
+    if (atCapacity) {
+      await reply(env, senderId, `Can't add <code>${escapeHtml(id)}</code> — the bot is at capacity (${MAX_USERS} users). Remove someone with /removeuser first, or raise the limit.`, { parse_mode: 'HTML' })
+      return
+    }
     if (!added) {
       await reply(env, senderId, `User <code>${escapeHtml(id)}</code> is already on the allowlist.`, { parse_mode: 'HTML' })
       return
@@ -725,7 +753,13 @@ async function handleCallbackQuery(env, stub, callbackQuery) {
   const [, decision, targetId] = am
   const msg = callbackQuery.message
   if (decision === 'Y') {
-    await stub.addAllowedUser(targetId)
+    const { atCapacity } = await stub.addAllowedUser(targetId)
+    if (atCapacity) {
+      // Leave them pending so the owner can approve once a slot frees up.
+      await tg(env, 'answerCallbackQuery', { callback_query_id: callbackQuery.id, text: `At capacity (${MAX_USERS})` })
+      if (msg?.text) await tg(env, 'editMessageText', { chat_id: msg.chat.id, message_id: msg.message_id, text: `${msg.text}\n\nNot approved — bot at capacity (${MAX_USERS}). Remove a user, then approve again.` })
+      return
+    }
     await stub.removePending(targetId)
     await tg(env, 'answerCallbackQuery', { callback_query_id: callbackQuery.id, text: 'Approved' })
     if (msg?.text) await tg(env, 'editMessageText', { chat_id: msg.chat.id, message_id: msg.message_id, text: `${msg.text}\n\nApproved` })
