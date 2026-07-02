@@ -670,7 +670,7 @@ const COMMAND_HANDLERS = {
       await reply(env, senderId, 'This command is only available to the bot owner.')
       return
     }
-    const msg = rawText.replace(/^\/broadcast(@\S+)?\s*/, '')
+    const msg = rawText.replace(/^\/broadcast(@\S+)?\s*/i, '')
     if (!msg) {
       await reply(env, senderId, 'Usage: /broadcast <message>')
       return

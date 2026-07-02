@@ -387,6 +387,13 @@ test('admin commands', async (t) => {
     assert.deepEqual(recipients, [OWNER, '222'].sort())
     assert.ok(s.at(-1).body.text.includes('sent to 2 subscribers'))
   })
+  await t.test('F17b capitalized /Broadcast strips its prefix too (UX-1 interaction)', async () => {
+    fetchLog = []
+    await send(upd(OWNER, '/Broadcast hello everyone'))
+    const delivered = sends().filter(c => String(c.body.chat_id) === OWNER).map(c => c.body.text)
+    assert.ok(delivered.includes('hello everyone'), 'payload sent without the command prefix')
+    assert.ok(!delivered.some(x => x.includes('/Broadcast')), 'prefix must not leak to subscribers')
+  })
   await t.test('F18 /pending lists requests', async () => {
     fetchLog = []
     await send(upd(OWNER, '/pending'))

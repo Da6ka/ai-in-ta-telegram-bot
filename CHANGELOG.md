@@ -9,7 +9,9 @@ Fixed all five findings from the Phase 13 UX review:
 - **UX-1** — commands are now case-insensitive: the dispatcher lowercases the
   command name before lookup, so mobile autocapitalization (`/Start`,
   `/Briefing`) resolves to the handler instead of the "I only understand
-  commands" nudge. Also consolidates command-count stats across cases.
+  commands" nudge. Also consolidates command-count stats across cases. The
+  `/broadcast` prefix strip was made case-insensitive too, so a capitalized
+  `/Broadcast` (now reachable) doesn't ship the literal command to subscribers.
 - **UX-2** — `/help` now lists `/newbriefing`, matching the client command menu.
 - **UX-3** — the four `/adduser` / `/removeuser` id replies now render the id in
   `<code>` (HTML) instead of showing literal Markdown backticks; the id is
