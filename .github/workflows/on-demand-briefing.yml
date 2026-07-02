@@ -54,6 +54,14 @@ jobs:
         id: freshness
         run: |
           TODAY=$(date -u '+%-d %B %Y')
+          # AUD-1: also count linked story bullets. The requester still gets a
+          # real-but-thin (1-story) briefing — they asked for it — but a
+          # zero-story generation (the "no content" fallback) is treated like a
+          # stale one, and sync-kv.mjs refuses to cache anything below the
+          # MIN_BRIEFING_ITEMS floor so a thin run can't replace the shared
+          # briefing everyone else's /briefing serves.
+          ITEMS=$(node --input-type=module -e "import {countBriefingItems} from './shared/telegram.mjs'; import {readFileSync} from 'node:fs'; console.log(countBriefingItems(readFileSync('state/today_briefing.md','utf8')))")
+          echo "items=$ITEMS" >> "$GITHUB_OUTPUT"
           if grep -q "$TODAY" state/today_briefing.md; then
             echo "fresh=true" >> "$GITHUB_OUTPUT"
           else
@@ -61,7 +69,7 @@ jobs:
           fi
 
       - name: Send to requester
-        if: steps.freshness.outputs.fresh == 'true'
+        if: steps.freshness.outputs.fresh == 'true' && steps.freshness.outputs.items != '0'
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           CHAT_ID: ${{ github.event.client_payload.chat_id }}
@@ -86,12 +94,13 @@ jobs:
           git pull --rebase origin main
           git push
 
-      # Generation exited 0 but produced nothing dated today (refusal / malformed
-      # title): the freshness gate correctly skipped the send + KV sync, but the
-      # requester is still waiting. failure() won't fire here (no step threw), so
-      # close the loop explicitly.
+      # Generation exited 0 but produced nothing usable — not dated today
+      # (refusal / malformed title) or zero linked stories (the "no content"
+      # fallback): the gates correctly skipped the send, but the requester is
+      # still waiting. failure() won't fire here (no step threw), so close the
+      # loop explicitly.
       - name: Notify requester on stale generation
-        if: steps.freshness.outputs.fresh == 'false'
+        if: steps.freshness.outputs.fresh == 'false' || steps.freshness.outputs.items == '0'
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           CHAT_ID: ${{ github.event.client_payload.chat_id }}

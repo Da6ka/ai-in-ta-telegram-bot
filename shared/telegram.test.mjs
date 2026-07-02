@@ -2,7 +2,7 @@
 // fetch is mocked; paceMs/baseDelayMs are set to 0 so the suite stays fast.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { tgRequest, sendHtml, sendHtmlToMany, sendTextToMany, isValidBriefing } from './telegram.mjs'
+import { tgRequest, sendHtml, sendHtmlToMany, sendTextToMany, isValidBriefing, countBriefingItems, MIN_BRIEFING_ITEMS } from './telegram.mjs'
 
 const realFetch = globalThis.fetch
 function mockFetch(handler) {
@@ -83,6 +83,33 @@ test('isValidBriefing accepts a real briefing and rejects garbage generations', 
   assert.equal(isValidBriefing('# Daily AI Recruitment Briefing —\n'), false, 'header with no title text rejected')
   assert.equal(isValidBriefing(null), false, 'null rejected, no throw')
   assert.equal(isValidBriefing(undefined), false, 'undefined rejected, no throw')
+})
+
+// AUD-1 regression: the thin-generation guard. A headered briefing with zero
+// or one linked story (the "no content" fallback, or the degenerate 1-story
+// run observed in prod on 2026-07-02) must count below MIN_BRIEFING_ITEMS so
+// sync-kv.mjs refuses to replace the shared cache with it.
+test('countBriefingItems counts only linked story bullets (AUD-1)', () => {
+  const header = '# Daily AI Recruitment Briefing — 2 July 2026\n\n## Claude & Anthropic in TA\n'
+  const story = (i) => `- **Story ${i}** something happened. [Src ${i}](https://ex${i}.com/a) (30 June)\n`
+
+  const fallback = header.replace(/\n## .*\n$/, '\n') + 'No briefing available today — searches failed or returned nothing usable.\n'
+  assert.equal(countBriefingItems(fallback), 0, 'fallback has zero items')
+  assert.ok(countBriefingItems(fallback) < MIN_BRIEFING_ITEMS, 'fallback is below the floor')
+
+  const oneStory = header + story(1)
+  assert.equal(countBriefingItems(oneStory), 1)
+  assert.ok(countBriefingItems(oneStory) < MIN_BRIEFING_ITEMS, '1-story generation is below the floor')
+
+  const full = header + story(1) + story(2) + '\n## Worth Reading\n' + story(3)
+  assert.equal(countBriefingItems(full), 3)
+  assert.ok(countBriefingItems(full) >= MIN_BRIEFING_ITEMS)
+
+  // Bullets without links (padding/filler) don't count as stories.
+  assert.equal(countBriefingItems(header + '- a linkless bullet\n- another one\n'), 0)
+  // Robust to non-string input like isValidBriefing.
+  assert.equal(countBriefingItems(null), 0)
+  assert.equal(countBriefingItems(undefined), 0)
 })
 
 test('sendTextToMany sends plain text (no parse_mode) so HTML is delivered verbatim', async () => {

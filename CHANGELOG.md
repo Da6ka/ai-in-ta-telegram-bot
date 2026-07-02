@@ -2,6 +2,43 @@
 
 ## 2026-07-03
 
+### Final release audit (GO) + fixes for AUD-1 (thin-briefing gate) and AUD-2 (bold-safe chunking)
+
+Full audit report: `docs/qa/2026-07-03-final-release-audit.md`. Verdict: **GO**
+for the current private ≤30-user deployment — no Critical/High open; a live
+dry-run generation with the production prompt scored 7.5/7/6.5/8.5/7 on the
+Phase 16 editorial rubric. Two findings fixed in the same session:
+
+- **AUD-1 (Medium)** — no minimum-content gate: the briefing cached in prod was
+  a single story, and even the dated "no content available" fallback passed
+  both the `isValidBriefing` and freshness gates — on the daily path it would
+  go to every subscriber, advance `last_briefing_at`, and silently block
+  retries for the rest of the day. Now `countBriefingItems()` counts linked
+  story bullets with a `MIN_BRIEFING_ITEMS = 2` floor: the daily workflow's
+  check runs *before* the send and requires dated-today AND ≥ 2 items (else
+  the stale-or-thin alert fires and the day stays retryable); on-demand treats
+  a zero-story generation as stale; and `sync-kv.mjs` refuses to cache anything
+  under the floor regardless of caller. Both prompts gained a minimum-coverage
+  loop (run more-specific searches when < 4 items pass the filters), an
+  impact-ordering rule, a source-tier preference, and a closing
+  "**Bottom line:**" synthesis sentence.
+- **AUD-2 (Low)** — `chunk()` protected `<a>…</a>` pairs (L6) but not
+  `<b>…</b>`: a single line > 3500 chars whose space-preferring cut landed
+  inside a bold span produced two chunks Telegram rejects. The balance check is
+  now a general tag-stack scan that backs the cut up to the first unclosed tag
+  of any kind.
+
+- **AUD-3 (Low)** — a third rapid `/broadcast` silently replaced a *queued*
+  one: GitHub keeps only the latest pending run per concurrency group, and a
+  cancelled run doesn't fire the `failure()` alert. The group is removed from
+  `broadcast.yml` — overlapping runs are safe (paced + 429-retried, worst case
+  slightly slower delivery), while the group could drop a whole broadcast.
+
+New regression tests for AUD-1/AUD-2 (thin-briefing counting incl. the
+fallback and the observed 1-story case; bold-span chunk balance + anchor
+non-regression). Full suite 89/89 green. Remaining manual item: confirm the
+one-time SEC-1 PAT rotation of the live Worker `GITHUB_TOKEN` secret.
+
 ### Clear the last audit findings: BUG-4 (broadcast at scale) + L6 (chunking)
 
 - **BUG-4** — `/broadcast` delivery moved off the Worker onto the Actions runner.

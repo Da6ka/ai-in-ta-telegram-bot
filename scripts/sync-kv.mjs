@@ -1,7 +1,7 @@
 // Pushes the freshly generated briefing into Cloudflare KV so the Worker's
 // /briefing command can serve it from cache without re-triggering generation.
 import { readFileSync } from 'node:fs'
-import { isValidBriefing } from '../shared/telegram.mjs'
+import { isValidBriefing, countBriefingItems, MIN_BRIEFING_ITEMS } from '../shared/telegram.mjs'
 
 const { CF_ACCOUNT_ID, CF_API_TOKEN, CF_KV_NAMESPACE_ID, RECIPIENT_COUNT } = process.env
 if (!CF_ACCOUNT_ID || !CF_API_TOKEN || !CF_KV_NAMESPACE_ID) {
@@ -35,6 +35,15 @@ const today = new Date().toISOString().slice(0, 10)
 // (LLM refusal, no header) would otherwise be served to every user's /briefing.
 if (!isValidBriefing(md)) {
   console.error('Refusing to sync: state/today_briefing.md has no valid briefing header — generation likely failed. Leaving the existing KV cache untouched.')
+  process.exit(0)
+}
+
+// AUD-1: a headered-but-thin generation (the "no content available" fallback,
+// or a degenerate 1-story run) also must not replace the shared cache that
+// every user's /briefing serves until the next successful run.
+const items = countBriefingItems(md)
+if (items < MIN_BRIEFING_ITEMS) {
+  console.error(`Refusing to sync: only ${items} linked story bullet(s) — below the ${MIN_BRIEFING_ITEMS}-item minimum (AUD-1). Leaving the existing KV cache untouched.`)
   process.exit(0)
 }
 

@@ -56,22 +56,29 @@ export function chunk(text, limit) {
     let cut = rest.lastIndexOf('\n', limit)
     if (cut <= 0) cut = rest.lastIndexOf(' ', limit)
     if (cut <= 0) cut = limit
-    // Never split inside an HTML tag or across an <a>…</a> pair — Telegram
-    // rejects a chunk with an unbalanced entity (L6). If the slice would end
-    // inside a tag, or with an opened-but-unclosed anchor, back the cut up to
-    // just before the offending '<'.
+    // Never split inside an HTML tag or across an open/close pair — Telegram
+    // rejects a chunk with an unbalanced entity (L6, AUD-2). If the slice
+    // would end inside a tag, or with any opened-but-unclosed pair (<a>, <b>,
+    // ...), back the cut up to just before the offending '<'.
     let slice = rest.slice(0, cut)
     const lastOpen = slice.lastIndexOf('<')
     const lastClose = slice.lastIndexOf('>')
     if (lastOpen > lastClose && lastOpen > 0) {
       cut = lastOpen
     } else {
-      const opens = (slice.match(/<a\b/g) ?? []).length
-      const closes = (slice.match(/<\/a>/g) ?? []).length
-      if (opens > closes) {
-        const aPos = slice.lastIndexOf('<a')
-        if (aPos > 0) cut = aPos
+      // mdToHtml never nests tags, so a plain stack scan is enough: back up to
+      // the first tag this cut would leave unclosed.
+      const tagRe = /<(\/?)([a-z]+)\b[^>]*>/g
+      const stack = []
+      let tm
+      while ((tm = tagRe.exec(slice))) {
+        if (tm[1]) {
+          if (stack.length && stack[stack.length - 1].name === tm[2]) stack.pop()
+        } else {
+          stack.push({ name: tm[2], index: tm.index })
+        }
       }
+      if (stack.length && stack[0].index > 0) cut = stack[0].index
     }
     if (cut <= 0) cut = limit // degenerate: a single tag longer than the limit
     parts.push(rest.slice(0, cut))
