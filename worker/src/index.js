@@ -736,16 +736,16 @@ async function handleCallbackQuery(env, stub, callbackQuery) {
 }
 
 async function handleMessage(env, stub, message) {
-  const text = message.text
-  if (!text) return // non-text (sticker/photo/voice/etc.) — stay silent
-
   const gated = await dmCommandGate(stub, message)
-  if (!gated) return // not a private chat, or DMs disabled — stay silent (no group replies)
+  if (!gated) return // not a private chat, no sender, or DMs disabled — stay silent (no group replies)
 
-  // Commands-only scope, but don't leave plain text or typos unanswered —
-  // a short nudge beats silence. We neither store nor act on the content;
-  // the reply is a fixed string, not an echo.
-  const m = /^\/(\w+)(?:@\S+)?(?:\s+(.*))?$/s.exec(text.trim())
+  // Commands-only scope, but don't leave anything unanswered — plain text,
+  // typo'd commands, and non-text messages (stickers/photos/voice) all get a
+  // short guide instead of silence. Non-text yields no match below (empty
+  // string), so it falls into the same nudge. We neither store nor echo the
+  // content; the reply is a fixed string.
+  const text = message.text
+  const m = /^\/(\w+)(?:@\S+)?(?:\s+(.*))?$/s.exec((text ?? '').trim())
   const handler = m && COMMAND_HANDLERS[m[1]]
   if (!handler) {
     await reply(env, gated.senderId, gated.isAllowed
