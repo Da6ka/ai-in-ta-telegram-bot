@@ -10,6 +10,16 @@ import { chunk } from './telegram-markdown.mjs'
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
+// A generated briefing is only valid if it carries the canonical title line
+// (force-briefing-date.mjs keys off the same header, and the daily workflow's
+// freshness grep depends on the dated title). A zero-exit "garbage" generation
+// — an LLM refusal, a preamble-only response, or a malformed title — lacks it.
+// Used to gate the KV cache write so one bad on-demand /newbriefing can't
+// overwrite the shared today_briefing_md that every user's /briefing serves.
+export function isValidBriefing(md) {
+  return /^# Daily AI Recruitment Briefing — .+/m.test(md ?? '')
+}
+
 // Pace sends to stay under Telegram's ~30 msg/s ceiling. 40ms ≈ 25/s, leaving
 // headroom for the API's own variability.
 const DEFAULT_PACE_MS = 40

@@ -2,6 +2,23 @@
 
 ## 2026-07-02
 
+### Fix NEW-1 (High): on-demand generation could poison the shared briefing cache
+
+Phase 15 re-audit found the daily workflow's BUG-1 freshness gate was never
+ported to the on-demand path. A zero-exit garbage generation (LLM refusal /
+preamble-only / malformed title) from `/newbriefing` was synced to Cloudflare
+KV unconditionally, so every user's `/briefing` then served that garbage from
+cache until the next successful generation. Reproduced against the real Worker.
+
+- **`on-demand-briefing.yml`** — added a `Check freshness` step; `Send to
+  requester`, `Sync to Cloudflare KV`, and `Commit` now gate on `fresh == 'true'`.
+  A new `Notify requester on stale generation` step closes the loop when
+  generation exits 0 but produces nothing dated today (`failure()` doesn't fire).
+- **`scripts/sync-kv.mjs`** — defense-in-depth `isValidBriefing(md)` guard so no
+  caller can overwrite the shared cache with a headerless generation.
+- **`shared/telegram.mjs`** — new shared `isValidBriefing()` helper.
+- **Tests** — regression test for the guard; full suite 84/84 green.
+
 ### Operational resilience: failure alerts, retries, observability, tighter scopes
 
 Addresses the production-readiness review (secret scopes, failure handling,
