@@ -45,13 +45,30 @@ jobs:
       - name: Force-correct briefing date
         run: node scripts/force-briefing-date.mjs
 
+      # Same gate as daily-briefing.yml (the BUG-1 fix): a zero-exit garbage
+      # generation (LLM refusal / no dated header) must NOT reach the requester
+      # or, worse, overwrite the shared today_briefing_md in KV that every
+      # user's /briefing serves. Without this the on-demand path could poison
+      # the cache for everyone (NEW-1).
+      - name: Check freshness
+        id: freshness
+        run: |
+          TODAY=$(date -u '+%-d %B %Y')
+          if grep -q "$TODAY" state/today_briefing.md; then
+            echo "fresh=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "fresh=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Send to requester
+        if: steps.freshness.outputs.fresh == 'true'
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           CHAT_ID: ${{ github.event.client_payload.chat_id }}
         run: node scripts/send-to-chat.mjs
 
       - name: Sync to Cloudflare KV
+        if: steps.freshness.outputs.fresh == 'true'
         env:
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
@@ -60,6 +77,7 @@ jobs:
         run: node scripts/sync-kv.mjs
 
       - name: Commit updated state
+        if: steps.freshness.outputs.fresh == 'true'
         run: |
           git config user.name "daily-briefing-bot"
           git config user.email "actions@users.noreply.github.com"
@@ -67,6 +85,18 @@ jobs:
           git diff --cached --quiet && echo "No state changes to commit" || git commit -m "Update briefing state (on-demand, $(date -u +%F))"
           git pull --rebase origin main
           git push
+
+      # Generation exited 0 but produced nothing dated today (refusal / malformed
+      # title): the freshness gate correctly skipped the send + KV sync, but the
+      # requester is still waiting. failure() won't fire here (no step threw), so
+      # close the loop explicitly.
+      - name: Notify requester on stale generation
+        if: steps.freshness.outputs.fresh == 'false'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ github.event.client_payload.chat_id }}
+          ALERT_TEXT: "Sorry — the fresh briefing didn't come out right this time. Please try /newbriefing again shortly, or /briefing for the last saved one."
+        run: node scripts/send-alert.mjs
 
       # The requester already saw "Generating a fresh briefing..." from the
       # Worker; on failure, close the loop instead of leaving them in silence.

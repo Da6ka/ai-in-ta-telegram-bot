@@ -3,6 +3,50 @@
 > **Post-audit status:** BUG-1, BUG-2 and BUG-3 were fixed in commit `d2f647d`
 > (same session, full regression re-run: 9/9 unit + behavioral suite green,
 > only the intentional BUG-5 probe failing). Remaining findings are open.
+>
+> **2026-07-02 re-audit (Phase 15 re-run):** BUG-1/2/3/8 verified fixed in the
+> current tree; full suite now 84/84 green. One **new High (NEW-1)** found and
+> fixed the same session — see below. Follow-up commits then cleared **SEC-2,
+> BUG-5, BUG-6, BUG-7** (Worker-side), then **BUG-4** (broadcast delivery moved
+> to the Actions runner — `broadcast.yml` + `scripts/broadcast.mjs`, no more
+> Worker subrequest ceiling) and **L6** (tag-aware `chunk()`). "KNOWN BUG" tests
+> flipped to assert correct behavior; broadcast tests reworked for dispatch.
+> **SEC-1** is documented (README scope table + rotation checklist); only the
+> one-time manual token rotation remains. Full suite 86/86 green. **All audit
+> findings are now resolved in code** — no open code items remain.
+
+---
+
+## Re-audit findings (2026-07-02, Phase 15)
+
+### NEW-1 (High, content integrity) — On-demand generation poisoned the shared briefing cache — **FIXED this session**
+- **Repro:** `/newbriefing` → `claude -p` exits 0 but outputs content without the
+  `# Daily AI Recruitment Briefing — <today>` header (refusal / preamble-only /
+  malformed title). `force-briefing-date.mjs` can't rewrite a missing header;
+  `on-demand-briefing.yml` then ran `Send to requester` + `Sync to Cloudflare KV`
+  **unconditionally**. `sync-kv.mjs` overwrote `today_briefing_md` +
+  `today_briefing_date=today`. Any other user's `/briefing` then saw
+  `date === todayUTC()`, served the garbage from cache, and did **not**
+  regenerate. Reproduced against the real Worker (poison E2E test: user 222
+  served the refusal text verbatim, no GitHub dispatch).
+- **Root cause:** the daily workflow's BUG-1 freshness gate was never ported to
+  the on-demand workflow; `sync-kv.mjs` trusted its input.
+- **Fix:** (1) added a `Check freshness` step to `on-demand-briefing.yml` and
+  gated `Send to requester` / `Sync to Cloudflare KV` / `Commit` on
+  `fresh == 'true'`, with a `Notify requester on stale generation` step for the
+  zero-exit-garbage case; (2) defense-in-depth `isValidBriefing(md)` guard in
+  `scripts/sync-kv.mjs` (shared helper in `shared/telegram.mjs`) so no caller can
+  overwrite the cache with a headerless generation. Regression test added
+  (`shared/telegram.test.mjs`). Files: `.github/workflows/on-demand-briefing.yml`,
+  `scripts/sync-kv.mjs`, `shared/telegram.mjs`, `shared/telegram.test.mjs`.
+
+### BUG-4 refinement — `/broadcast` mitigation is single-chunk only
+- The `MAX_USERS=30` cap bounds fan-out under 50 subrequests **only** for a
+  single-chunk broadcast. A message >4000 chars → `30 × chunks + 2` subrequests
+  (e.g. 62 for 2 chunks) still exceeds the free-plan cap and drops later
+  recipients. The `BUG-4 mitigated` regression test asserts the user-count bound
+  only, not chunk count. Open. Fix: move broadcast to the Actions runner or cap
+  broadcast length to one chunk.
 
 **Date:** 2 July 2026 · **Scope:** Cloudflare Worker (webhook bot) + GitHub Actions briefing pipeline + shared markdown module
 **Method:** full static architecture review, then 57 behavioral scenarios executed against the *real* worker code under a mocked Cloudflare runtime (KV / Durable Object with serialized RPC / fetch), Telegram failure injection, live link validation, and editorial review of today's actual briefing. Existing unit suite: 9/9 pass. Behavioral suite: 57 scenarios, 8 confirmed defects/risks total across all phases.

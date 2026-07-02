@@ -10,6 +10,16 @@ import { chunk } from './telegram-markdown.mjs'
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
+// A generated briefing is only valid if it carries the canonical title line
+// (force-briefing-date.mjs keys off the same header, and the daily workflow's
+// freshness grep depends on the dated title). A zero-exit "garbage" generation
+// — an LLM refusal, a preamble-only response, or a malformed title — lacks it.
+// Used to gate the KV cache write so one bad on-demand /newbriefing can't
+// overwrite the shared today_briefing_md that every user's /briefing serves.
+export function isValidBriefing(md) {
+  return /^# Daily AI Recruitment Briefing — .+/m.test(md ?? '')
+}
+
 // Pace sends to stay under Telegram's ~30 msg/s ceiling. 40ms ≈ 25/s, leaving
 // headroom for the API's own variability.
 const DEFAULT_PACE_MS = 40
@@ -67,6 +77,33 @@ export async function sendHtmlToMany(token, chatIds, html, { onError, paceMs = D
   let failed = 0
   for (let i = 0; i < chatIds.length; i++) {
     const ok = await sendHtml(token, chatIds[i], html, { onError, retries })
+    if (!ok) failed++
+    if (i < chatIds.length - 1 && paceMs > 0) await sleep(paceMs)
+  }
+  return { total: chatIds.length, failed }
+}
+
+// Broadcast one PLAIN-TEXT message to many chats (no parse_mode, so the owner's
+// message is delivered verbatim rather than interpreted as HTML), paced and
+// retried. This is what /broadcast uses now that delivery runs on the Actions
+// runner instead of in the Worker — the Worker's per-invocation subrequest cap
+// bounded broadcast fan-out to ~45 recipients (BUG-4); the runner has no such
+// cap. Returns { total, failed }.
+export async function sendTextToMany(token, chatIds, text, { onError, paceMs = DEFAULT_PACE_MS, retries = 3 } = {}) {
+  let failed = 0
+  for (let i = 0; i < chatIds.length; i++) {
+    let ok = true
+    for (const part of chunk(text, 4000)) {
+      const res = await tgRequest(token, 'sendMessage', {
+        chat_id: chatIds[i],
+        text: part,
+        link_preview_options: { is_disabled: true },
+      }, { retries })
+      if (!res.ok) {
+        ok = false
+        if (onError) await onError(chatIds[i], res)
+      }
+    }
     if (!ok) failed++
     if (i < chatIds.length - 1 && paceMs > 0) await sleep(paceMs)
   }

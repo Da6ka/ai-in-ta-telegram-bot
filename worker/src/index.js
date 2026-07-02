@@ -115,6 +115,11 @@ export class BotState extends DurableObject {
     if (access.allowFrom.includes(id)) return { access, added: false, atCapacity: false }
     if (access.allowFrom.length >= MAX_USERS) return { access, added: false, atCapacity: true }
     access.allowFrom.push(id)
+    // Approving via any path (owner callback or /adduser <id>) clears the
+    // pending request atomically — otherwise the person lingers in /pending
+    // forever and their name/username stay stored, contradicting the privacy
+    // model where approval deletes that info (BUG-7).
+    delete access.pending[id]
     await this.ctx.storage.put('access', access)
     return { access, added: true, atCapacity: false }
   }
@@ -258,8 +263,12 @@ async function fetchWithRetry(url, options, { retries = 2 } = {}) {
       const res = await fetch(url, options)
       if (res.ok || res.status < 429 || attempt === retries) return res
       if (res.status === 429 || res.status >= 500) {
-        const retryAfter = Number(res.headers.get('retry-after')) || attempt + 1
-        await new Promise(r => setTimeout(r, retryAfter * 300))
+        // Honor Retry-After in seconds (its real unit); fall back to a short
+        // linear backoff when the header is absent. Previously multiplied by
+        // 300ms, so a 5s ask retried in 1.5s and drew a second 429 (SEC-2).
+        const retryAfter = Number(res.headers.get('retry-after'))
+        const waitMs = retryAfter > 0 ? retryAfter * 1000 : (attempt + 1) * 300
+        await new Promise(r => setTimeout(r, waitMs))
         continue
       }
       return res
@@ -357,7 +366,10 @@ async function dmCommandGate(stub, message) {
   return { access, stub, senderId, isAllowed: access.allowFrom.includes(senderId) }
 }
 
-async function dispatchBriefing(env, chatId) {
+// Fire a repository_dispatch so a GitHub Actions workflow does the heavy/slow
+// work (briefing generation, broadcast fan-out) outside the Worker's request
+// lifetime and subrequest cap. Returns true iff GitHub accepted the dispatch.
+async function dispatchEvent(env, eventType, clientPayload, { retries = 1 } = {}) {
   try {
     const res = await fetchWithRetry(`https://api.github.com/repos/${env.GITHUB_REPO}/dispatches`, {
       method: 'POST',
@@ -366,20 +378,21 @@ async function dispatchBriefing(env, chatId) {
         Accept: 'application/vnd.github+json',
         'User-Agent': 'ai-in-ta-telegram-bot-worker',
       },
-      body: JSON.stringify({
-        event_type: 'newbriefing',
-        client_payload: { chat_id: String(chatId) },
-      }),
-    }, { retries: 1 })
+      body: JSON.stringify({ event_type: eventType, client_payload: clientPayload }),
+    }, { retries })
     if (!res.ok) {
-      console.error('GitHub dispatch failed', res.status, await res.text())
+      console.error(`GitHub dispatch failed (${eventType})`, res.status, await res.text())
       return false
     }
     return true
   } catch (err) {
-    console.error('GitHub dispatch request failed', err)
+    console.error(`GitHub dispatch request failed (${eventType})`, err)
     return false
   }
+}
+
+function dispatchBriefing(env, chatId) {
+  return dispatchEvent(env, 'newbriefing', { chat_id: String(chatId) })
 }
 
 // Shared by /newbriefing and /briefing's stale-cache path: rate-limit check,
@@ -698,26 +711,27 @@ const COMMAND_HANDLERS = {
       await reply(env, senderId, 'This command is only available to the bot owner.')
       return
     }
-    const msg = rawText.replace(/^\/broadcast(@\S+)?\s*/i, '')
+    // Strip on the trimmed text: the command regex matched on trimmed input, so
+    // "  /broadcast hi" would otherwise fail the ^-anchored strip and ship the
+    // literal command prefix out to every subscriber (BUG-5).
+    const msg = (rawText ?? '').trim().replace(/^\/broadcast(@\S+)?\s*/i, '')
     if (!msg) {
       await reply(env, senderId, 'Usage: /broadcast <message>')
       return
     }
     const subs = await stub.getSubscribers()
-    await reply(env, senderId, `Broadcasting to ${subs.subscribers.length} subscribers...`)
-    const parts = chunk(msg, 4000)
-    let failedRecipients = 0
-    for (const chatId of subs.subscribers) {
-      let recipientOk = true
-      for (const part of parts) {
-        const res = await reply(env, chatId, part)
-        if (!res.ok) recipientOk = false
-      }
-      if (!recipientOk) failedRecipients++
+    if (subs.subscribers.length === 0) {
+      await reply(env, senderId, 'There are no subscribers to broadcast to.')
+      return
     }
-    await reply(env, senderId, failedRecipients === 0
-      ? `Done. Message sent to ${subs.subscribers.length} subscribers.`
-      : `Done, but delivery failed for ${failedRecipients} of ${subs.subscribers.length} subscriber(s) — check Worker logs for details.`)
+    // Delivery runs on the Actions runner (scripts/broadcast.mjs), not in this
+    // Worker: looping sendMessage here hit the per-invocation subrequest cap and
+    // silently dropped recipients past ~45 (BUG-4). We dispatch the message and
+    // the owner gets an async delivery report from the runner.
+    const dispatched = await dispatchEvent(env, 'broadcast', { message: msg, owner: senderId })
+    await reply(env, senderId, dispatched
+      ? `Broadcasting to ${subs.subscribers.length} subscriber(s) — I'll send you a delivery report when it finishes.`
+      : "Couldn't start the broadcast right now — please try again shortly, or check the Worker logs if this keeps happening.")
   },
 
   async pending(env, message, gated) {
@@ -753,6 +767,13 @@ async function handleCallbackQuery(env, stub, callbackQuery) {
   const [, decision, targetId] = am
   const msg = callbackQuery.message
   if (decision === 'Y') {
+    // Stale-button guard: if the target is no longer pending (already handled,
+    // or removed since this card was sent), don't silently re-add them (BUG-6).
+    if (!access.pending[targetId]) {
+      await tg(env, 'answerCallbackQuery', { callback_query_id: callbackQuery.id, text: 'No longer pending' })
+      if (msg?.text) await tg(env, 'editMessageText', { chat_id: msg.chat.id, message_id: msg.message_id, text: `${msg.text}\n\nNo longer pending — ignored.` })
+      return
+    }
     const { atCapacity } = await stub.addAllowedUser(targetId)
     if (atCapacity) {
       // Leave them pending so the owner can approve once a slot frees up.

@@ -206,11 +206,12 @@ test('pairing flow', async (t) => {
     assert.equal(sends().length, 0)
     assert.equal(tgCalls('answerCallbackQuery').length, 2)
   })
-  await t.test('KNOWN BUG-6 (unfixed): stale approve button re-adds a removed user', async () => {
+  await t.test('BUG-6 fixed: stale approve button does NOT re-add a removed user', async () => {
     await send(upd(OWNER, '/removeuser 222'))
     fetchLog = []
     await send(cb(OWNER, 'acc:Y:222'))
-    assert.ok(doStorage.map.get('access').allowFrom.includes('222'), 'documents open finding BUG-6')
+    assert.ok(!doStorage.map.get('access').allowFrom.includes('222'), 'removed user not re-added')
+    assert.equal(tgCalls('answerCallbackQuery')[0].body.text, 'No longer pending', 'owner told the button is stale')
   })
 })
 
@@ -360,12 +361,13 @@ test('admin commands', async (t) => {
     await send(upd(OWNER, '/adduser 555'))
     assert.ok(sends()[0].body.text.includes('already on the allowlist'))
   })
-  await t.test('KNOWN BUG-7 (unfixed): /adduser does not clear matching pending entry', async () => {
+  await t.test('BUG-7 fixed: /adduser clears the matching pending entry', async () => {
     const access = doStorage.map.get('access')
     access.pending['777'] = { displayName: 'P', username: '@p', createdAt: 1 }
     doStorage.map.set('access', access)
     await send(upd(OWNER, '/adduser 777'))
-    assert.ok(doStorage.map.get('access').pending['777'], 'documents open finding BUG-7')
+    assert.ok(doStorage.map.get('access').allowFrom.includes('777'), 'user added')
+    assert.ok(!doStorage.map.get('access').pending['777'], 'pending request cleared on approval')
   })
   await t.test('F16 /removeuser: removes, owner protected, unknown reported', async () => {
     fetchLog = []
@@ -378,26 +380,33 @@ test('admin commands', async (t) => {
     await send(upd(OWNER, '/removeuser 88888'))
     assert.ok(sends()[0].body.text.includes('not found'))
   })
-  await t.test('F17 /broadcast reaches every subscriber, reports count', async () => {
+  await t.test('F17 /broadcast dispatches delivery to the Actions runner with message + owner + count ack', async () => {
     await send(upd('222', '/subscribe'))
     fetchLog = []
     await send(upd(OWNER, '/broadcast hello everyone'))
-    const s = sends()
-    const recipients = s.filter(c => c.body.text === 'hello everyone').map(c => String(c.body.chat_id)).sort()
-    assert.deepEqual(recipients, [OWNER, '222'].sort())
-    assert.ok(s.at(-1).body.text.includes('sent to 2 subscribers'))
+    const d = ghDispatches()
+    assert.equal(d.length, 1, 'one broadcast dispatch')
+    assert.equal(d[0].body.event_type, 'broadcast')
+    assert.equal(d[0].body.client_payload.message, 'hello everyone')
+    assert.equal(String(d[0].body.client_payload.owner), OWNER)
+    // Delivery now happens on the runner, so the Worker must NOT loop sends to subs.
+    assert.ok(!sends().some(c => String(c.body.chat_id) === '222'), 'Worker does not send to subscribers directly')
+    assert.ok(sends().some(c => String(c.body.chat_id) === OWNER && c.body.text.includes('Broadcasting to 2')), 'owner acked with count')
   })
-  await t.test('F17b capitalized /Broadcast strips its prefix too (UX-1 interaction)', async () => {
+  await t.test('F17b capitalized /Broadcast strips its prefix in the dispatched payload (UX-1 interaction)', async () => {
     fetchLog = []
     await send(upd(OWNER, '/Broadcast hello everyone'))
-    const delivered = sends().filter(c => String(c.body.chat_id) === OWNER).map(c => c.body.text)
-    assert.ok(delivered.includes('hello everyone'), 'payload sent without the command prefix')
-    assert.ok(!delivered.some(x => x.includes('/Broadcast')), 'prefix must not leak to subscribers')
+    const d = ghDispatches()
+    assert.equal(d.length, 1)
+    assert.equal(d[0].body.client_payload.message, 'hello everyone', 'prefix stripped, must not leak')
   })
   await t.test('F18 /pending lists requests', async () => {
+    const access = doStorage.map.get('access')
+    access.pending['888'] = { displayName: 'Q', username: '@q', createdAt: 1 }
+    doStorage.map.set('access', access)
     fetchLog = []
     await send(upd(OWNER, '/pending'))
-    assert.ok(sends()[0].body.text.includes('777'))
+    assert.ok(sends()[0].body.text.includes('888'))
   })
 })
 
@@ -464,18 +473,19 @@ test('hostile and malformed input', async (t) => {
     assert.ok(!String(stats.command_counts?.constructor ?? '').includes('native code'), 'no garbage in KV')
     kv.map.delete('usage_stats')
   })
-  await t.test('C9 /broadcast with HTML goes out as plain text (no parse_mode)', async () => {
+  await t.test('C9 /broadcast message is dispatched verbatim (HTML not interpreted Worker-side)', async () => {
     fetchLog = []
     await send(upd(OWNER, '/broadcast <b>bold</b> & stuff'))
-    const toSub = sends().find(c => c.body.text.includes('<b>bold</b>'))
-    assert.ok(toSub, 'sent verbatim')
-    assert.equal(toSub.body.parse_mode, undefined)
+    const d = ghDispatches()
+    assert.equal(d.length, 1)
+    assert.equal(d[0].body.client_payload.message, '<b>bold</b> & stuff', 'sent verbatim; runner delivers as plain text')
   })
-  await t.test('KNOWN BUG-5 (unfixed): /broadcast with leading whitespace ships the command prefix', async () => {
+  await t.test('BUG-5 fixed: /broadcast with leading whitespace strips the prefix', async () => {
     fetchLog = []
     await send(upd(OWNER, '  /broadcast payday'))
-    const delivered = sends().map(c => c.body.text).filter(x => x.includes('payday') && !x.startsWith('Broadcasting') && !x.startsWith('Done'))
-    assert.ok(delivered.some(x => x.includes('/broadcast')), 'documents open finding BUG-5')
+    const d = ghDispatches()
+    assert.equal(d.length, 1)
+    assert.equal(d[0].body.client_payload.message, 'payday', 'prefix stripped even with leading whitespace; no leak')
   })
 })
 
@@ -486,11 +496,11 @@ test('Telegram protocol edge cases', async (t) => {
     const u = upd(OWNER, '/broadcast dedup-test')
     fetchLog = []
     await send(u)
-    const first = sends().filter(c => c.body.text === 'dedup-test').length
+    const first = ghDispatches().filter(c => c.body.client_payload?.message === 'dedup-test').length
     fetchLog = []
     await send(u)
-    const second = sends().filter(c => c.body.text === 'dedup-test').length
-    assert.equal(first, 2); assert.equal(second, 0, 'redelivery must not re-broadcast')
+    const second = ghDispatches().filter(c => c.body.client_payload?.message === 'dedup-test').length
+    assert.equal(first, 1); assert.equal(second, 0, 'redelivery must not re-dispatch the broadcast')
   })
   await t.test('T2 group chat message -> total silence', async () => {
     fetchLog = []
@@ -554,18 +564,18 @@ test('subscription logic under stress', async (t) => {
     assert.ok(sends()[0].body.text.includes('Approved as'), 'command still handled')
     kv.map.delete('usage_stats')
   })
-  await t.test('S4 duplicate ids seeded in subscriber list -> broadcast sends twice (no send-time dedup)', async () => {
+  await t.test('S4 duplicate ids in subscriber list -> still a single dispatch (runner de-dupes at send time)', async () => {
     doStorage.map.set('subscribers', { subscribers: ['2001', '2001'], owner: OWNER })
     fetchLog = []
     await send(upd(OWNER, '/broadcast dup-check'))
-    const n = sends().filter(c => c.body.text === 'dup-check' && String(c.body.chat_id) === '2001').length
-    assert.equal(n, 2)
+    assert.equal(ghDispatches().length, 1, 'one dispatch regardless of duplicate ids; broadcast.mjs Set-dedupes recipients')
     doStorage.map.set('subscribers', { subscribers: [OWNER], owner: OWNER })
   })
-  await t.test('BUG-4 mitigated: allowlist capped at MAX_USERS so broadcast fan-out can never exceed the subrequest limit', async () => {
+  await t.test('capacity cap holds: neither /start nor /adduser can push the allowlist past MAX_USERS', async () => {
     // MAX_USERS = 30 in the Worker. Fill the allowlist to the cap (owner + 29),
-    // then confirm neither approval path can push it past 30 — subscribers are
-    // a subset of the allowlist, so /broadcast fan-out is bounded under 50.
+    // then confirm neither approval path can push it past 30. (Broadcast fan-out
+    // is no longer bounded by this — BUG-4 moved delivery to the Actions runner —
+    // but the capacity cap still exists for the private single-operator scope.)
     const filled = [OWNER, ...Array.from({ length: 29 }, (_, i) => String(3000 + i))]
     resetState({ allowFrom: filled, subscribers: [OWNER] })
     assert.equal(doStorage.map.get('access').allowFrom.length, 30, 'at capacity')
@@ -611,17 +621,17 @@ test('Telegram API failure injection', async (t) => {
     assert.equal(r.status, 200)
     fetchOverride = null
   })
-  await t.test('R4 blocked-bot 403 mid-broadcast -> loop continues, failures reported to owner', async () => {
-    fetchOverride = (url, opts) => {
-      if (!url.includes('sendMessage')) return null
-      const b = JSON.parse(opts.body)
-      if (String(b.chat_id) === '222' && b.text === 'resilience')
-        return new Response(JSON.stringify({ ok: false, error_code: 403, description: 'Forbidden: bot was blocked by the user' }), { status: 403 })
-      return null
-    }
+  // R4 (blocked-bot mid-broadcast) moved to the runner with BUG-4 — the Worker
+  // no longer loops sends to subscribers. Resilience of the fan-out itself
+  // (one recipient fails, loop continues, failures counted) is covered by
+  // shared/telegram.test.mjs::sendTextToMany. Here we just confirm the Worker
+  // still ACKs and dispatches even when the owner ack send fails.
+  await t.test('R4 broadcast dispatch still fires even if the owner ack send fails', async () => {
+    fetchOverride = (url) => url.includes('sendMessage') ? new Response('err', { status: 500 }) : null
     fetchLog = []
-    await send(upd(OWNER, '/broadcast resilience'))
-    assert.ok(sends().at(-1).body.text.includes('failed for 1 of 2'))
+    const r = await send(upd(OWNER, '/broadcast resilience'))
+    assert.equal(r.status, 200, 'webhook still ACKs')
+    assert.equal(ghDispatches().length, 1, 'broadcast still dispatched to the runner')
     fetchOverride = null
   })
   await t.test('R5 chunking: 12KB briefing arrives as multiple valid HTML chunks', async () => {
@@ -637,14 +647,17 @@ test('Telegram API failure injection', async (t) => {
       assert.equal((p.match(/<a /g) ?? []).length, (p.match(/<\/a>/g) ?? []).length, 'no <a> tag split across chunks')
     }
   })
-  await t.test('KNOWN L6 (unfixed): single line >3500 chars with markup splits mid-tag', async () => {
+  await t.test('L6 fixed: single line >3500 chars with markup keeps <a> tags intact across chunks', async () => {
     const bigLine = Array.from({ length: 60 }, (_, i) => `[link${i}](https://example.com/${'q'.repeat(50)}${i})`).join(' ')
     kv.map.set('today_briefing_date', todayUTC())
     kv.map.set('today_briefing_md', '# Daily AI Recruitment Briefing — test\n' + bigLine)
     fetchLog = []
     await send(upd('222', '/briefing'))
     const parts = sends().filter(c => c.body.parse_mode === 'HTML').map(c => c.body.text)
-    const broken = parts.some(p => (p.match(/<a /g) ?? []).length !== (p.match(/<\/a>/g) ?? []).length)
-    assert.ok(broken, 'documents open finding L6 — Telegram would reject these chunks')
+    assert.ok(parts.length >= 2, 'chunked into ' + parts.length)
+    for (const p of parts) {
+      assert.ok(p.length <= 3500, 'each chunk under the limit')
+      assert.equal((p.match(/<a /g) ?? []).length, (p.match(/<\/a>/g) ?? []).length, 'no <a> tag split across chunks')
+    }
   })
 })

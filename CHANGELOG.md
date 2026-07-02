@@ -1,6 +1,71 @@
 # Changelog
 
+## 2026-07-03
+
+### Clear the last audit findings: BUG-4 (broadcast at scale) + L6 (chunking)
+
+- **BUG-4** — `/broadcast` delivery moved off the Worker onto the Actions runner.
+  The Worker now validates the owner + message and fires a `broadcast`
+  `repository_dispatch`; the new `broadcast.yml` workflow runs
+  `scripts/broadcast.mjs`, which fans the message out to every subscriber
+  (paced + retried, de-duped at send time via the shared `sendTextToMany`) and
+  reports delivery back to the owner. This removes the Worker's per-invocation
+  subrequest ceiling that silently dropped recipients past ~45 — including the
+  multi-chunk case the earlier `MAX_USERS=30` cap didn't cover. The message and
+  owner id travel as `client_payload` and are read as env vars (never
+  interpolated into a shell), so a message with shell metacharacters is inert.
+- **L6** — `chunk()` is now tag-aware: it prefers a newline, then a space, and
+  never splits inside an HTML tag or across an `<a>…</a>` pair, so a single
+  >3500-char line of links no longer produces chunks Telegram would reject.
+- **SEC-1** — already documented (least-privilege scope table + rotation
+  checklist in the README); the remaining step is the one-time manual rotation
+  of the live `GITHUB_TOKEN` Worker secret to a fine-grained, this-repo-only
+  `Contents: write` PAT.
+
+Behavioral tests updated for the dispatch-based broadcast; new shared tests for
+`sendTextToMany` (plain-text verbatim delivery + blocked-recipient resilience).
+Full suite 86/86 green.
+
 ## 2026-07-02
+
+### Clear remaining Worker findings: SEC-2, BUG-5, BUG-6, BUG-7
+
+Low-severity / hardening fixes from the Phase 15 release-gate audit, all in
+`worker/src/index.js`:
+
+- **SEC-2** — `fetchWithRetry` now honors `Retry-After` in seconds (its real
+  unit) instead of multiplying by 300ms. A 5s ask previously retried in 1.5s and
+  drew a second 429; it now waits the full interval, with a short linear backoff
+  when the header is absent.
+- **BUG-5** — `/broadcast` strips its command prefix from the *trimmed* text, so
+  a message sent with leading whitespace (`"  /broadcast hi"`) no longer ships
+  the literal `/broadcast` prefix out to every subscriber.
+- **BUG-6** — a stale Approve button no longer silently re-adds a user who was
+  removed (or already handled) since the card was sent; the owner gets a
+  "No longer pending" answer instead.
+- **BUG-7** — approving via `/adduser <id>` now clears the matching pending
+  request atomically (folded into the DO's `addAllowedUser`), so the person no
+  longer lingers in `/pending` with their name/username still stored.
+
+The three "KNOWN BUG" behavioral tests were flipped to assert the corrected
+behavior; full suite 84/84 green.
+
+### Fix NEW-1 (High): on-demand generation could poison the shared briefing cache
+
+Phase 15 re-audit found the daily workflow's BUG-1 freshness gate was never
+ported to the on-demand path. A zero-exit garbage generation (LLM refusal /
+preamble-only / malformed title) from `/newbriefing` was synced to Cloudflare
+KV unconditionally, so every user's `/briefing` then served that garbage from
+cache until the next successful generation. Reproduced against the real Worker.
+
+- **`on-demand-briefing.yml`** — added a `Check freshness` step; `Send to
+  requester`, `Sync to Cloudflare KV`, and `Commit` now gate on `fresh == 'true'`.
+  A new `Notify requester on stale generation` step closes the loop when
+  generation exits 0 but produces nothing dated today (`failure()` doesn't fire).
+- **`scripts/sync-kv.mjs`** — defense-in-depth `isValidBriefing(md)` guard so no
+  caller can overwrite the shared cache with a headerless generation.
+- **`shared/telegram.mjs`** — new shared `isValidBriefing()` helper.
+- **Tests** — regression test for the guard; full suite 84/84 green.
 
 ### Operational resilience: failure alerts, retries, observability, tighter scopes
 
