@@ -545,12 +545,13 @@ test('subscription logic under stress', async (t) => {
     await Promise.all([send(upd('2001', '/subscribe')), send(upd('2001', '/subscribe')), send(upd('2001', '/subscribe'))])
     assert.equal(doStorage.map.get('subscribers').subscribers.filter(x => x === '2001').length, 1)
   })
-  await t.test('KNOWN BUG-8 (unfixed): corrupted usage_stats KV -> silent failure, no reply', async () => {
+  await t.test('BUG-8 fixed: corrupted usage_stats KV degrades to fallback, user still gets a reply', async () => {
     kv.map.set('usage_stats', '{corrupted json!!')
     fetchLog = []
     const r = await send(upd('2001', '/status'))
     assert.equal(r.status, 200, 'webhook still ACKs (no retry storm)')
-    assert.equal(sends().length, 0, 'documents open finding BUG-8')
+    assert.equal(sends().length, 1, 'getJSON try/catch degrades to fallback instead of throwing')
+    assert.ok(sends()[0].body.text.includes('Approved as'), 'command still handled')
     kv.map.delete('usage_stats')
   })
   await t.test('S4 duplicate ids seeded in subscriber list -> broadcast sends twice (no send-time dedup)', async () => {
@@ -561,11 +562,24 @@ test('subscription logic under stress', async (t) => {
     assert.equal(n, 2)
     doStorage.map.set('subscribers', { subscribers: [OWNER], owner: OWNER })
   })
-  await t.test('KNOWN BUG-4 (unfixed): broadcast to 60 subscribers = 62 subrequests (free-plan cap is 50)', async () => {
-    doStorage.map.set('subscribers', { subscribers: Array.from({ length: 60 }, (_, i) => String(3000 + i)), owner: OWNER })
+  await t.test('BUG-4 mitigated: allowlist capped at MAX_USERS so broadcast fan-out can never exceed the subrequest limit', async () => {
+    // MAX_USERS = 30 in the Worker. Fill the allowlist to the cap (owner + 29),
+    // then confirm neither approval path can push it past 30 — subscribers are
+    // a subset of the allowlist, so /broadcast fan-out is bounded under 50.
+    const filled = [OWNER, ...Array.from({ length: 29 }, (_, i) => String(3000 + i))]
+    resetState({ allowFrom: filled, subscribers: [OWNER] })
+    assert.equal(doStorage.map.get('access').allowFrom.length, 30, 'at capacity')
+    // New user's /start is turned away, not queued.
     fetchLog = []
-    await send(upd(OWNER, '/broadcast scale'))
-    assert.equal(sends().length, 62, 'documents open finding BUG-4: real Worker dies at 50 subrequests')
+    await send(upd('4001', '/start', { from: { id: 4001, first_name: 'Late' } }))
+    assert.ok(sends().some(c => c.body.text.includes('at capacity')), '/start refused at cap')
+    assert.ok(!doStorage.map.get('access').pending['4001'], 'not even added to pending')
+    // Owner /adduser is refused too.
+    fetchLog = []
+    await send(upd(OWNER, '/adduser 4002'))
+    assert.ok(sends()[0].body.text.includes('at capacity'), '/adduser refused at cap')
+    assert.ok(!doStorage.map.get('access').allowFrom.includes('4002'))
+    assert.equal(doStorage.map.get('access').allowFrom.length, 30, 'still exactly at cap')
   })
 })
 
