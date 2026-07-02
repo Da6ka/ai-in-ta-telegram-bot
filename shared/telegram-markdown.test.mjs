@@ -64,3 +64,37 @@ test('chunk never exceeds the limit and prefers newline boundaries', () => {
 test('chunk returns the whole string when it fits', () => {
   assert.deepEqual(chunk('short', 100), ['short'])
 })
+
+// AUD-2 regression: the L6 fix protected <a>…</a> pairs but not <b>…</b>. A
+// single line longer than the limit whose cut point landed inside a bold span
+// (bold text contains spaces, so the space-preferring cut can land there)
+// produced two chunks each with an unbalanced <b> — Telegram rejects both.
+test('chunk keeps <b> pairs intact when the boundary lands inside a bold span (AUD-2)', () => {
+  const md = 'x'.repeat(3480) + ' **a bold phrase with spaces inside** tail ' + 'y'.repeat(200)
+  const html = mdToHtml(md)
+  const parts = chunk(html, 3500)
+  assert.ok(parts.length >= 2, 'long line actually chunked')
+  for (const p of parts) {
+    assert.ok(p.length <= 3500, 'chunk within limit')
+    assert.equal(
+      (p.match(/<b>/g) ?? []).length,
+      (p.match(/<\/b>/g) ?? []).length,
+      `unbalanced <b> in chunk: …${p.slice(-40)}`,
+    )
+  }
+  assert.equal(parts.join(''), html, 'no content lost')
+})
+
+// The generalized balance check must not regress the anchor case (L6).
+test('chunk still keeps <a> pairs intact across cuts', () => {
+  const links = Array.from({ length: 60 }, (_, i) =>
+    `[a much longer link label number ${i} with spaces](https://example.com/${i})`).join(' ')
+  const html = mdToHtml(links)
+  for (const p of chunk(html, 3500)) {
+    assert.equal(
+      (p.match(/<a\b/g) ?? []).length,
+      (p.match(/<\/a>/g) ?? []).length,
+      'unbalanced <a> in chunk',
+    )
+  }
+})

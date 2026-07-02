@@ -20,6 +20,9 @@ You are running an on-demand AI recruitment news briefing (triggered by /newbrie
    - **No evergreen content marketing:** skip "complete guides", tool roundups/listicles, "trends" explainers, and vendor landing pages, however relevant they look.
    - **Never cite the same domain twice** in one briefing.
    - **Regulatory dates and statistics** (laws, effective dates, survey numbers): state them only when the source is primary or authoritative for that claim; otherwise omit the number/date and keep the story, or drop it.
+   - **Prefer strong sources:** primary sources (vendor newsrooms, regulators, research institutions) and named trade press (ERE, SHRM, HR Brew, TechCrunch) over stock-analysis or SEO-aggregator domains.
+
+   **Minimum coverage:** if fewer than 4 items pass all the filters above, run up to 3 additional, more specific searches before composing — e.g. "recruiting technology funding round", "enterprise HR AI deployment announcement", "AI hiring lawsuit OR EEOC OR regulator action", "ATS vendor product announcement". Only settle for fewer than 4 items if those searches also come up empty.
 
 3. Compose the briefing using exactly this structure — real Markdown headers (`#`/`##`), not emoji-prefixed plain text:
 
@@ -34,6 +37,8 @@ You are running an on-demand AI recruitment news briefing (triggered by /newbrie
 
 ## Worth Reading
 [1-2 longer-form pieces — must still pass the 7-day and no-evergreen filters]
+
+**Bottom line:** [one sentence connecting today's items to what a TA leader should do or watch next]
 ```
 
 If a section has no qualifying stories, omit the section entirely rather than padding it.
@@ -42,6 +47,7 @@ Date format is exact and load-bearing: day-of-month as a plain number (no leadin
 
 Rules:
 - Each bullet: 1-2 sentences max, actionable insight over hype
+- Within each section, order items by impact on a TA leader's decisions, highest first — not by search-result order
 - Every source as a clickable Markdown link: [Title](https://url)
 - Never list bare URLs
 - One `#` title line, no separate emoji restatement of the title

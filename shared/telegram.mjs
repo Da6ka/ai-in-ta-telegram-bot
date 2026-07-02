@@ -20,6 +20,20 @@ export function isValidBriefing(md) {
   return /^# Daily AI Recruitment Briefing — .+/m.test(md ?? '')
 }
 
+// A qualifying story is a top-level bullet carrying a Markdown link — the
+// shape every real item has per the briefing prompt. The "no content
+// available" fallback has zero; the degenerate single-story generation
+// observed in prod (2026-07-02 21:32 UTC) had one. Anything below
+// MIN_BRIEFING_ITEMS must not replace the shared today_briefing cache or be
+// pushed to all subscribers as the day's edition (AUD-1) — 2+ linked stories
+// is the floor for a plausibly real quiet news day, while the prompt itself
+// aims for 4+ via its minimum-coverage search loop.
+export const MIN_BRIEFING_ITEMS = 2
+
+export function countBriefingItems(md) {
+  return (String(md ?? '').match(/^- .*\]\(https?:\/\//gm) ?? []).length
+}
+
 // Pace sends to stay under Telegram's ~30 msg/s ceiling. 40ms ≈ 25/s, leaving
 // headroom for the API's own variability.
 const DEFAULT_PACE_MS = 40

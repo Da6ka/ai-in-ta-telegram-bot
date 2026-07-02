@@ -63,11 +63,29 @@ jobs:
         if: steps.idempotency.outputs.should_run == 'true'
         run: node scripts/force-briefing-date.mjs
 
+      # Runs BEFORE the send (AUD-1): freshness alone let the dated "no content
+      # available" fallback — or a degenerate 1-story generation — go out to
+      # every subscriber and mark the day done. Now the day's edition must be
+      # dated today AND carry at least MIN_BRIEFING_ITEMS linked stories.
+      - name: Check freshness & content
+        if: steps.idempotency.outputs.should_run == 'true'
+        id: freshness
+        run: |
+          TODAY=$(date -u '+%-d %B %Y')
+          ITEMS=$(node --input-type=module -e "import {countBriefingItems} from './shared/telegram.mjs'; import {readFileSync} from 'node:fs'; console.log(countBriefingItems(readFileSync('state/today_briefing.md','utf8')))")
+          MIN=$(node --input-type=module -e "import {MIN_BRIEFING_ITEMS} from './shared/telegram.mjs'; console.log(MIN_BRIEFING_ITEMS)")
+          if grep -q "$TODAY" state/today_briefing.md && [ "$ITEMS" -ge "$MIN" ]; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Briefing rejected: dated-today grep or item minimum failed (items=$ITEMS, min=$MIN)."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          fi
+
       # Sends to the live subscriber list the bot maintains (mirrored into the
       # `subscribers` KV key by the Worker), and outputs recipient_count for
       # the stats steps below.
       - name: Send to Telegram
-        if: steps.idempotency.outputs.should_run == 'true'
+        if: steps.idempotency.outputs.should_run == 'true' && steps.freshness.outputs.ok == 'true'
         id: send
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -76,28 +94,17 @@ jobs:
           CF_KV_NAMESPACE_ID: ${{ secrets.CF_KV_NAMESPACE_ID }}
         run: node scripts/send-briefing.mjs
 
-      - name: Check freshness
-        if: steps.idempotency.outputs.should_run == 'true'
-        id: freshness
-        run: |
-          TODAY=$(date -u '+%-d %B %Y')
-          if grep -q "$TODAY" state/today_briefing.md; then
-            echo "fresh=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "fresh=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      # Gated on freshness: a garbage generation (no header/date) must NOT
-      # set last_briefing_at, or the idempotency check would mark the day as
+      # Gated on the content check: a garbage/thin generation must NOT set
+      # last_briefing_at, or the idempotency check would mark the day as
       # done and block every retry while subscribers got nothing.
       - name: Update usage stats
-        if: steps.idempotency.outputs.should_run == 'true' && steps.freshness.outputs.fresh == 'true'
+        if: steps.idempotency.outputs.should_run == 'true' && steps.freshness.outputs.ok == 'true'
         env:
           RECIPIENT_COUNT: ${{ steps.send.outputs.recipient_count }}
         run: node scripts/update-usage-stats.mjs
 
       - name: Sync to Cloudflare KV
-        if: steps.idempotency.outputs.should_run == 'true' && steps.freshness.outputs.fresh == 'true'
+        if: steps.idempotency.outputs.should_run == 'true' && steps.freshness.outputs.ok == 'true'
         env:
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
@@ -115,15 +122,16 @@ jobs:
           git pull --rebase origin main
           git push
 
-      # Generation ran but produced nothing dated today: the freshness gate
-      # correctly skipped the send + stats, but subscribers got nothing and
-      # nobody would know without this.
-      - name: Alert owner on stale generation
-        if: steps.idempotency.outputs.should_run == 'true' && steps.freshness.outputs.fresh == 'false'
+      # Generation ran but produced nothing usable (not dated today, or below
+      # the story minimum): the gate correctly skipped the send + stats, but
+      # subscribers got nothing and nobody would know without this. The day is
+      # NOT marked done, so a manual re-run can still deliver.
+      - name: Alert owner on stale or thin generation
+        if: steps.idempotency.outputs.should_run == 'true' && steps.freshness.outputs.ok == 'false'
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           CHAT_ID: ${{ vars.OWNER_CHAT_ID }}
-          ALERT_TEXT: "[ai-in-ta] Daily briefing generated but was NOT fresh for today — nothing sent to subscribers, stats not advanced. Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          ALERT_TEXT: "[ai-in-ta] Daily briefing was stale or below the story minimum — nothing sent to subscribers, stats not advanced. Re-run the workflow to retry. Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
         run: node scripts/send-alert.mjs
 
       # Any step above threw (generation, send, KV sync, commit/push): the day's
