@@ -2,6 +2,14 @@
 
 ## 2026-07-02
 
+### Command menu registration (setMyCommands)
+
+Added `scripts/set-commands.mjs`. The Worker handles commands but never
+registered them with Telegram, so clients showed no "/" autocomplete or Menu
+button. The script sets a public command list for everyone (default scope)
+and an extended list including the admin commands scoped to the owner's chat
+only. Run once after deploy and whenever the command set changes.
+
 ### Editorial prompt overhaul + behavioral test suite in-repo
 
 Follow-ups from the release-gate audit:
