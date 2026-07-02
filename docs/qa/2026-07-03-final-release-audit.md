@@ -31,7 +31,7 @@ Conditions / fast-follows below (1 Medium, 3 Low). None blocks release at this s
 ### AUD-3 (Low, delivery) — A queued broadcast can be silently replaced under GitHub's concurrency rules
 - With `concurrency: group: broadcast` and `cancel-in-progress: false`, GitHub keeps only the **latest pending** run: broadcast #1 running, #2 queued, #3 arrives → #2 is cancelled. Cancelled ≠ `failure()`, so the "Notify owner on failure" step never fires — the owner was told "Broadcasting to N…" for #2 but it never went out.
 - **Likelihood:** requires three `/broadcast`s inside ~a minute, owner-only. The briefing group is effectively immune (the 1-hour cooldown prevents a second queued run).
-- **Fix (cheapest):** note it in README; or give each broadcast a unique concurrency group and serialize inside the script; or add a Worker-side broadcast cooldown (e.g. 2 min).
+- **Fix (implemented same session):** removed the concurrency group from `broadcast.yml`. Serialization was protecting against nothing real — each run is paced under the Telegram rate limit and retries 429s honoring Retry-After, so overlapping runs deliver slightly slower but never drop a message, whereas the group could silently drop a whole broadcast.
 
 ### AUD-4 (Info) — minor accepted behaviors, documented for the record
 - `recordSeenUpdate` marks an update seen *before* handling: if the isolate dies mid-handling (exceptions are caught, so this is rare), Telegram's redelivery is dropped. Correct tradeoff vs. re-running non-idempotent commands — leave as is.

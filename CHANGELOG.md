@@ -28,11 +28,16 @@ Phase 16 editorial rubric. Two findings fixed in the same session:
   now a general tag-stack scan that backs the cut up to the first unclosed tag
   of any kind.
 
-New regression tests for both (thin-briefing counting incl. the fallback and
-the observed 1-story case; bold-span chunk balance + anchor non-regression).
-Full suite 89/89 green. Still open, accepted as Low: a third rapid `/broadcast`
-can silently replace a *queued* one under GitHub's concurrency rules (AUD-3),
-and the one-time manual SEC-1 PAT rotation still needs confirming.
+- **AUD-3 (Low)** — a third rapid `/broadcast` silently replaced a *queued*
+  one: GitHub keeps only the latest pending run per concurrency group, and a
+  cancelled run doesn't fire the `failure()` alert. The group is removed from
+  `broadcast.yml` — overlapping runs are safe (paced + 429-retried, worst case
+  slightly slower delivery), while the group could drop a whole broadcast.
+
+New regression tests for AUD-1/AUD-2 (thin-briefing counting incl. the
+fallback and the observed 1-story case; bold-span chunk balance + anchor
+non-regression). Full suite 89/89 green. Remaining manual item: confirm the
+one-time SEC-1 PAT rotation of the live Worker `GITHUB_TOKEN` secret.
 
 ### Clear the last audit findings: BUG-4 (broadcast at scale) + L6 (chunking)
 

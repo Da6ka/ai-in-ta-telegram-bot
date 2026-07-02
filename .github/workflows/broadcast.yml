@@ -12,11 +12,13 @@ on:
 permissions:
   contents: read
 
-# Broadcasts are independent of briefing generation, but serialize them with
-# each other so two rapid /broadcast taps don't interleave their sends.
-concurrency:
-  group: broadcast
-  cancel-in-progress: false
+# Deliberately NO concurrency group (AUD-3): GitHub keeps only the latest
+# *pending* run per group, so with a shared group a third rapid /broadcast
+# silently replaced the queued second one — cancelled runs don't trigger the
+# failure() alert, and the owner had already been told it was on its way.
+# Concurrent broadcast runs are safe to overlap: each is paced under the
+# Telegram rate limit and retries 429s honoring Retry-After, so worst case two
+# overlapping runs deliver slightly slower, never drop a message.
 
 jobs:
   broadcast:
