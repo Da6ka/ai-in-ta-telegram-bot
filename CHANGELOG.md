@@ -2,6 +2,26 @@
 
 ## 2026-07-02
 
+### Release-gate QA audit + three must-fix bugs fixed
+
+Full QA/security audit (57 behavioral scenarios against the worker code under
+a mocked CF runtime, Telegram failure injection, link + editorial review of
+the live briefing): `docs/qa/2026-07-02-release-gate.md`. Verdict:
+conditional GO, no security-critical findings. Fixed the three must-fix bugs:
+
+- Daily workflow: usage-stats step now gated on the freshness check, so a
+  garbage generation can't mark the day done and block retries (BUG-1).
+- Daily + on-demand workflows share one concurrency group and rebase before
+  push, so they can no longer run concurrently and clobber state (BUG-2).
+- Worker: `Object.hasOwn` guards in command dispatch and stats counting —
+  `/constructor`-style messages now get the normal nudge instead of silence
+  plus garbage in the `usage_stats` KV key (BUG-3).
+
+Open findings (broadcast subrequest cap at ~45 subscribers, stale approve
+button, `/adduser` pending leftover, editorial staleness, etc.) are tracked
+in the report.
+
+
 ### Daily briefing now follows the bot's live subscriber list
 
 Previously the daily 09:00 UTC send went to a hand-maintained
