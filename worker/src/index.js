@@ -445,6 +445,7 @@ const COMMAND_HANDLERS = {
       "- Must-read articles and resources\n\n" +
       "Just tap /briefing anytime to get the latest edition.\n\n" +
       "/briefing — get today's briefing\n" +
+      "/newbriefing — generate a fresh briefing right now\n" +
       "/subscribe — get the daily briefing every morning\n" +
       "/unsubscribe — stop the daily briefing\n" +
       "/status — check your access status\n" +
@@ -457,7 +458,7 @@ const COMMAND_HANDLERS = {
     const { senderId, isAllowed } = gated
     if (isAllowed) {
       const name = message.from.username ? `@${message.from.username}` : senderId
-      await reply(env, senderId, `Paired as ${name}`)
+      await reply(env, senderId, `Approved as ${name}`)
       return
     }
     await reply(env, senderId,
@@ -633,10 +634,10 @@ const COMMAND_HANDLERS = {
     }
     const { added } = await stub.addAllowedUser(id)
     if (!added) {
-      await reply(env, senderId, `User \`${id}\` is already on the allowlist.`)
+      await reply(env, senderId, `User <code>${escapeHtml(id)}</code> is already on the allowlist.`, { parse_mode: 'HTML' })
       return
     }
-    await reply(env, senderId, `User \`${id}\` added to the allowlist. They can now use the bot. They'll need to /subscribe for daily briefings.`)
+    await reply(env, senderId, `User <code>${escapeHtml(id)}</code> added to the allowlist. They can now use the bot. They'll need to /subscribe for daily briefings.`, { parse_mode: 'HTML' })
   },
 
   async removeuser(env, message, gated, args) {
@@ -657,10 +658,10 @@ const COMMAND_HANDLERS = {
     const r = await stub.forgetUser(id)
     const purged = await purgeUsageStats(env, id)
     if (!r.wasAllowed && !r.wasSubscribed && !r.wasPending && !purged) {
-      await reply(env, senderId, `User \`${id}\` not found.`)
+      await reply(env, senderId, `User <code>${escapeHtml(id)}</code> not found.`, { parse_mode: 'HTML' })
       return
     }
-    await reply(env, senderId, `User \`${id}\` removed and all their data erased (allowlist, subscription, pending request, activity log).`)
+    await reply(env, senderId, `User <code>${escapeHtml(id)}</code> removed and all their data erased (allowlist, subscription, pending request, activity log).`, { parse_mode: 'HTML' })
   },
 
   async broadcast(env, message, gated, args, rawText) {
@@ -728,11 +729,14 @@ async function handleCallbackQuery(env, stub, callbackQuery) {
     await stub.removePending(targetId)
     await tg(env, 'answerCallbackQuery', { callback_query_id: callbackQuery.id, text: 'Approved' })
     if (msg?.text) await tg(env, 'editMessageText', { chat_id: msg.chat.id, message_id: msg.message_id, text: `${msg.text}\n\nApproved` })
-    await reply(env, targetId, 'Paired! Send /briefing or /subscribe to get started.')
+    await reply(env, targetId, "You're approved! Send /briefing or /subscribe to get started.")
   } else {
     await stub.removePending(targetId)
     await tg(env, 'answerCallbackQuery', { callback_query_id: callbackQuery.id, text: 'Denied' })
     if (msg?.text) await tg(env, 'editMessageText', { chat_id: msg.chat.id, message_id: msg.message_id, text: `${msg.text}\n\nDenied` })
+    // Close the loop for the applicant instead of leaving them waiting in
+    // silence. Neutral wording — doesn't invite argument or re-requests.
+    await reply(env, targetId, "Your access request wasn't approved at this time.")
   }
 }
 
@@ -747,10 +751,14 @@ async function handleMessage(env, stub, message) {
   // content; the reply is a fixed string.
   const text = message.text
   const m = /^\/(\w+)(?:@\S+)?(?:\s+(.*))?$/s.exec((text ?? '').trim())
+  // Telegram commands are case-insensitive by convention, and mobile keyboards
+  // autocapitalize — normalize so /Start, /Briefing etc. resolve to the
+  // handler instead of falling through to the nudge.
+  const cmd = m ? m[1].toLowerCase() : null
   // Object.hasOwn: /constructor, /__proto__ etc. must not resolve to
   // Object.prototype members — they'd be treated as handlers and produce
   // silence instead of the nudge.
-  const handler = m && Object.hasOwn(COMMAND_HANDLERS, m[1]) ? COMMAND_HANDLERS[m[1]] : null
+  const handler = cmd && Object.hasOwn(COMMAND_HANDLERS, cmd) ? COMMAND_HANDLERS[cmd] : null
   if (!handler) {
     await reply(env, gated.senderId, gated.isAllowed
       ? "I only understand commands. Tap /briefing for today's digest, or /help to see everything I can do."
@@ -758,7 +766,7 @@ async function handleMessage(env, stub, message) {
     return
   }
 
-  const [, cmd, argStr] = m
+  const argStr = m[2]
   await touchLastSeen(env, gated.senderId)
   await bumpCommandCount(env, cmd)
 

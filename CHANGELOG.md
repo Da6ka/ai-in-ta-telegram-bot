@@ -2,6 +2,26 @@
 
 ## 2026-07-02
 
+### UX polish fixes (Phase 13 findings)
+
+Fixed all five findings from the Phase 13 UX review:
+
+- **UX-1** — commands are now case-insensitive: the dispatcher lowercases the
+  command name before lookup, so mobile autocapitalization (`/Start`,
+  `/Briefing`) resolves to the handler instead of the "I only understand
+  commands" nudge. Also consolidates command-count stats across cases.
+- **UX-2** — `/help` now lists `/newbriefing`, matching the client command menu.
+- **UX-3** — the four `/adduser` / `/removeuser` id replies now render the id in
+  `<code>` (HTML) instead of showing literal Markdown backticks; the id is
+  HTML-escaped.
+- **UX-4** — denied applicants now get a neutral "your request wasn't approved"
+  reply instead of being left in silence.
+- **UX-5** — "Paired"/"Paired as" reworded to "You're approved"/"Approved as",
+  matching the allowlist model (the pairing-code machinery was already removed).
+
+Tests updated to assert the new behavior, plus a new deny-notification test
+(76/76 green).
+
 ### Command menu registration (setMyCommands)
 
 Added `scripts/set-commands.mjs`. The Worker handles commands but never
