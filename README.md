@@ -8,22 +8,28 @@ so it doesn't depend on a laptop being awake.
 
 - `ANTHROPIC_API_KEY` — Anthropic Console API key (pay-as-you-go, separate from any claude.ai subscription)
 - `TELEGRAM_BOT_TOKEN` — the bot's token from @BotFather
-- `TELEGRAM_SUBSCRIBER_CHAT_IDS` — comma-separated Telegram chat IDs to receive the briefing
+- `CF_ACCOUNT_ID` / `CF_API_TOKEN` / `CF_KV_NAMESPACE_ID` — Cloudflare KV access (see the Worker
+  section below); the daily send also uses these to read the live subscriber list
 
 Set them with:
 
 ```
 gh secret set ANTHROPIC_API_KEY --repo <owner>/ai-in-ta-telegram-bot
 gh secret set TELEGRAM_BOT_TOKEN --repo <owner>/ai-in-ta-telegram-bot
-gh secret set TELEGRAM_SUBSCRIBER_CHAT_IDS --repo <owner>/ai-in-ta-telegram-bot
 ```
+
+There is no hand-maintained recipient list: whoever taps /subscribe in the bot gets the daily
+briefing, whoever taps /unsubscribe (or is removed via /removeuser) stops getting it. The Worker
+mirrors its subscriber list into the `subscribers` KV key, and `scripts/send-briefing.mjs` reads
+that key at send time.
 
 ## How it works
 
 1. `briefing-prompt.md` is handed to `claude -p` in the workflow, which searches the web,
    composes the briefing, and writes it to `state/today_briefing.md` (plus `state/usage_stats.json`
    for the idempotency check, in case the workflow is also triggered manually the same day).
-2. `scripts/send-briefing.mjs` sends the result to every chat ID in `TELEGRAM_SUBSCRIBER_CHAT_IDS`.
+2. `scripts/send-briefing.mjs` sends the result to every subscriber in the bot's live list
+   (the `subscribers` KV key, maintained by /subscribe & /unsubscribe in the Worker).
 3. The workflow commits the updated `state/` files back to the repo.
 
 Trigger a run manually any time from the Actions tab ("Run workflow"), or:

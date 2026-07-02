@@ -11,8 +11,9 @@ const existing = existsSync(path)
   : { briefings_sent: 0, last_briefing_at: null, briefing_history: [], command_counts: {}, last_seen: {} }
 
 const today = new Date().toISOString().slice(0, 10)
-const recipients = (process.env.TELEGRAM_SUBSCRIBER_CHAT_IDS ?? '')
-  .split(',').map(s => s.trim()).filter(Boolean).length
+// Set by the send step (scripts/send-briefing.mjs writes it to GITHUB_OUTPUT
+// after fetching the live subscriber list from KV).
+const recipients = Number(process.env.RECIPIENT_COUNT ?? 0)
 
 existing.briefings_sent = (existing.briefings_sent ?? 0) + 1
 existing.last_briefing_at = today

@@ -13,6 +13,10 @@
 //     the vast majority of writes under real concurrency (measured: 15
 //     concurrent /subscribe calls -> only 2 landed). Durable Object storage
 //     serializes access to a single instance, so these are safe now.
+//     The subscriber list is additionally mirrored into the `subscribers` KV
+//     key after every change, so the daily-briefing pipeline
+//     (scripts/send-briefing.mjs) reads the live list instead of a
+//     hand-maintained TELEGRAM_SUBSCRIBER_CHAT_IDS repo secret.
 //   - `usage_stats` stays in the BOT_STATE KV namespace as before. It's also
 //     written directly by the GitHub Actions pipeline (scripts/sync-kv.mjs),
 //     so fully fixing its concurrency would mean giving that pipeline a way
@@ -25,6 +29,13 @@
 
 import { DurableObject } from 'cloudflare:workers'
 import { mdToHtml, chunk } from '../../shared/telegram-markdown.mjs'
+
+// Each briefing generation is a paid GitHub Actions + Claude API run, and the
+// result is shared (one today_briefing for everyone) — so the cooldown is
+// global, with a per-user daily cap as a backstop against one user hammering
+// /newbriefing every hour all day.
+const DISPATCH_COOLDOWN_MS = 60 * 60 * 1000
+const DAILY_DISPATCH_CAP = 3
 
 const DEFAULT_ACCESS = { dmPolicy: 'allowlist', allowFrom: [], ownerChatId: '', pending: {} }
 const DEFAULT_SUBSCRIBERS = { subscribers: [], owner: '' }
@@ -85,6 +96,7 @@ export class BotState extends DurableObject {
     const subs = await this.getSubscribers()
     subs.subscribers = subs.subscribers.filter(x => x !== id)
     await this.ctx.storage.put('subscribers', subs)
+    await this.mirrorSubscribers(subs)
     return { access, subs, removed }
   }
 
@@ -112,6 +124,7 @@ export class BotState extends DurableObject {
       subs.subscribers.push(id)
       await this.ctx.storage.put('subscribers', subs)
     }
+    await this.mirrorSubscribers(subs)
     return { subs, already }
   }
 
@@ -122,7 +135,52 @@ export class BotState extends DurableObject {
       subs.subscribers = subs.subscribers.filter(x => x !== id)
       await this.ctx.storage.put('subscribers', subs)
     }
+    await this.mirrorSubscribers(subs)
     return { subs, wasSubscribed }
+  }
+
+  // Mirror the live subscriber list into KV so the daily-briefing pipeline
+  // (scripts/send-briefing.mjs, via the KV REST API) sends to exactly the
+  // people the bot considers subscribed. Runs even on no-op subscribe/
+  // unsubscribe calls, so the owner can force a refresh of the mirror by
+  // tapping /subscribe once (useful right after deploying this change).
+  async mirrorSubscribers(subs) {
+    await this.env.BOT_STATE.put('subscribers', JSON.stringify(subs))
+  }
+
+  // Rate limiting for briefing generation. Check + record happen in one
+  // method so two concurrent requests can't both pass the check and
+  // double-dispatch.
+  async reserveBriefingDispatch(senderId) {
+    const now = Date.now()
+    const today = new Date(now).toISOString().slice(0, 10)
+    const rl = (await this.ctx.storage.get('briefing_rate')) ?? { lastDispatchAt: 0, date: today, counts: {} }
+    if (rl.date !== today) {
+      rl.date = today
+      rl.counts = {}
+    }
+    if ((rl.counts[senderId] ?? 0) >= DAILY_DISPATCH_CAP) {
+      return { allowed: false, reason: 'daily_cap' }
+    }
+    const elapsed = now - rl.lastDispatchAt
+    if (elapsed < DISPATCH_COOLDOWN_MS) {
+      return { allowed: false, reason: 'cooldown', retryInMin: Math.ceil((DISPATCH_COOLDOWN_MS - elapsed) / 60000) }
+    }
+    const prevLastDispatchAt = rl.lastDispatchAt
+    rl.lastDispatchAt = now
+    rl.counts[senderId] = (rl.counts[senderId] ?? 0) + 1
+    await this.ctx.storage.put('briefing_rate', rl)
+    return { allowed: true, prevLastDispatchAt }
+  }
+
+  // Roll back a reservation whose GitHub dispatch failed, so a transient
+  // dispatch error doesn't lock everyone out for a full cooldown window.
+  async rollbackBriefingDispatch(senderId, prevLastDispatchAt) {
+    const rl = await this.ctx.storage.get('briefing_rate')
+    if (!rl) return
+    rl.lastDispatchAt = prevLastDispatchAt ?? 0
+    if (rl.counts[senderId]) rl.counts[senderId] -= 1
+    await this.ctx.storage.put('briefing_rate', rl)
   }
 
   // Telegram redelivers updates it thinks weren't acknowledged. Keep a
@@ -258,6 +316,38 @@ async function dispatchBriefing(env, chatId) {
   }
 }
 
+// Shared by /newbriefing and /briefing's stale-cache path: rate-limit check,
+// then dispatch generation, rolling back the reservation if dispatch fails.
+// During the cooldown the user still gets something — the cached briefing if
+// today's exists, otherwise a "being generated" note (a run is likely in
+// flight, since the cooldown started less than an hour ago).
+async function requestGeneration(env, stub, senderId, generatingMsg) {
+  const r = await stub.reserveBriefingDispatch(senderId)
+  if (!r.allowed) {
+    if (r.reason === 'daily_cap') {
+      await reply(env, senderId, "You've reached today's limit for fresh briefings — /briefing will still get you the latest one.")
+      return
+    }
+    const date = await env.BOT_STATE.get('today_briefing_date')
+    if (date === todayUTC()) {
+      const md = await env.BOT_STATE.get('today_briefing_md')
+      if (md) {
+        await reply(env, senderId, `The briefing was refreshed less than an hour ago — here it is. A new one can be generated in ~${r.retryInMin} min.`)
+        await sendHtml(env, senderId, mdToHtml(md))
+        return
+      }
+    }
+    await reply(env, senderId, 'A briefing is being generated right now — send /briefing in a couple of minutes to get it.')
+    return
+  }
+  await reply(env, senderId, generatingMsg)
+  const dispatched = await dispatchBriefing(env, senderId)
+  if (!dispatched) {
+    await stub.rollbackBriefingDispatch(senderId, r.prevLastDispatchAt)
+    await reply(env, senderId, "Couldn't start briefing generation right now — please try again shortly, or contact the bot owner if this keeps happening.")
+  }
+}
+
 const COMMAND_HANDLERS = {
   async start(env, message, gated) {
     const { access, senderId, isAllowed, stub } = gated
@@ -348,7 +438,7 @@ const COMMAND_HANDLERS = {
   },
 
   async briefing(env, message, gated) {
-    const { senderId, isAllowed } = gated
+    const { senderId, isAllowed, stub } = gated
     if (!isAllowed) {
       await reply(env, senderId, 'You need to be approved first — send /start to request access.')
       return
@@ -365,24 +455,16 @@ const COMMAND_HANDLERS = {
         return
       }
     }
-    await reply(env, senderId, "Generating today's briefing, one moment...")
-    const dispatched = await dispatchBriefing(env, senderId)
-    if (!dispatched) {
-      await reply(env, senderId, "Couldn't start briefing generation right now — please try again shortly, or contact the bot owner if this keeps happening.")
-    }
+    await requestGeneration(env, stub, senderId, "Generating today's briefing, one moment...")
   },
 
   async newbriefing(env, message, gated) {
-    const { senderId, isAllowed } = gated
+    const { senderId, isAllowed, stub } = gated
     if (!isAllowed) {
       await reply(env, senderId, 'You need to be approved first — send /start to request access.')
       return
     }
-    await reply(env, senderId, 'Generating a fresh briefing, this will take a minute...')
-    const dispatched = await dispatchBriefing(env, senderId)
-    if (!dispatched) {
-      await reply(env, senderId, "Couldn't start briefing generation right now — please try again shortly, or contact the bot owner if this keeps happening.")
-    }
+    await requestGeneration(env, stub, senderId, 'Generating a fresh briefing, this will take a minute...')
   },
 
   async admin(env, message, gated) {

@@ -51,18 +51,24 @@ jobs:
         if: steps.idempotency.outputs.should_run == 'true'
         run: node scripts/force-briefing-date.mjs
 
+      # Sends to the live subscriber list the bot maintains (mirrored into the
+      # `subscribers` KV key by the Worker), and outputs recipient_count for
+      # the stats steps below.
+      - name: Send to Telegram
+        if: steps.idempotency.outputs.should_run == 'true'
+        id: send
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CF_KV_NAMESPACE_ID: ${{ secrets.CF_KV_NAMESPACE_ID }}
+        run: node scripts/send-briefing.mjs
+
       - name: Update usage stats
         if: steps.idempotency.outputs.should_run == 'true'
         env:
-          TELEGRAM_SUBSCRIBER_CHAT_IDS: ${{ secrets.TELEGRAM_SUBSCRIBER_CHAT_IDS }}
+          RECIPIENT_COUNT: ${{ steps.send.outputs.recipient_count }}
         run: node scripts/update-usage-stats.mjs
-
-      - name: Send to Telegram
-        if: steps.idempotency.outputs.should_run == 'true'
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_SUBSCRIBER_CHAT_IDS: ${{ secrets.TELEGRAM_SUBSCRIBER_CHAT_IDS }}
-        run: node scripts/send-briefing.mjs
 
       - name: Check freshness
         if: steps.idempotency.outputs.should_run == 'true'
@@ -81,10 +87,8 @@ jobs:
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           CF_KV_NAMESPACE_ID: ${{ secrets.CF_KV_NAMESPACE_ID }}
-          RECIPIENT_COUNT: ${{ secrets.TELEGRAM_SUBSCRIBER_CHAT_IDS }}
-        run: |
-          export RECIPIENT_COUNT=$(echo -n "$RECIPIENT_COUNT" | tr ',' '\n' | grep -c .)
-          node scripts/sync-kv.mjs
+          RECIPIENT_COUNT: ${{ steps.send.outputs.recipient_count }}
+        run: node scripts/sync-kv.mjs
 
       - name: Commit updated state
         if: steps.idempotency.outputs.should_run == 'true'
