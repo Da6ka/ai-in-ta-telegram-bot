@@ -206,11 +206,12 @@ test('pairing flow', async (t) => {
     assert.equal(sends().length, 0)
     assert.equal(tgCalls('answerCallbackQuery').length, 2)
   })
-  await t.test('KNOWN BUG-6 (unfixed): stale approve button re-adds a removed user', async () => {
+  await t.test('BUG-6 fixed: stale approve button does NOT re-add a removed user', async () => {
     await send(upd(OWNER, '/removeuser 222'))
     fetchLog = []
     await send(cb(OWNER, 'acc:Y:222'))
-    assert.ok(doStorage.map.get('access').allowFrom.includes('222'), 'documents open finding BUG-6')
+    assert.ok(!doStorage.map.get('access').allowFrom.includes('222'), 'removed user not re-added')
+    assert.equal(tgCalls('answerCallbackQuery')[0].body.text, 'No longer pending', 'owner told the button is stale')
   })
 })
 
@@ -360,12 +361,13 @@ test('admin commands', async (t) => {
     await send(upd(OWNER, '/adduser 555'))
     assert.ok(sends()[0].body.text.includes('already on the allowlist'))
   })
-  await t.test('KNOWN BUG-7 (unfixed): /adduser does not clear matching pending entry', async () => {
+  await t.test('BUG-7 fixed: /adduser clears the matching pending entry', async () => {
     const access = doStorage.map.get('access')
     access.pending['777'] = { displayName: 'P', username: '@p', createdAt: 1 }
     doStorage.map.set('access', access)
     await send(upd(OWNER, '/adduser 777'))
-    assert.ok(doStorage.map.get('access').pending['777'], 'documents open finding BUG-7')
+    assert.ok(doStorage.map.get('access').allowFrom.includes('777'), 'user added')
+    assert.ok(!doStorage.map.get('access').pending['777'], 'pending request cleared on approval')
   })
   await t.test('F16 /removeuser: removes, owner protected, unknown reported', async () => {
     fetchLog = []
@@ -395,9 +397,12 @@ test('admin commands', async (t) => {
     assert.ok(!delivered.some(x => x.includes('/Broadcast')), 'prefix must not leak to subscribers')
   })
   await t.test('F18 /pending lists requests', async () => {
+    const access = doStorage.map.get('access')
+    access.pending['888'] = { displayName: 'Q', username: '@q', createdAt: 1 }
+    doStorage.map.set('access', access)
     fetchLog = []
     await send(upd(OWNER, '/pending'))
-    assert.ok(sends()[0].body.text.includes('777'))
+    assert.ok(sends()[0].body.text.includes('888'))
   })
 })
 
@@ -471,11 +476,13 @@ test('hostile and malformed input', async (t) => {
     assert.ok(toSub, 'sent verbatim')
     assert.equal(toSub.body.parse_mode, undefined)
   })
-  await t.test('KNOWN BUG-5 (unfixed): /broadcast with leading whitespace ships the command prefix', async () => {
+  await t.test('BUG-5 fixed: /broadcast with leading whitespace strips the prefix', async () => {
     fetchLog = []
     await send(upd(OWNER, '  /broadcast payday'))
     const delivered = sends().map(c => c.body.text).filter(x => x.includes('payday') && !x.startsWith('Broadcasting') && !x.startsWith('Done'))
-    assert.ok(delivered.some(x => x.includes('/broadcast')), 'documents open finding BUG-5')
+    assert.ok(delivered.length > 0, 'the message was delivered')
+    assert.ok(!delivered.some(x => x.includes('/broadcast')), 'command prefix must not leak to subscribers')
+    assert.ok(delivered.some(x => x === 'payday'), 'subscribers get the clean payload')
   })
 })
 

@@ -2,6 +2,28 @@
 
 ## 2026-07-02
 
+### Clear remaining Worker findings: SEC-2, BUG-5, BUG-6, BUG-7
+
+Low-severity / hardening fixes from the Phase 15 release-gate audit, all in
+`worker/src/index.js`:
+
+- **SEC-2** — `fetchWithRetry` now honors `Retry-After` in seconds (its real
+  unit) instead of multiplying by 300ms. A 5s ask previously retried in 1.5s and
+  drew a second 429; it now waits the full interval, with a short linear backoff
+  when the header is absent.
+- **BUG-5** — `/broadcast` strips its command prefix from the *trimmed* text, so
+  a message sent with leading whitespace (`"  /broadcast hi"`) no longer ships
+  the literal `/broadcast` prefix out to every subscriber.
+- **BUG-6** — a stale Approve button no longer silently re-adds a user who was
+  removed (or already handled) since the card was sent; the owner gets a
+  "No longer pending" answer instead.
+- **BUG-7** — approving via `/adduser <id>` now clears the matching pending
+  request atomically (folded into the DO's `addAllowedUser`), so the person no
+  longer lingers in `/pending` with their name/username still stored.
+
+The three "KNOWN BUG" behavioral tests were flipped to assert the corrected
+behavior; full suite 84/84 green.
+
 ### Fix NEW-1 (High): on-demand generation could poison the shared briefing cache
 
 Phase 15 re-audit found the daily workflow's BUG-1 freshness gate was never

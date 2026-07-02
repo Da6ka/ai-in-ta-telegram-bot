@@ -115,6 +115,11 @@ export class BotState extends DurableObject {
     if (access.allowFrom.includes(id)) return { access, added: false, atCapacity: false }
     if (access.allowFrom.length >= MAX_USERS) return { access, added: false, atCapacity: true }
     access.allowFrom.push(id)
+    // Approving via any path (owner callback or /adduser <id>) clears the
+    // pending request atomically — otherwise the person lingers in /pending
+    // forever and their name/username stay stored, contradicting the privacy
+    // model where approval deletes that info (BUG-7).
+    delete access.pending[id]
     await this.ctx.storage.put('access', access)
     return { access, added: true, atCapacity: false }
   }
@@ -258,8 +263,12 @@ async function fetchWithRetry(url, options, { retries = 2 } = {}) {
       const res = await fetch(url, options)
       if (res.ok || res.status < 429 || attempt === retries) return res
       if (res.status === 429 || res.status >= 500) {
-        const retryAfter = Number(res.headers.get('retry-after')) || attempt + 1
-        await new Promise(r => setTimeout(r, retryAfter * 300))
+        // Honor Retry-After in seconds (its real unit); fall back to a short
+        // linear backoff when the header is absent. Previously multiplied by
+        // 300ms, so a 5s ask retried in 1.5s and drew a second 429 (SEC-2).
+        const retryAfter = Number(res.headers.get('retry-after'))
+        const waitMs = retryAfter > 0 ? retryAfter * 1000 : (attempt + 1) * 300
+        await new Promise(r => setTimeout(r, waitMs))
         continue
       }
       return res
@@ -698,7 +707,10 @@ const COMMAND_HANDLERS = {
       await reply(env, senderId, 'This command is only available to the bot owner.')
       return
     }
-    const msg = rawText.replace(/^\/broadcast(@\S+)?\s*/i, '')
+    // Strip on the trimmed text: the command regex matched on trimmed input, so
+    // "  /broadcast hi" would otherwise fail the ^-anchored strip and ship the
+    // literal command prefix out to every subscriber (BUG-5).
+    const msg = (rawText ?? '').trim().replace(/^\/broadcast(@\S+)?\s*/i, '')
     if (!msg) {
       await reply(env, senderId, 'Usage: /broadcast <message>')
       return
@@ -753,6 +765,13 @@ async function handleCallbackQuery(env, stub, callbackQuery) {
   const [, decision, targetId] = am
   const msg = callbackQuery.message
   if (decision === 'Y') {
+    // Stale-button guard: if the target is no longer pending (already handled,
+    // or removed since this card was sent), don't silently re-add them (BUG-6).
+    if (!access.pending[targetId]) {
+      await tg(env, 'answerCallbackQuery', { callback_query_id: callbackQuery.id, text: 'No longer pending' })
+      if (msg?.text) await tg(env, 'editMessageText', { chat_id: msg.chat.id, message_id: msg.message_id, text: `${msg.text}\n\nNo longer pending — ignored.` })
+      return
+    }
     const { atCapacity } = await stub.addAllowedUser(targetId)
     if (atCapacity) {
       // Leave them pending so the owner can approve once a slot frees up.

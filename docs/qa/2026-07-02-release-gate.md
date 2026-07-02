@@ -6,8 +6,11 @@
 >
 > **2026-07-02 re-audit (Phase 15 re-run):** BUG-1/2/3/8 verified fixed in the
 > current tree; full suite now 84/84 green. One **new High (NEW-1)** found and
-> fixed the same session — see below. Still open: BUG-4 (multi-chunk), BUG-5,
-> BUG-6, BUG-7, L6, SEC-1, SEC-2.
+> fixed the same session — see below. Follow-up commit then cleared **SEC-2,
+> BUG-5, BUG-6, BUG-7** (all Worker-side; "KNOWN BUG" tests flipped to assert
+> correct behavior). Still open: **BUG-4** (multi-chunk broadcast at scale),
+> **L6** (tag-aware chunking), **SEC-1** (fine-grained GitHub token) — none
+> release-blocking at the current private scale.
 
 ---
 
