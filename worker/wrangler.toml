@@ -31,9 +31,9 @@ GITHUB_REPO = "Da6ka/ai-in-ta-telegram-bot"
 #        npx wrangler secret put TELEGRAM_BOT_TOKEN --env staging
 #        npx wrangler secret put TELEGRAM_WEBHOOK_SECRET --env staging
 #        npx wrangler secret put GITHUB_TOKEN --env staging
-#   2. Create a dedicated KV namespace so staging never reads/writes prod state:
+#   2. A dedicated KV namespace (so staging never reads/writes prod state) is
+#      already created and wired below (id 5b93a48b...). To recreate it:
 #        npx wrangler kv namespace create BOT_STATE --env staging
-#      and paste its id below (replacing REPLACE_WITH_STAGING_KV_NAMESPACE_ID).
 #   3. Point the staging bot's webhook at the *-staging.workers.dev URL.
 # The default `wrangler deploy` ignores this block entirely.
 [env.staging]
@@ -44,7 +44,7 @@ enabled = true
 
 [[env.staging.kv_namespaces]]
 binding = "BOT_STATE"
-id = "REPLACE_WITH_STAGING_KV_NAMESPACE_ID"
+id = "5b93a48b300f4da4be177ff3504596c3"
 
 [[env.staging.durable_objects.bindings]]
 name = "BOT_DO"
