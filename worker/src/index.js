@@ -293,7 +293,8 @@ function todayUTC() {
 
 async function bumpCommandCount(env, name) {
   const stats = await getJSON(env, 'usage_stats', DEFAULT_USAGE)
-  stats.command_counts[name] = (stats.command_counts[name] ?? 0) + 1
+  const prev = Object.hasOwn(stats.command_counts, name) ? stats.command_counts[name] : 0
+  stats.command_counts[name] = prev + 1
   await putJSON(env, 'usage_stats', stats)
 }
 
@@ -746,7 +747,10 @@ async function handleMessage(env, stub, message) {
   // content; the reply is a fixed string.
   const text = message.text
   const m = /^\/(\w+)(?:@\S+)?(?:\s+(.*))?$/s.exec((text ?? '').trim())
-  const handler = m && COMMAND_HANDLERS[m[1]]
+  // Object.hasOwn: /constructor, /__proto__ etc. must not resolve to
+  // Object.prototype members — they'd be treated as handlers and produce
+  // silence instead of the nudge.
+  const handler = m && Object.hasOwn(COMMAND_HANDLERS, m[1]) ? COMMAND_HANDLERS[m[1]] : null
   if (!handler) {
     await reply(env, gated.senderId, gated.isAllowed
       ? "I only understand commands. Tap /briefing for today's digest, or /help to see everything I can do."

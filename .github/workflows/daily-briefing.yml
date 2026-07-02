@@ -9,8 +9,10 @@ on:
 permissions:
   contents: write
 
+# Shared with on-demand-briefing.yml: both workflows write
+# state/today_briefing.md and Cloudflare KV, so they must never overlap.
 concurrency:
-  group: daily-briefing
+  group: briefing-generation
   cancel-in-progress: false
 
 jobs:
@@ -64,12 +66,6 @@ jobs:
           CF_KV_NAMESPACE_ID: ${{ secrets.CF_KV_NAMESPACE_ID }}
         run: node scripts/send-briefing.mjs
 
-      - name: Update usage stats
-        if: steps.idempotency.outputs.should_run == 'true'
-        env:
-          RECIPIENT_COUNT: ${{ steps.send.outputs.recipient_count }}
-        run: node scripts/update-usage-stats.mjs
-
       - name: Check freshness
         if: steps.idempotency.outputs.should_run == 'true'
         id: freshness
@@ -80,6 +76,15 @@ jobs:
           else
             echo "fresh=false" >> "$GITHUB_OUTPUT"
           fi
+
+      # Gated on freshness: a garbage generation (no header/date) must NOT
+      # set last_briefing_at, or the idempotency check would mark the day as
+      # done and block every retry while subscribers got nothing.
+      - name: Update usage stats
+        if: steps.idempotency.outputs.should_run == 'true' && steps.freshness.outputs.fresh == 'true'
+        env:
+          RECIPIENT_COUNT: ${{ steps.send.outputs.recipient_count }}
+        run: node scripts/update-usage-stats.mjs
 
       - name: Sync to Cloudflare KV
         if: steps.idempotency.outputs.should_run == 'true' && steps.freshness.outputs.fresh == 'true'
@@ -97,4 +102,5 @@ jobs:
           git config user.email "actions@users.noreply.github.com"
           git add state/
           git diff --cached --quiet && echo "No state changes to commit" || git commit -m "Update briefing state for $(date -u +%F)"
+          git pull --rebase origin main
           git push
