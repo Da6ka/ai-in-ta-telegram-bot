@@ -2,6 +2,12 @@ name = "ai-in-ta-telegram-bot"
 main = "src/index.js"
 compatibility_date = "2026-06-01"
 
+# Persist console.log/error to Workers Logs (queryable in the dashboard and via
+# `wrangler tail`) instead of only being visible during a live tail. This is the
+# bot's observability layer for debugging failed webhook handling.
+[observability]
+enabled = true
+
 [[kv_namespaces]]
 binding = "BOT_STATE"
 id = "4d433b918abf416d913a35ef22fe9729"
@@ -15,4 +21,38 @@ tag = "v1"
 new_sqlite_classes = ["BotState"]
 
 [vars]
+GITHUB_REPO = "Da6ka/ai-in-ta-telegram-bot"
+
+# --- Staging deployment -------------------------------------------------------
+# A separate Worker + separate bot for dry-running command changes before they
+# touch the live webhook. Deploy with:  npx wrangler deploy --env staging
+# Before the first staging deploy you must:
+#   1. Create a second bot with @BotFather and set its secrets against staging:
+#        npx wrangler secret put TELEGRAM_BOT_TOKEN --env staging
+#        npx wrangler secret put TELEGRAM_WEBHOOK_SECRET --env staging
+#        npx wrangler secret put GITHUB_TOKEN --env staging
+#   2. Create a dedicated KV namespace so staging never reads/writes prod state:
+#        npx wrangler kv namespace create BOT_STATE --env staging
+#      and paste its id below (replacing REPLACE_WITH_STAGING_KV_NAMESPACE_ID).
+#   3. Point the staging bot's webhook at the *-staging.workers.dev URL.
+# The default `wrangler deploy` ignores this block entirely.
+[env.staging]
+name = "ai-in-ta-telegram-bot-staging"
+
+[env.staging.observability]
+enabled = true
+
+[[env.staging.kv_namespaces]]
+binding = "BOT_STATE"
+id = "REPLACE_WITH_STAGING_KV_NAMESPACE_ID"
+
+[[env.staging.durable_objects.bindings]]
+name = "BOT_DO"
+class_name = "BotState"
+
+[[env.staging.migrations]]
+tag = "v1"
+new_sqlite_classes = ["BotState"]
+
+[env.staging.vars]
 GITHUB_REPO = "Da6ka/ai-in-ta-telegram-bot"

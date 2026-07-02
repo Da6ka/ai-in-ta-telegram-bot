@@ -47,7 +47,17 @@ jobs:
         run: |
           TODAY_HUMAN=$(date -u '+%-d %B %Y')
           NOTE="Today's date (UTC) is ${TODAY_HUMAN}. Use this exact date in the title, and use it to judge which search results are genuinely from the past 24-48 hours."
-          claude -p "$(cat briefing-prompt.md)"$'\n\n'"$NOTE" --allowedTools "WebSearch" > state/today_briefing.md
+          # One retry: a transient web-search/API hiccup shouldn't cost the whole
+          # day's briefing. A zero-exit-but-poor generation is caught later by the
+          # freshness gate + stale-generation alert, not here.
+          for attempt in 1 2; do
+            if claude -p "$(cat briefing-prompt.md)"$'\n\n'"$NOTE" --allowedTools "WebSearch" > state/today_briefing.md; then
+              break
+            fi
+            echo "Generation attempt $attempt failed."
+            if [ "$attempt" -eq 2 ]; then exit 1; fi
+            sleep 5
+          done
 
       - name: Force-correct briefing date
         if: steps.idempotency.outputs.should_run == 'true'
@@ -104,3 +114,24 @@ jobs:
           git diff --cached --quiet && echo "No state changes to commit" || git commit -m "Update briefing state for $(date -u +%F)"
           git pull --rebase origin main
           git push
+
+      # Generation ran but produced nothing dated today: the freshness gate
+      # correctly skipped the send + stats, but subscribers got nothing and
+      # nobody would know without this.
+      - name: Alert owner on stale generation
+        if: steps.idempotency.outputs.should_run == 'true' && steps.freshness.outputs.fresh == 'false'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ vars.OWNER_CHAT_ID }}
+          ALERT_TEXT: "[ai-in-ta] Daily briefing generated but was NOT fresh for today — nothing sent to subscribers, stats not advanced. Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        run: node scripts/send-alert.mjs
+
+      # Any step above threw (generation, send, KV sync, commit/push): the day's
+      # briefing did not go out cleanly. Fires last so it catches every prior step.
+      - name: Alert owner on failure
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ vars.OWNER_CHAT_ID }}
+          ALERT_TEXT: "[ai-in-ta] Daily briefing workflow FAILED — subscribers may have gotten nothing. Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        run: node scripts/send-alert.mjs

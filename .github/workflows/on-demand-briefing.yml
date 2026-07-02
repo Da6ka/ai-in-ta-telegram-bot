@@ -32,7 +32,15 @@ jobs:
         run: |
           TODAY_HUMAN=$(date -u '+%-d %B %Y')
           NOTE="Today's date (UTC) is ${TODAY_HUMAN}. Use this exact date in the title, and use it to judge which search results are genuinely from the past 24-48 hours."
-          claude -p "$(cat briefing-prompt-ondemand.md)"$'\n\n'"$NOTE" --allowedTools "WebSearch" > state/today_briefing.md
+          # One retry so a transient hiccup doesn't fail a user's on-demand request.
+          for attempt in 1 2; do
+            if claude -p "$(cat briefing-prompt-ondemand.md)"$'\n\n'"$NOTE" --allowedTools "WebSearch" > state/today_briefing.md; then
+              break
+            fi
+            echo "Generation attempt $attempt failed."
+            if [ "$attempt" -eq 2 ]; then exit 1; fi
+            sleep 5
+          done
 
       - name: Force-correct briefing date
         run: node scripts/force-briefing-date.mjs
@@ -59,3 +67,13 @@ jobs:
           git diff --cached --quiet && echo "No state changes to commit" || git commit -m "Update briefing state (on-demand, $(date -u +%F))"
           git pull --rebase origin main
           git push
+
+      # The requester already saw "Generating a fresh briefing..." from the
+      # Worker; on failure, close the loop instead of leaving them in silence.
+      - name: Notify requester on failure
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ github.event.client_payload.chat_id }}
+          ALERT_TEXT: "Sorry — generating your briefing failed. Please try /newbriefing again shortly, or /briefing for the last saved one. Contact the bot owner if this keeps happening."
+        run: node scripts/send-alert.mjs

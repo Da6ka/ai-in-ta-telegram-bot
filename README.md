@@ -13,12 +13,20 @@ so it doesn't depend on a laptop being awake.
 - `CF_ACCOUNT_ID` / `CF_API_TOKEN` / `CF_KV_NAMESPACE_ID` — Cloudflare KV access (see the Worker
   section below); the daily send also uses these to read the live subscriber list
 
+Plus one repo **variable** (not a secret — it's the owner's own Telegram id, not sensitive):
+
+- `OWNER_CHAT_ID` — where the daily workflow sends failure/stale-generation alerts
+
 Set them with:
 
 ```
 gh secret set ANTHROPIC_API_KEY --repo <owner>/ai-in-ta-telegram-bot
 gh secret set TELEGRAM_BOT_TOKEN --repo <owner>/ai-in-ta-telegram-bot
+gh variable set OWNER_CHAT_ID --repo <owner>/ai-in-ta-telegram-bot   # your numeric Telegram id
 ```
+
+See [Secrets, scopes & rotation](#secrets-scopes--rotation) below for the least-privilege scopes
+each token needs and a rotation checklist.
 
 There is no hand-maintained recipient list: whoever taps /subscribe in the bot gets the daily
 briefing, whoever taps /unsubscribe (or is removed via /removeuser) stops getting it. The Worker
@@ -69,8 +77,11 @@ re-generating.
    ```
    npx wrangler secret put TELEGRAM_BOT_TOKEN
    npx wrangler secret put TELEGRAM_WEBHOOK_SECRET   # any random string you generate
-   npx wrangler secret put GITHUB_TOKEN              # needs `repo` scope, for repository_dispatch
+   npx wrangler secret put GITHUB_TOKEN              # fine-grained PAT, see below
    ```
+   Use a **fine-grained** GitHub PAT scoped to *only* this repo with **Contents: write** — that
+   is all `repository_dispatch` needs. Avoid a classic `repo`-scope token, which grants access to
+   every repo you own.
 6. Deploy: `npx wrangler deploy` (from `worker/`). Note the `*.workers.dev` URL it prints.
 7. Add these **repo secrets** (for `scripts/sync-kv.mjs`, run from GitHub Actions):
    ```
@@ -90,3 +101,42 @@ re-generating.
    ```
    To roll back: `curl "https://api.telegram.org/bot<TOKEN>/deleteWebhook"` and restart the local
    `bun server.ts` poller.
+
+### Staging (optional, for safer command changes)
+
+A misconfigured live webhook is a silent full outage, so `wrangler.toml` defines a `staging`
+environment — a separate Worker (`ai-in-ta-telegram-bot-staging`) backed by its own bot and its
+own KV namespace, so you can exercise command changes end-to-end without touching production.
+One-time setup is documented inline in `worker/wrangler.toml`; once done:
+
+```
+cd worker
+npx wrangler deploy --env staging
+# point the staging bot's webhook at the *-staging.workers.dev URL, then message that bot
+```
+
+The default `npx wrangler deploy` continues to target production and ignores the staging block.
+
+## Secrets, scopes & rotation
+
+Least-privilege scope for each credential:
+
+| Credential | Where | Scope it actually needs |
+| --- | --- | --- |
+| `ANTHROPIC_API_KEY` | repo secret | a workspace/key you can cap with a monthly spend limit |
+| `TELEGRAM_BOT_TOKEN` | repo secret + Worker secret | n/a (full bot control — rotate via @BotFather if leaked) |
+| `TELEGRAM_WEBHOOK_SECRET` | Worker secret | any random string; must match the `setWebhook` `secret_token` |
+| `GITHUB_TOKEN` | Worker secret | fine-grained PAT, **this repo only**, `Contents: write` |
+| `CF_API_TOKEN` | repo secret | Cloudflare API token, **Workers KV Storage: Edit** only |
+| `CF_ACCOUNT_ID` / `CF_KV_NAMESPACE_ID` | repo secret | identifiers, not secrets — kept as secrets for convenience |
+| `OWNER_CHAT_ID` | repo **variable** | not sensitive (owner's own Telegram id) |
+
+Rotation checklist (do this on any suspected leak, and at least once a year):
+
+1. **Telegram bot token** — `/revoke` in @BotFather, then update both the `TELEGRAM_BOT_TOKEN` repo
+   secret and the Worker secret, and re-run `setWebhook` with the new token.
+2. **Anthropic key** — roll in the Anthropic Console, update the repo secret.
+3. **GitHub PAT** — regenerate the fine-grained token, `npx wrangler secret put GITHUB_TOKEN`.
+4. **Cloudflare API token** — roll in the Cloudflare dashboard, update the `CF_API_TOKEN` repo secret.
+5. Trigger `daily-briefing.yml` manually afterward to confirm generation, send, and KV sync all
+   still pass with the rotated credentials.
