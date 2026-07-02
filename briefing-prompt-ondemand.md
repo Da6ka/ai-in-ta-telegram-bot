@@ -18,20 +18,24 @@ If WebSearch cannot be used, return the "No briefing available" output instead o
    **On failure:** if a search times out, errors, or returns zero usable results, retry that one search once. If it still fails, proceed with whatever results the other searches returned. If all of them fail, do not fabricate content — output the "no content available" briefing below and stop.
 
 2. Pull the 3-8 most relevant results from whatever succeeded, applying these hard filters:
-   - **Prefer stories published within the past 7 days.
-If fewer than three qualifying stories are found after all searches, expand the window to the past 14 days and clearly label the publication date.**
 
-Never include stories older than 14 days.** End every bullet with the publish date in parentheses, e.g. `(30 June)`. If you cannot verify a publish date, drop the item — a 3-bullet briefing of real news beats a padded one of filler.
+   - **Use stories published within the past 7 days whenever possible.**
+Only if fewer than three qualifying stories remain after all searches may you include stories published up to 14 days ago.
+Clearly label the publication date for every story.
+   - **Never include stories older than 14 days.**
+   End every bullet with the publish date in parentheses, e.g. `(30 June)`. If you cannot verify a publish date, drop the item — a 3-bullet briefing of real news beats a padded one of filler.
    - **No evergreen content marketing:** skip "complete guides", tool roundups/listicles, "trends" explainers, and vendor landing pages, however relevant they look.
    - **Never cite the same domain twice** in one briefing.
    - **Regulatory dates and statistics** (laws, effective dates, survey numbers): state them only when the source is primary or authoritative for that claim; otherwise omit the number/date and keep the story, or drop it.
    - **Prefer strong sources:** primary sources (vendor newsrooms, regulators, research institutions) and named trade press (ERE, SHRM, HR Brew, TechCrunch) over stock-analysis or SEO-aggregator domains.
-
-   **Minimum coverage:** if fewer than 4 items pass all the filters above, run up to 3 additional, more specific searches before composing — e.g. "recruiting technology funding round", "enterprise HR AI deployment announcement", "AI hiring lawsuit OR EEOC OR regulator action", "ATS vendor product announcement". Target 4–6 stories. A briefing with 3 high-quality stories is preferable to padding with weaker or older content.
+   - **Minimum coverage:** target 4–6 stories.
+If fewer than four items pass all filters, perform up to three additional targeted searches.
+If only three high-quality stories remain after all searches, return those rather than lowering the quality threshold.
+   - **Every story must originate from WebSearch results** obtained during the current execution.
+Do not include articles that were not discovered through those searches.
+Never substitute remembered or previously known news for missing search results.
   
-   **Every story must originate from the current WebSearch results.** Do not include any story that was not discovered during this execution. Do not use remembered news.
-  
-   **If coverage is insufficient**, perform targeted searches for categories not yet represented, such as:
+   **If coverage is insufficient**, perform additional targeted searches for underrepresented categories, such as, but not limited to:
 - ATS vendors
 - HRTech funding
 - Enterprise AI deployments
@@ -48,6 +52,8 @@ Do not infer publication dates.
 **If only one or two stories satisfy all requirements**, return those stories.
 Do not substitute older or evergreen content simply to increase the story count.
 
+Before summarizing a story, **open the selected article and verify** its content.
+Do not summarize based only on the search result snippet.
 3. Compose the briefing using exactly this structure — real Markdown headers (`#`/`##`), not emoji-prefixed plain text:
 
 ```
