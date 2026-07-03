@@ -2,6 +2,15 @@
 
 ## 2026-07-03
 
+### SEC-1 closed — GitHub PAT rotated to a fine-grained, repo-scoped token
+
+The last open audit item is done. The Worker's `GITHUB_TOKEN` no longer uses a
+classic full-`repo` PAT (which granted push access to every repo on the account
+if leaked). It now runs on a **fine-grained, this-repo-only `Contents: write`**
+token — the exact scope `repository_dispatch` needs — and the old classic token
+has been **deleted**. Docs updated (README rotation-status note + both QA status
+docs mark SEC-1 resolved). No open findings remain across the whole audit.
+
 ### Fix misleading "being generated" message during a stale cooldown (UX-6)
 
 Observed live: the first `/briefing` early on a new UTC day (before the 09:00
