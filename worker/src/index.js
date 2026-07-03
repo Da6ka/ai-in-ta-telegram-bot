@@ -37,6 +37,14 @@ import { mdToHtml, chunk, escapeHtml } from '../../shared/telegram-markdown.mjs'
 const DISPATCH_COOLDOWN_MS = 60 * 60 * 1000
 const DAILY_DISPATCH_CAP = 3
 
+// A generation run (install + claude -p web search + send + KV sync) finishes
+// well within this window. Used only for message wording: if the last dispatch
+// was within it, a run is plausibly still in flight ("being generated"); if it
+// was longer ago and there's still no fresh cache (e.g. a cooldown carried
+// across the UTC-midnight boundary from the prior evening's run, before the
+// 09:00 daily), nothing is generating — say so instead of claiming it is.
+const GENERATION_IN_FLIGHT_MIN = 10
+
 // Capacity cap for the current private, single-operator deployment. The daily
 // send stays comfortably under Telegram's rate limit at this size, and (on the
 // Workers free plan) /broadcast is subrequest-capped around here too. The
@@ -206,7 +214,12 @@ export class BotState extends DurableObject {
     }
     const elapsed = now - rl.lastDispatchAt
     if (elapsed < DISPATCH_COOLDOWN_MS) {
-      return { allowed: false, reason: 'cooldown', retryInMin: Math.ceil((DISPATCH_COOLDOWN_MS - elapsed) / 60000) }
+      return {
+        allowed: false,
+        reason: 'cooldown',
+        retryInMin: Math.ceil((DISPATCH_COOLDOWN_MS - elapsed) / 60000),
+        sinceLastMin: Math.floor(elapsed / 60000),
+      }
     }
     const prevLastDispatchAt = rl.lastDispatchAt
     rl.lastDispatchAt = now
@@ -416,7 +429,13 @@ async function requestGeneration(env, stub, senderId, generatingMsg) {
         return
       }
     }
-    await reply(env, senderId, 'A briefing is being generated right now — send /briefing in a couple of minutes to get it.')
+    // Cooldown active with no fresh cache. If the last dispatch was recent, a
+    // run is plausibly still generating; if it was a while ago (e.g. a cooldown
+    // carried over from last night, before today's daily), nothing is running —
+    // don't claim it is.
+    await reply(env, senderId, r.sinceLastMin <= GENERATION_IN_FLIGHT_MIN
+      ? 'A briefing is being generated right now — send /briefing in a couple of minutes to get it.'
+      : `Couldn't refresh the briefing just now — a fresh one can be generated in ~${r.retryInMin} min. You'll also get today's automatically with the daily update.`)
     return
   }
   await reply(env, senderId, generatingMsg)

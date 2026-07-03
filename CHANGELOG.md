@@ -2,6 +2,20 @@
 
 ## 2026-07-03
 
+### Fix misleading "being generated" message during a stale cooldown (UX-6)
+
+Observed live: the first `/briefing` early on a new UTC day (before the 09:00
+daily) replied "A briefing is being generated right now — send /briefing in a
+couple of minutes" when nothing was generating — the global 1-hour dispatch
+cooldown had simply carried over from the previous evening's on-demand run, and
+that run produced *yesterday's* dated briefing, so there was no fresh cache to
+serve either. `reserveBriefingDispatch` now also returns `sinceLastMin`, and
+`requestGeneration` uses a `GENERATION_IN_FLIGHT_MIN = 10` window: within it a
+run is plausibly still syncing (keep the "being generated" wording); past it,
+say "Couldn't refresh the briefing just now — a fresh one can be generated in
+~N min. You'll also get today's automatically with the daily update." New
+behavioral test F13b covers both branches. Full suite 90/90 green.
+
 ### Improved AI news briefing quality (#9, #10)
 
 - Improved the freshness, relevance, and reliability of AI recruitment news briefings.
