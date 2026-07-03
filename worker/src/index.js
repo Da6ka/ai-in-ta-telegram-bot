@@ -501,8 +501,8 @@ const COMMAND_HANDLERS = {
       "- Latest AI hiring trends, tools, and best practices\n" +
       "- Must-read articles and resources\n\n" +
       "Just tap /briefing anytime to get the latest edition.\n\n" +
-      "/briefing — get today's briefing\n" +
-      "/newbriefing — generate a fresh briefing right now\n" +
+      "/briefing — get today's briefing (or resend it if you already have it)\n" +
+      "/newbriefing — search for more news beyond what /briefing already sent\n" +
       "/subscribe — get the daily briefing every morning\n" +
       "/unsubscribe — stop the daily briefing\n" +
       "/status — check your access status\n" +
