@@ -12,6 +12,7 @@ Subscribers tap `/subscribe` and get the briefing every morning at **09:00 UTC /
 ## Contents
 
 - [What it does](#what-it-does)
+- [Example briefing](#example-briefing)
 - [Commands](#commands)
 - [How it works](#how-it-works)
 - [Quickstart](#quickstart)
@@ -29,6 +30,25 @@ Subscribers tap `/subscribe` and get the briefing every morning at **09:00 UTC /
 - 🔒 **Runs itself** — GitHub Actions handles the schedule and the heavy lifting; a Cloudflare Worker handles live commands. Nothing depends on a personal machine being online.
 
 This is a **private, allowlist-gated bot** (single operator, capped at 30 users). New people tap `/start` to request access; the owner approves them. There's **no hand-maintained recipient list** — once in, whoever taps `/subscribe` gets the daily briefing and `/unsubscribe` stops it. The subscriber list lives in Durable Object storage, mirrored to Cloudflare KV and read fresh at send time.
+
+## Example briefing
+
+A real edition, sent via `/briefing`:
+
+> **Daily AI Recruitment Briefing — 3 July 2026**
+>
+> **Claude & Anthropic in TA**
+> Anthropic shipped Claude Sonnet 5, now the default model on Free and Pro plans — pitched as its "most agentic Sonnet yet" for coding and professional work. For TA teams running Claude-based sourcing, screening, or analytics workflows, this is a capability (and cost/latency) shift worth re-benchmarking your prompts against. *([Introducing Claude Sonnet 5 — Anthropic](https://www.anthropic.com/news/claude-sonnet-5))* (30 June)
+>
+> **AI in Recruitment — What's New**
+> Colorado's landmark AI Act reached its effective date but in narrowed form: the original Act was set to take effect 30 June 2026, after Colorado signed a replacement bill in May to scale back the broader framework governing high-risk automated employment decisions. Employers using AI hiring tools with Colorado applicants should confirm which obligations (notice, human review, bias auditing) actually survived. *([National Law Review](https://natlawreview.com/article/federal-government-quietly-removed-its-ai-hiring-guidance-four-states-are-writing))* (took effect 30 June)
+>
+> **Worth Reading**
+> "AI Didn't Break Hiring. It Scaled the Bias We Already Chose." — Forbes argues the problem isn't that algorithms invented bias but that they industrialize the flawed proxies organizations already encoded, making visible human oversight and audited criteria non-negotiable. *([Forbes](https://www.forbes.com/sites/aparnarae/2026/06/29/ai-didnt-break-hiring-it-scaled-the-bias-we-already-chose/))* (29 June)
+>
+> **Bottom line:** More capable models are arriving faster than the compliance and fairness guardrails around them — pair any new AI hiring capability with documented human review and a live read on your states' shifting rules before you scale it.
+
+Every item is sourced (clickable, dated, no bare URLs), never repeats a domain, and skips evergreen "guide"/"trends" content in favor of actual news from the past 7 days — see `briefing-prompt.md` for the exact editorial rules.
 
 ## Commands
 
