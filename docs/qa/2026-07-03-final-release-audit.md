@@ -44,7 +44,7 @@ Conditions / fast-follows below (1 Medium, 3 Low). None blocks release at this s
 - Forged approve/deny callbacks, chat-id/from-id confusion, group leakage, `/constructor`-style handler resolution, HTML injection via display names, oversized (100KB) messages, duplicate `update_id` replay of `/broadcast`, concurrent subscribe storms (real DO serialization semantics), corrupt KV JSON, Telegram 429/5xx/network-throw storms — all covered by the 86-test suite and re-verified green.
 - `fetchWithRetry` status-class handling is correct for every range (verified 4xx fast-fail, 429/5xx retry, Retry-After in seconds).
 - Broadcast/briefing dispatch payloads reach workflows via `client_payload` → env vars, never shell interpolation.
-- The one manual security item from the prior audit (SEC-1 fine-grained PAT rotation) is documented in the README; **confirm the rotation was actually performed** — it can't be verified from the repo.
+- SEC-1 (fine-grained PAT rotation) is now **done** (2026-07-03): the classic full-`repo` PAT was deleted and the prod Worker `GITHUB_TOKEN` runs on a fine-grained, this-repo-only `Contents: write` token (confirmed via the empty Tokens-classic page + a working dispatch).
 
 ---
 
@@ -82,7 +82,7 @@ Conditions / fast-follows below (1 Medium, 3 Low). None blocks release at this s
 | No Critical open | ✅ |
 | No High open | ✅ (AUD-1 is Medium; all prior Highs verified fixed) |
 | Regression suite | ✅ 86/86 on `6280fcc` |
-| Security | ✅ code-side; ⚠️ confirm the manual SEC-1 PAT rotation happened |
+| Security | ✅ code-side + SEC-1 PAT rotation done (classic deleted, prod on fine-grained token) |
 | Reliability/alerting | ✅ failure + stale alerts wired on all three delivery paths |
 | Editorial | ⚠️ quality bar reached, consistency not guaranteed (AUD-1 + prompt fix #1) |
 
