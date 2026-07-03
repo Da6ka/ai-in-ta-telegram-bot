@@ -203,6 +203,10 @@ Least-privilege scope for each credential:
 | `CF_ACCOUNT_ID` / `CF_KV_NAMESPACE_ID` | repo secret | identifiers, not secrets — kept as secrets for convenience |
 | `OWNER_CHAT_ID` | repo **variable** | not sensitive (owner's own Telegram id) |
 
+> **Status (2026-07-03):** the `GITHUB_TOKEN` migration off a classic full-`repo`
+> PAT to a fine-grained, this-repo-only `Contents: write` token is complete — the
+> classic token has been deleted.
+
 **Rotation checklist** (do this on any suspected leak, and at least once a year):
 
 1. **Telegram bot token** — `/revoke` in @BotFather, then update both the `TELEGRAM_BOT_TOKEN` repo secret and the Worker secret, and re-run `setWebhook` with the new token.

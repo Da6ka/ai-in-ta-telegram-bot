@@ -11,9 +11,10 @@
 > to the Actions runner — `broadcast.yml` + `scripts/broadcast.mjs`, no more
 > Worker subrequest ceiling) and **L6** (tag-aware `chunk()`). "KNOWN BUG" tests
 > flipped to assert correct behavior; broadcast tests reworked for dispatch.
-> **SEC-1** is documented (README scope table + rotation checklist); only the
-> one-time manual token rotation remains. Full suite 86/86 green. **All audit
-> findings are now resolved in code** — no open code items remain.
+> **SEC-1** is now **CLOSED** (2026-07-03): the classic full-`repo` PAT was
+> deleted (Tokens-classic page empty) and the prod Worker `GITHUB_TOKEN` runs on
+> a fine-grained, this-repo-only `Contents: write` token. Full suite 86/86
+> green. **All audit findings are now resolved** — nothing open.
 
 ---
 
