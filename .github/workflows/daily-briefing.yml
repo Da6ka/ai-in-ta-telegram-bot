@@ -8,6 +8,9 @@ on:
 
 permissions:
   contents: write
+  # Phase 16 re-benchmark logs each edition's scorecard row to a tracking issue
+  # (only while the PHASE16_BENCH repo variable is 'on'; see the scoring step).
+  issues: write
 
 # Shared with on-demand-briefing.yml: both workflows write
 # state/today_briefing.md and Cloudflare KV, so they must never overlap.
@@ -121,6 +124,40 @@ jobs:
           git diff --cached --quiet && echo "No state changes to commit" || git commit -m "Update briefing state for $(date -u +%F)"
           git pull --rebase origin main
           git push
+
+      # Phase 16 editorial re-benchmark (pre-growth consistency check). OFF by
+      # default; flip on with `gh variable set PHASE16_BENCH --body on` for the
+      # ~5-day window, then unset it. Logs the scriptable scorecard row for each
+      # edition to a single tracking issue. Runs whether or not the edition was
+      # sent — a thin/stale day is exactly the worst-day case the floor scores —
+      # and never fails the workflow (the scorer's hard-gate exit is captured,
+      # not propagated).
+      - name: Phase 16 re-benchmark scoring
+        if: steps.idempotency.outputs.should_run == 'true' && vars.PHASE16_BENCH == 'on'
+        # A benchmark-logging hiccup must never fail the job or trigger the
+        # owner failure alert — this is telemetry, not delivery.
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TODAY=$(date -u +%F)
+          set +e
+          OUT=$(node scripts/score-briefing.mjs state/today_briefing.md --no-fetch 2>&1)
+          CODE=$?
+          set -e
+          SENT="${{ steps.freshness.outputs.ok }}"
+          TITLE="Phase 16 re-benchmark — 5-run log"
+          ISSUE=$(gh issue list --search "$TITLE in:title" --state open --json number --jq '.[0].number')
+          if [ -z "$ISSUE" ]; then
+            URL=$(gh issue create --title "$TITLE" \
+              --body "Auto-logged scorecard rows from daily runs while \`PHASE16_BENCH=on\` (docs/qa/phase16-rebench-template.md). Each comment carries the scriptable columns; fill G6/G8 and the five editorial 1-10 scores by hand, then apply the verdict rule once 5 rows are in. Unset PHASE16_BENCH when done.")
+            ISSUE=$(printf '%s' "$URL" | grep -oE '[0-9]+$')
+          fi
+          BODY=$(printf '### %s — daily edition (sent=%s, scorer exit=%s)\n\nWorkflow run: %s\n\n```\n%s\n```\n\n_G6 (source tiering) and G8 (silent fallback) are manual; add the five editorial 1-10 scores here._' \
+            "$TODAY" "${SENT:-false}" "$CODE" \
+            "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            "$OUT")
+          gh issue comment "$ISSUE" --body "$BODY"
 
       # Generation ran but produced nothing usable (not dated today, or below
       # the story minimum): the gate correctly skipped the send + stats, but
