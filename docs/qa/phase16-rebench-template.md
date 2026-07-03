@@ -58,3 +58,16 @@ Same rubric as the original Phase 16 so scores are comparable to the 7.5 / 7 / 6
 - **FAIL:** any hard gate fails on any day, or two+ runs land at 2–3 items (G2 ⚠️) → the minimum-coverage loop isn't holding; re-tune the prompt search fan-out before re-running.
 
 Log the completed table as `docs/qa/YYYY-MM-DD-phase16-rebench.md` and link it from the release-gate checklist.
+
+---
+
+## Automated row logging
+
+The daily workflow can auto-log the scriptable columns so you don't run the scorer by hand each morning:
+
+1. Turn it on for the window: `gh variable set PHASE16_BENCH --body on`
+2. The daily run then posts each edition's scorer output (item count, gates G1–G5/G7, domain dedup — G4 skipped in CI via `--no-fetch`) as a comment on the auto-created tracking issue **"Phase 16 re-benchmark — 5-run log"**. Thin/stale days are logged too (that's the worst-day case the floor scores).
+3. Fill G6/G8 and the five editorial 1–10 scores on each comment by hand.
+4. After 5 runs: `gh variable set PHASE16_BENCH --body off` (or delete it), apply the verdict rule, and commit the final table.
+
+The step is `continue-on-error` — a logging hiccup never fails the briefing job or fires the owner alert.

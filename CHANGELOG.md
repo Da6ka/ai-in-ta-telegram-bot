@@ -13,7 +13,10 @@ not the average**, because AUD-1 was a consistency defect. `scripts/score-briefi
 auto-fills the scriptable columns (item count, gates G1–G5/G7, live link
 resolution, domain dedup) from a composed `state/today_briefing.md`, reusing
 `countBriefingItems()` / `MIN_BRIEFING_ITEMS` so the floor stays single-sourced.
-QA-only — no runtime/worker change.
+QA-only — no runtime/worker change. The daily workflow gained an opt-in scoring
+step (gated on the `PHASE16_BENCH` repo variable, `continue-on-error`) that posts
+each edition's scorecard row to a "Phase 16 re-benchmark — 5-run log" tracking
+issue while the benchmark window is on.
 
 ### SEC-1 closed — GitHub PAT rotated to a fine-grained, repo-scoped token
 
