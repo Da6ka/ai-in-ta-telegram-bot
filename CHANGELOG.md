@@ -2,6 +2,26 @@
 
 ## 2026-07-03
 
+### `TELEGRAM_WEBHOOK_SECRET` rotated
+
+Generated a fresh secret, set it on the production Worker (`wrangler secret put`),
+and re-pointed Telegram's webhook at it via `setWebhook`. Routine rotation, not
+a response to a leak — the old value simply wasn't recoverable (Cloudflare
+Worker secrets are write-only), so a rotation was the practical path forward.
+Confirmed via `getWebhookInfo` (`pending_update_count: 0` — no updates lost
+during cutover).
+
+### Clarify `/briefing` vs `/newbriefing` in `/help` copy
+
+A user couldn't tell the two commands apart from the help text and had to ask
+a colleague what `/newbriefing` actually does. Reworded both lines to say what
+each one does differently, not just restate the command name.
+
+### Point new users to `/help` in the `/start` greeting
+
+Recruiters weren't discovering `/admin`, `/subscribe`, etc. beyond `/briefing`.
+The greeting now tells approved users `/help` exists.
+
 ### Phase 16 re-benchmark harness — editorial consistency scorer + scorecard (#14)
 
 Tooling for the pre-growth editorial re-benchmark the final release audit gated
