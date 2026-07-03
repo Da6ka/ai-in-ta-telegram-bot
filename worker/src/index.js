@@ -452,7 +452,8 @@ const COMMAND_HANDLERS = {
     if (isAllowed) {
       await reply(env, senderId,
         "Welcome to AI in TA News!\n\n" +
-        "Tap /briefing to get today's AI recruitment digest, or /subscribe to get it every morning automatically.")
+        "Tap /briefing to get today's AI recruitment digest, or /subscribe to get it every morning automatically.\n\n" +
+        "Send /help anytime to see everything the bot can do.")
       return
     }
     const from = message.from
