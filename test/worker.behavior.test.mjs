@@ -332,6 +332,22 @@ test('briefing and rate limiting', async (t) => {
     assert.equal(rl.counts['222'], 0, 'cap slot refunded')
     fetchOverride = null
   })
+  await t.test('F13b cooldown + no fresh cache: recent dispatch says "being generated", stale cooldown does not', async () => {
+    kv.map.delete('today_briefing_date'); kv.map.delete('today_briefing_md')
+    // Recent dispatch (2 min ago): a run is plausibly still in flight.
+    doStorage.map.set('briefing_rate', { lastDispatchAt: Date.now() - 2 * 60000, date: todayUTC(), counts: {} })
+    fetchLog = []
+    await send(upd('222', '/briefing'))
+    assert.equal(ghDispatches().length, 0, 'no dispatch during cooldown')
+    assert.ok(sends()[0].body.text.includes('being generated right now'), 'recent dispatch -> in-flight wording')
+    // Stale cooldown (40 min ago, carried over): nothing is generating.
+    doStorage.map.set('briefing_rate', { lastDispatchAt: Date.now() - 40 * 60000, date: todayUTC(), counts: {} })
+    fetchLog = []
+    await send(upd('222', '/briefing'))
+    assert.equal(ghDispatches().length, 0, 'still no dispatch during cooldown')
+    assert.ok(sends()[0].body.text.includes("Couldn't refresh"), 'stale cooldown -> honest "not generating" wording')
+    assert.ok(!sends()[0].body.text.includes('being generated right now'), 'must not falsely claim a run is in flight')
+  })
 })
 
 // =============== admin commands ===============
