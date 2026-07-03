@@ -1,6 +1,7 @@
 # AI-in-TA Telegram Bot
 
 [![CI](https://github.com/Da6ka/ai-in-ta-telegram-bot/actions/workflows/ci.yml/badge.svg)](https://github.com/Da6ka/ai-in-ta-telegram-bot/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/Da6ka/ai-in-ta-telegram-bot)](https://github.com/Da6ka/ai-in-ta-telegram-bot/releases)
 
 A Telegram bot that sends a **daily briefing on AI in recruitment** — the latest news, tools, and research from the past 48 hours, researched and written by Claude Code and delivered straight to your chat.
 

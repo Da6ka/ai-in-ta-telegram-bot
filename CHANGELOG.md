@@ -1,6 +1,6 @@
 # Changelog
 
-## 2026-07-03
+## [1.1.0] - 2026-07-03
 
 ### Bound the briefing generation step (LLM10 / ASI02)
 
@@ -31,6 +31,12 @@ each one does differently, not just restate the command name.
 
 Recruiters weren't discovering `/admin`, `/subscribe`, etc. beyond `/briefing`.
 The greeting now tells approved users `/help` exists.
+
+## [1.0.0] - 2026-07-03
+
+Baseline release: Cloudflare Worker command bot + GitHub Actions briefing
+delivery, tagged retroactively at the commit preceding the work above.
+Everything below predates versioning.
 
 ### Phase 16 re-benchmark harness — editorial consistency scorer + scorecard (#14)
 
@@ -71,15 +77,11 @@ say "Couldn't refresh the briefing just now — a fresh one can be generated in
 ~N min. You'll also get today's automatically with the daily update." New
 behavioral test F13b covers both branches. Full suite 90/90 green.
 
-## 2026-07-03
-
 ### Improved AI news briefing quality (#9, #10)
 
 - Improved the freshness, relevance, and reliability of AI recruitment news briefings.
 - Reduced stale or repeated content by strengthening WebSearch and source selection.
 - Enhanced article verification and fallback logic for more consistent daily briefings.
-
-## 2026-07-03
 
 ### Final release audit (GO) + fixes for AUD-1 (thin-briefing gate) and AUD-2 (bold-safe chunking)
 
@@ -142,7 +144,7 @@ Behavioral tests updated for the dispatch-based broadcast; new shared tests for
 `sendTextToMany` (plain-text verbatim delivery + blocked-recipient resilience).
 Full suite 86/86 green.
 
-## 2026-07-02
+### 2026-07-02
 
 ### Phase 14 regression + consolidated audit status
 
