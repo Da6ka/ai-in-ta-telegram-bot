@@ -27,14 +27,18 @@ jobs:
         run: npm install -g @anthropic-ai/claude-code
 
       - name: Generate briefing
+        timeout-minutes: 10
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           TODAY_HUMAN=$(date -u '+%-d %B %Y')
           NOTE="Today's date (UTC) is ${TODAY_HUMAN}. Use this exact date in the title, and use it to judge which search results are genuinely from the past 24-48 hours."
           # One retry so a transient hiccup doesn't fail a user's on-demand request.
+          # --max-budget-usd is a hard cost ceiling (LLM10) and the step-level
+          # timeout-minutes above is a hard wall-clock ceiling (ASI02) on the
+          # WebSearch-driven agent loop, which has no other iteration cap.
           for attempt in 1 2; do
-            if claude -p "$(cat briefing-prompt-ondemand.md)"$'\n\n'"$NOTE" --allowedTools "WebSearch" > state/today_briefing.md; then
+            if claude -p "$(cat briefing-prompt-ondemand.md)"$'\n\n'"$NOTE" --allowedTools "WebSearch" --max-budget-usd 1 > state/today_briefing.md; then
               break
             fi
             echo "Generation attempt $attempt failed."

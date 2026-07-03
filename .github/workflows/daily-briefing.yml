@@ -45,6 +45,7 @@ jobs:
 
       - name: Generate briefing
         if: steps.idempotency.outputs.should_run == 'true'
+        timeout-minutes: 10
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
@@ -53,8 +54,11 @@ jobs:
           # One retry: a transient web-search/API hiccup shouldn't cost the whole
           # day's briefing. A zero-exit-but-poor generation is caught later by the
           # freshness gate + stale-generation alert, not here.
+          # --max-budget-usd is a hard cost ceiling (LLM10) and the step-level
+          # timeout-minutes above is a hard wall-clock ceiling (ASI02) on the
+          # WebSearch-driven agent loop, which has no other iteration cap.
           for attempt in 1 2; do
-            if claude -p "$(cat briefing-prompt.md)"$'\n\n'"$NOTE" --allowedTools "WebSearch" > state/today_briefing.md; then
+            if claude -p "$(cat briefing-prompt.md)"$'\n\n'"$NOTE" --allowedTools "WebSearch" --max-budget-usd 1 > state/today_briefing.md; then
               break
             fi
             echo "Generation attempt $attempt failed."

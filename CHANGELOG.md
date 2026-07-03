@@ -2,6 +2,16 @@
 
 ## 2026-07-03
 
+### Bound the briefing generation step (LLM10 / ASI02)
+
+The `claude -p` WebSearch-driven generation step in both `daily-briefing.yml`
+and `on-demand-briefing.yml` had no wall-clock or cost ceiling — a stuck or
+pathological WebSearch loop could run to GitHub Actions' default multi-hour
+job timeout with no circuit breaker. Added `timeout-minutes: 10` on the step
+and `--max-budget-usd 1` on the `claude -p` call in both workflows. Found via
+an OWASP-aligned security pass over the briefing generation flow
+(`agent-security-skill`, installed project-locally under `.claude/skills/`).
+
 ### `TELEGRAM_WEBHOOK_SECRET` rotated
 
 Generated a fresh secret, set it on the production Worker (`wrangler secret put`),
