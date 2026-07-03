@@ -1,5 +1,19 @@
 # Changelog
 
+## [Unreleased]
+
+### Daily briefing watchdog (#17)
+
+`daily-briefing.yml`'s 09:00 UTC `schedule` trigger fired ~2.5h late two days
+running (2026-07-02, 2026-07-03) — GitHub documents `schedule` as best-effort,
+and on 07-03 it initially looked like it hadn't fired at all until a later,
+very-delayed run showed up. Added `daily-briefing-watchdog.yml`: runs at
+10:30 UTC, checks whether `last_briefing_at` has advanced to today, and if not,
+dispatches a fallback `daily-briefing.yml` run and alerts the owner. Safe
+against a race with the delayed native schedule trigger — the existing
+idempotency check and shared `briefing-generation` concurrency group make
+whichever run loses the race a no-op.
+
 ## [1.1.0] - 2026-07-03
 
 ### Bound the briefing generation step (LLM10 / ASI02)

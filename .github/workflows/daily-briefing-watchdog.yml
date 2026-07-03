@@ -1,0 +1,53 @@
+name: Daily Briefing Watchdog
+
+# GitHub's `schedule` trigger is documented as best-effort. daily-briefing.yml's
+# 09:00 UTC schedule fired ~2.5h late two days running (2026-07-02, 2026-07-03
+# — see issue #17), and on 2026-07-03 it initially looked like it hadn't fired
+# at all. This runs 90 minutes after that slot, checks whether the day's
+# briefing actually went out, and alerts + dispatches a fallback run if not.
+
+on:
+  schedule:
+    - cron: '30 10 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  watchdog:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check whether today's briefing already ran
+        id: check
+        run: |
+          TODAY=$(date -u +%F)
+          LAST=$(node -e "try{console.log(JSON.parse(require('fs').readFileSync('state/usage_stats.json','utf8')).last_briefing_at||'')}catch{console.log('')}")
+          if [ "$LAST" = "$TODAY" ]; then
+            echo "Today's briefing already ran (last_briefing_at=$LAST) — nothing to do."
+            echo "missed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Today's briefing has NOT run yet (last_briefing_at=$LAST, expected $TODAY) — triggering fallback."
+            echo "missed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # daily-briefing.yml's own idempotency check + the shared
+      # `briefing-generation` concurrency group make this safe to fire even if
+      # the delayed schedule trigger is mid-run or lands moments later: the
+      # loser of the race just no-ops.
+      - name: Trigger fallback run
+        if: steps.check.outputs.missed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run daily-briefing.yml --repo ${{ github.repository }}
+
+      - name: Alert owner
+        if: steps.check.outputs.missed == 'true'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ vars.OWNER_CHAT_ID }}
+          ALERT_TEXT: "[ai-in-ta] The 09:00 UTC scheduled briefing hadn't run by 10:30 UTC (GitHub's schedule trigger has been ~2.5h late before — issue #17). Triggered a fallback run just now."
+        run: node scripts/send-alert.mjs
