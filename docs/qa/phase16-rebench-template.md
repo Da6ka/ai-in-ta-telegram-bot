@@ -65,9 +65,9 @@ Log the completed table as `docs/qa/YYYY-MM-DD-phase16-rebench.md` and link it f
 
 The daily workflow can auto-log the scriptable columns so you don't run the scorer by hand each morning:
 
-1. Turn it on for the window: `gh variable set PHASE16_BENCH --body on`
-2. The daily run then posts each edition's scorer output (item count, gates G1–G5/G7, domain dedup — G4 skipped in CI via `--no-fetch`) as a comment on the auto-created tracking issue **"Phase 16 re-benchmark — 5-run log"**. Thin/stale days are logged too (that's the worst-day case the floor scores).
-3. Fill G6/G8 and the five editorial 1–10 scores on each comment by hand.
-4. After 5 runs: `gh variable set PHASE16_BENCH --body off` (or delete it), apply the verdict rule, and commit the final table.
+1. Turn it on once: `gh variable set PHASE16_BENCH --body on`
+2. Each of the **next 5 daily editions** posts its scorer output (item count, gates G1–G5/G7, domain dedup — G4 skipped in CI via `--no-fetch`) as a numbered `N/5` comment on the auto-created tracking issue **"Phase 16 re-benchmark — 5-run log"**. Thin/stale days are logged too (that's the worst-day case the floor scores).
+3. **Logging is self-limiting** — the step counts rows already in the issue and stops after the 5th, posting a "5/5 complete" note. It never re-triggers, so leaving the variable on is harmless; unset it whenever you like.
+4. Fill G6/G8 and the five editorial 1–10 scores on each comment by hand, apply the verdict rule, and commit the final table.
 
-The step is `continue-on-error` — a logging hiccup never fails the briefing job or fires the owner alert.
+The step is `continue-on-error` — a logging hiccup never fails the briefing job or fires the owner alert. Because it counts *editions logged* rather than calendar days, a skipped run (idempotency/failure) just defers that slot to the next successful edition — you always get 5 real rows.
