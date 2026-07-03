@@ -16,6 +16,8 @@ say "Couldn't refresh the briefing just now — a fresh one can be generated in
 ~N min. You'll also get today's automatically with the daily update." New
 behavioral test F13b covers both branches. Full suite 90/90 green.
 
+## 2026-07-03
+
 ### Improved AI news briefing quality (#9, #10)
 
 - Improved the freshness, relevance, and reliability of AI recruitment news briefings.
