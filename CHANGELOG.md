@@ -2,6 +2,19 @@
 
 ## 2026-07-03
 
+### Phase 16 re-benchmark harness — editorial consistency scorer + scorecard (#14)
+
+Tooling for the pre-growth editorial re-benchmark the final release audit gated
+behind raising `MAX_USERS` / public enrollment. `docs/qa/phase16-rebench-template.md`
+defines 8 binary hard gates (encoding the AUD-1 floor and the prompt's hard
+filters) plus the original 5-dimension editorial rubric, with a fill-in scorecard
+for 5 consecutive daily runs; its verdict rule scores the **floor (worst day),
+not the average**, because AUD-1 was a consistency defect. `scripts/score-briefing.mjs`
+auto-fills the scriptable columns (item count, gates G1–G5/G7, live link
+resolution, domain dedup) from a composed `state/today_briefing.md`, reusing
+`countBriefingItems()` / `MIN_BRIEFING_ITEMS` so the floor stays single-sourced.
+QA-only — no runtime/worker change.
+
 ### SEC-1 closed — GitHub PAT rotated to a fine-grained, repo-scoped token
 
 The last open audit item is done. The Worker's `GITHUB_TOKEN` no longer uses a
