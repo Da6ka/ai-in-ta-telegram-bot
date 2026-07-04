@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-07-04
+
 ### Fixed usage_stats erasure race, story dedup, arg validation, and briefing header check (#29, #30, #31, #32)
 
 Four more findings from the edge-case review. `purgeUsageStats`,
