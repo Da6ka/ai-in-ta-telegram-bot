@@ -2,6 +2,31 @@
 
 ## [Unreleased]
 
+### Fixed REL-2: subscriber-mirror write ordering could un-erase a removed user's send-list entry
+
+`BotState.forgetUser`/`unsubscribe` committed the removal to Durable Object
+storage, then mirrored the new subscriber list to KV as a separate write --
+scripts/send-briefing.mjs reads only that KV mirror. A kill/eviction between
+the two left an erased or unsubscribed user still on the KV list, with no
+signal for the owner to retry, so they'd keep getting the daily briefing
+after `/forgetme` promised otherwise. Reordered both methods to mirror to KV
+*before* the DO storage commit -- a stale DO write self-heals on the user's
+next command; a stale KV mirror wouldn't have, since nothing else re-checks
+it. `subscribe()` is unaffected (a lagging mirror there just delays receiving
+tomorrow's briefing, not a privacy issue). Added a call-order regression test
+(verified it fails against the old ordering). Originally flagged as REL-2 in
+`docs/qa/2026-07-02-phase9-reliability.md`, filed below.
+
+### Filed four QA audit reports that were completed but never merged (Phase 9-12)
+
+Found while cleaning up stale branches: `qa/phase9-reliability`,
+`qa/phase10-performance` (plus its `test/perf-stress.mjs` harness),
+`qa/phase11-security`, and `qa/phase12-code-quality` were written and
+CI-passing back on 2026-07-02 but their branches were never merged. Phases
+10-12's named findings (PERF-1/3, SEC-1/4) already got fixed independently by
+later work under different issue numbers, so those three are filed as
+historical record. Phase 9's REL-2 was still open -- fixed above.
+
 ## [1.2.0] - 2026-07-04
 
 ### Fixed usage_stats erasure race, story dedup, arg validation, and briefing header check (#29, #30, #31, #32)

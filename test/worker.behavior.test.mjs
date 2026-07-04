@@ -274,6 +274,38 @@ test('user commands', async (t) => {
     await send(upd('999', '/privacy'))
     assert.ok(sends()[0].body.text.includes('Privacy notice'))
   })
+  await t.test('REL-2 fixed: forgetUser/unsubscribe mirror KV before committing DO storage', async () => {
+    // A kill/eviction between the KV mirror and the DO storage commit must not
+    // leave an erased/unsubscribed user still on the KV list the daily-send
+    // pipeline reads (docs/qa/2026-07-02-phase9-reliability.md, REL-2).
+    // Checked by call order, not just end state -- both orders converge to the
+    // same final state absent an interruption, so only the order proves the fix.
+    // Seeded directly (not via /subscribe) since this suite's allowlist gating
+    // is irrelevant to what's under test here.
+    const seedSubscribed = () => {
+      const subs = doStorage.map.get('subscribers')
+      if (!subs.subscribers.includes('333')) subs.subscribers.push('333')
+      doStorage.map.set('subscribers', subs)
+    }
+    seedSubscribed()
+    const order = []
+    const origKvPut = kv.put.bind(kv)
+    const origDoPut = doStorage.put.bind(doStorage)
+    kv.put = async (k, v) => { if (k === 'subscribers') order.push('kv'); return origKvPut(k, v) }
+    doStorage.put = async (k, v) => { if (k === 'subscribers') order.push('do'); return origDoPut(k, v) }
+    try {
+      await serializedDo.unsubscribe('333')
+      assert.deepEqual(order, ['kv', 'do'], 'unsubscribe mirrors to KV before the DO commit')
+
+      seedSubscribed()
+      order.length = 0
+      await serializedDo.forgetUser('333')
+      assert.deepEqual(order, ['kv', 'do'], 'forgetUser mirrors to KV before the DO commit')
+    } finally {
+      kv.put = origKvPut
+      doStorage.put = origDoPut
+    }
+  })
 })
 
 // =============== briefing / rate limiting ===============

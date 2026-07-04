@@ -142,12 +142,18 @@ export class BotState extends DurableObject {
     const wasPending = Boolean(access.pending[id])
     access.allowFrom = access.allowFrom.filter(x => x !== id)
     delete access.pending[id]
-    await this.ctx.storage.put('access', access)
     const subs = await this.getSubscribers()
     const wasSubscribed = subs.subscribers.includes(id)
     subs.subscribers = subs.subscribers.filter(x => x !== id)
-    await this.ctx.storage.put('subscribers', subs)
+    // Mirror to KV *before* committing DO storage (REL-2): a kill/eviction
+    // between the two must not leave an erased user still on the KV list
+    // scripts/send-briefing.mjs reads, since that would keep sending them the
+    // briefing after erasure with no signal for the owner to retry. A stale DO
+    // write here self-heals on the user's next command; a stale KV mirror
+    // wouldn't, since nothing else re-checks it.
     await this.mirrorSubscribers(subs)
+    await this.ctx.storage.put('access', access)
+    await this.ctx.storage.put('subscribers', subs)
     return { wasAllowed, wasPending, wasSubscribed }
   }
 
@@ -182,11 +188,11 @@ export class BotState extends DurableObject {
   async unsubscribe(id) {
     const subs = await this.getSubscribers()
     const wasSubscribed = subs.subscribers.includes(id)
-    if (wasSubscribed) {
-      subs.subscribers = subs.subscribers.filter(x => x !== id)
-      await this.ctx.storage.put('subscribers', subs)
-    }
+    if (wasSubscribed) subs.subscribers = subs.subscribers.filter(x => x !== id)
+    // Mirror before the DO commit (REL-2) -- same reasoning as forgetUser:
+    // a removal must reach the KV read-side before it's durable in the DO.
     await this.mirrorSubscribers(subs)
+    if (wasSubscribed) await this.ctx.storage.put('subscribers', subs)
     return { subs, wasSubscribed }
   }
 
