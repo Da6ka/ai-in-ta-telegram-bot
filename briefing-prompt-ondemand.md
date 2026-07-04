@@ -26,6 +26,7 @@ Clearly label the publication date for every story.
    End every bullet with the publish date in parentheses, e.g. `(30 June)`. If you cannot verify a publish date, drop the item — a 3-bullet briefing of real news beats a padded one of filler.
    - **No evergreen content marketing:** skip "complete guides", tool roundups/listicles, "trends" explainers, and vendor landing pages, however relevant they look.
    - **Never cite the same domain twice** in one briefing.
+   - **Never repeat a story already covered in a recent edition.** If a "stories already covered" note appears below this prompt, treat every story on it as already reported — even if it still falls inside the freshness window or a new source is covering it — and find something else instead.
    - **Regulatory dates and statistics** (laws, effective dates, survey numbers): state them only when the source is primary or authoritative for that claim; otherwise omit the number/date and keep the story, or drop it.
    - **Prefer strong sources:** primary sources (vendor newsrooms, regulators, research institutions) and named trade press (ERE, SHRM, HR Brew, TechCrunch) over stock-analysis or SEO-aggregator domains.
    - **Minimum coverage:** target 4–6 stories.

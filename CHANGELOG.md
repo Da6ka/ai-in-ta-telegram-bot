@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+### Cross-day story dedup (no more repeat "news")
+
+The Claude Sonnet 5 launch (30 June) ran in both the 2026-07-03 and
+2026-07-04 daily editions, cited via a different source domain each time.
+Root cause: `briefing-prompt.md`'s freshness filter is a rolling "published
+in the past 7 days" window, and nothing tracked what a prior edition had
+already reported — "never cite the same domain twice" only dedupes within a
+single day's edition. Added `state/recent_stories.json`, written by
+`scripts/update-recent-stories.mjs` after a real, sent edition (gated the
+same as usage-stats/KV updates) and pruned to the last
+`RECENT_STORIES_WINDOW_DAYS` (14, matching the on-demand prompt's wider
+freshness fallback). `scripts/build-recency-note.mjs` reads it back and
+injects a "stories already covered, do not repeat" list into the generation
+prompt in both `daily-briefing.yml` and `on-demand-briefing.yml`. Both
+prompt files now document the rule explicitly.
+
 ### Pinned the Claude Code CLI version
 
 Both briefing workflows ran `npm install -g @anthropic-ai/claude-code` with

@@ -51,6 +51,10 @@ jobs:
         run: |
           TODAY_HUMAN=$(date -u '+%-d %B %Y')
           NOTE="Today's date (UTC) is ${TODAY_HUMAN}. Use this exact date in the title, and use it to judge which search results are genuinely from the past 24-48 hours."
+          RECENT=$(node scripts/build-recency-note.mjs)
+          if [ -n "$RECENT" ]; then
+            NOTE="${NOTE}"$'\n\n'"${RECENT}"
+          fi
           # One retry: a transient web-search/API hiccup shouldn't cost the whole
           # day's briefing. A zero-exit-but-poor generation is caught later by the
           # freshness gate + stale-generation alert, not here.
@@ -113,6 +117,15 @@ jobs:
         env:
           RECIPIENT_COUNT: ${{ steps.send.outputs.recipient_count }}
         run: node scripts/update-usage-stats.mjs
+
+      # Feeds tomorrow's generation via build-recency-note.mjs, so a real
+      # story doesn't get re-reported under a different source domain for
+      # up to two weeks straight (see shared/telegram.mjs's
+      # RECENT_STORIES_WINDOW_DAYS). Gated the same as usage stats: only a
+      # sent, content-passing edition should count as "covered".
+      - name: Record covered stories
+        if: steps.idempotency.outputs.should_run == 'true' && steps.freshness.outputs.ok == 'true'
+        run: node scripts/update-recent-stories.mjs
 
       - name: Sync to Cloudflare KV
         if: steps.idempotency.outputs.should_run == 'true' && steps.freshness.outputs.ok == 'true'

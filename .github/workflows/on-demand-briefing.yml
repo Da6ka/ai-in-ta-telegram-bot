@@ -33,6 +33,10 @@ jobs:
         run: |
           TODAY_HUMAN=$(date -u '+%-d %B %Y')
           NOTE="Today's date (UTC) is ${TODAY_HUMAN}. Use this exact date in the title, and use it to judge which search results are genuinely from the past 24-48 hours."
+          RECENT=$(node scripts/build-recency-note.mjs)
+          if [ -n "$RECENT" ]; then
+            NOTE="${NOTE}"$'\n\n'"${RECENT}"
+          fi
           # One retry so a transient hiccup doesn't fail a user's on-demand request.
           # --max-budget-usd is a hard cost ceiling (LLM10) and the step-level
           # timeout-minutes above is a hard wall-clock ceiling (ASI02) on the
@@ -82,6 +86,13 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           CHAT_ID: ${{ github.event.client_payload.chat_id }}
         run: node scripts/send-to-chat.mjs
+
+      # Feeds the next generation (daily or on-demand) via build-recency-note.mjs.
+      # Gated the same as the send: only a real, content-passing edition should
+      # count as "covered" (see daily-briefing.yml's equivalent step).
+      - name: Record covered stories
+        if: steps.freshness.outputs.fresh == 'true' && steps.freshness.outputs.items != '0'
+        run: node scripts/update-recent-stories.mjs
 
       - name: Sync to Cloudflare KV
         if: steps.freshness.outputs.fresh == 'true'

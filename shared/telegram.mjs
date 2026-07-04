@@ -30,8 +30,32 @@ export function isValidBriefing(md) {
 // aims for 4+ via its minimum-coverage search loop.
 export const MIN_BRIEFING_ITEMS = 2
 
+// Returns whole bullet lines, not just the truncated `match()` hit (a plain
+// global-regex match() here would cut each result off right after the
+// "https://" it matched on, since the pattern has no end anchor).
+export function extractBriefingBullets(md) {
+  return String(md ?? '').split('\n').filter((line) => /^- .*\]\(https?:\/\//.test(line))
+}
+
 export function countBriefingItems(md) {
-  return (String(md ?? '').match(/^- .*\]\(https?:\/\//gm) ?? []).length
+  return extractBriefingBullets(md).length
+}
+
+// How long a covered story is remembered and fed back into the generation
+// prompt as "already covered, don't repeat". Set to the wider of the two
+// prompts' own freshness windows (briefing-prompt-ondemand.md falls back to
+// 14 days when fewer than 3 stories qualify at 7) — no point forgetting a
+// story before it could still pass that filter and get re-reported under a
+// different source domain, which is exactly what happened with the Claude
+// Sonnet 5 launch appearing in both the 2026-07-03 and 2026-07-04 editions.
+export const RECENT_STORIES_WINDOW_DAYS = 14
+
+export function pruneRecentStories(entries, todayISO, windowDays = RECENT_STORIES_WINDOW_DAYS) {
+  const today = new Date(`${todayISO}T00:00:00Z`)
+  return (entries ?? []).filter((e) => {
+    const ageDays = (today - new Date(`${e.date}T00:00:00Z`)) / 86_400_000
+    return ageDays >= 0 && ageDays < windowDays
+  })
 }
 
 // Pace sends to stay under Telegram's ~30 msg/s ceiling. 40ms ≈ 25/s, leaving
