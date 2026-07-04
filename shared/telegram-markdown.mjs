@@ -99,9 +99,31 @@ export function chunk(text, limit) {
           stack.push({ name: tm[2], index: tm.index })
         }
       }
-      if (stack.length && stack[0].index > 0) cut = stack[0].index
+      if (stack.length) {
+        if (stack[0].index > 0) {
+          cut = stack[0].index
+        } else {
+          // #27: the outermost open tag starts at index 0 of this slice, so
+          // there's no earlier point to back up to (backing up to 0 would
+          // re-slice the same content forever). Extend forward instead, past
+          // wherever the whole nest of open tags actually closes -- even if
+          // that pushes this one chunk past `limit`. `limit` is a buffer
+          // under Telegram's real 4096-char ceiling, so a somewhat-oversized
+          // but valid chunk is always preferable to a malformed one.
+          let depth = stack.length
+          const fwdRe = /<(\/?)([a-z]+)\b[^>]*>/g
+          fwdRe.lastIndex = cut
+          let fm
+          let end = rest.length
+          while ((fm = fwdRe.exec(rest))) {
+            depth += fm[1] ? -1 : 1
+            if (depth === 0) { end = fwdRe.lastIndex; break }
+          }
+          cut = end
+        }
+      }
     }
-    if (cut <= 0) cut = limit // degenerate: a single tag longer than the limit
+    if (cut <= 0) cut = limit
     parts.push(rest.slice(0, cut))
     rest = rest.slice(cut)
   }
