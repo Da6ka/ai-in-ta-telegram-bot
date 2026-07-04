@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### Fixed link parser truncating URLs with parens (#26)
+
+Another finding from the edge-case review: the Markdown link regex's URL
+class was `[^\s)]+`, so any source URL containing a literal paren -- a
+common shape for Wikipedia-style links, e.g. `.../wiki/Foo_(bar)` -- stopped
+matching at the first `)`, truncating the href and leaving the rest as
+stray literal text outside the closed anchor. Replaced the URL class with
+alternating runs of "no space/paren" and one balanced `(...)` group, so a
+single level of nested parens is captured as part of the URL -- covers every
+real URL shape seen so far.
+
 ### Pin one run date per job to prevent UTC-midnight desync (#25)
 
 The same edge-case review found that "today" was recomputed independently in
