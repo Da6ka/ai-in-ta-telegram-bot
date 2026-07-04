@@ -75,52 +75,61 @@ export function chunk(text, limit) {
     if (cut <= 0) cut = rest.lastIndexOf(' ', limit)
     if (cut <= 0) cut = limit
     // Never split inside an HTML tag or across an open/close pair — Telegram
-    // rejects a chunk with an unbalanced entity (L6, AUD-2). If the slice
-    // would end inside a tag, or with any opened-but-unclosed pair (<a>, <b>,
-    // ...), back the cut up to just before the offending '<'.
+    // rejects a chunk with an unbalanced entity (L6, AUD-2).
+    //
+    // Phase 1: don't stop mid tag-opening-syntax (inside `<...` before its
+    // own `>`). Back up before it when possible; if the dangling `<` is
+    // itself at index 0 there's nothing earlier to back up to (and backing
+    // up to 0 would re-slice the same content forever, hanging the loop --
+    // #37), so extend forward to just past this tag's own `>` instead.
     let slice = rest.slice(0, cut)
-    const lastOpen = slice.lastIndexOf('<')
-    const lastClose = slice.lastIndexOf('>')
-    if (lastOpen > lastClose && lastOpen > 0) {
-      cut = lastOpen
-    } else {
-      // mdToHtml can nest <i> inside <b> (an italicized title inside a bold
-      // sentence), but a plain LIFO stack scan still finds the right cut
-      // point: if an inner tag is left unclosed, its enclosing tag opened
-      // earlier and is unclosed too, so stack[0] (the outermost) is always
-      // the correct place to back up to.
-      const tagRe = /<(\/?)([a-z]+)\b[^>]*>/g
-      const stack = []
-      let tm
-      while ((tm = tagRe.exec(slice))) {
-        if (tm[1]) {
-          if (stack.length && stack[stack.length - 1].name === tm[2]) stack.pop()
-        } else {
-          stack.push({ name: tm[2], index: tm.index })
-        }
+    let lastOpen = slice.lastIndexOf('<')
+    let lastClose = slice.lastIndexOf('>')
+    if (lastOpen > lastClose) {
+      if (lastOpen > 0) {
+        cut = lastOpen
+      } else {
+        const closeIdx = rest.indexOf('>', cut)
+        cut = closeIdx === -1 ? rest.length : closeIdx + 1
       }
-      if (stack.length) {
-        if (stack[0].index > 0) {
-          cut = stack[0].index
-        } else {
-          // #27: the outermost open tag starts at index 0 of this slice, so
-          // there's no earlier point to back up to (backing up to 0 would
-          // re-slice the same content forever). Extend forward instead, past
-          // wherever the whole nest of open tags actually closes -- even if
-          // that pushes this one chunk past `limit`. `limit` is a buffer
-          // under Telegram's real 4096-char ceiling, so a somewhat-oversized
-          // but valid chunk is always preferable to a malformed one.
-          let depth = stack.length
-          const fwdRe = /<(\/?)([a-z]+)\b[^>]*>/g
-          fwdRe.lastIndex = cut
-          let fm
-          let end = rest.length
-          while ((fm = fwdRe.exec(rest))) {
-            depth += fm[1] ? -1 : 1
-            if (depth === 0) { end = fwdRe.lastIndex; break }
-          }
-          cut = end
+      slice = rest.slice(0, cut)
+    }
+    // Phase 2: don't stop with any opened-but-unclosed element (<a>, <b>,
+    // ...). mdToHtml can nest <i> inside <b> (an italicized title inside a
+    // bold sentence), but a plain LIFO stack scan still finds the right cut
+    // point: if an inner tag is left unclosed, its enclosing tag opened
+    // earlier and is unclosed too, so stack[0] (the outermost) is always
+    // the correct place to back up to.
+    const tagRe = /<(\/?)([a-z]+)\b[^>]*>/g
+    const stack = []
+    let tm
+    while ((tm = tagRe.exec(slice))) {
+      if (tm[1]) {
+        if (stack.length && stack[stack.length - 1].name === tm[2]) stack.pop()
+      } else {
+        stack.push({ name: tm[2], index: tm.index })
+      }
+    }
+    if (stack.length) {
+      if (stack[0].index > 0) {
+        cut = stack[0].index
+      } else {
+        // #27: the outermost open tag starts at index 0 of this slice, so
+        // there's no earlier point to back up to. Extend forward instead,
+        // past wherever the whole nest of open tags actually closes -- even
+        // if that pushes this one chunk past `limit`. `limit` is a buffer
+        // under Telegram's real 4096-char ceiling, so a somewhat-oversized
+        // but valid chunk is always preferable to a malformed one.
+        let depth = stack.length
+        const fwdRe = /<(\/?)([a-z]+)\b[^>]*>/g
+        fwdRe.lastIndex = cut
+        let fm
+        let end = rest.length
+        while ((fm = fwdRe.exec(rest))) {
+          depth += fm[1] ? -1 : 1
+          if (depth === 0) { end = fwdRe.lastIndex; break }
         }
+        cut = end
       }
     }
     if (cut <= 0) cut = limit

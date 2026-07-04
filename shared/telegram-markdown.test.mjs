@@ -154,6 +154,27 @@ test('chunk extends past the limit rather than truncate a single oversized tag (
   assert.equal(parts.join(''), html, 'no content lost')
 })
 
+// #37 regression: the naive whitespace-preferring cut can land inside a
+// tag's own opening syntax (before its `>`) if that syntax happens to
+// contain the only whitespace before the limit -- e.g. the space in
+// `<a href=`, when the anchor text/URL that follows has none. Backing up
+// only worked when the dangling `<` was partway through the slice; if it
+// sat at index 0 there was nothing earlier to back up to, and previously
+// nothing corrected the cut at all -- risking a near-zero-progress cut that
+// could hang the chunking loop.
+test('chunk completes a tag whose opening syntax has the only whitespace before the limit (#37)', () => {
+  const longUrl = 'https://example.com/' + 'x'.repeat(50)
+  const longText = 'y'.repeat(4200)
+  const html = `<a href="${longUrl}">${longText}</a> tail text after`
+  const parts = chunk(html, 4000)
+  assert.ok(parts.length >= 2, 'oversized content actually chunked')
+  assert.ok(parts.every((p) => p.length > 10), 'no near-zero-progress chunk')
+  for (const p of parts) {
+    assert.equal((p.match(/<a\b/g) ?? []).length, (p.match(/<\/a>/g) ?? []).length, `unbalanced <a> in chunk: …${p.slice(-40)}`)
+  }
+  assert.equal(parts.join(''), html, 'no content lost')
+})
+
 // The generalized balance check must not regress the anchor case (L6).
 test('chunk still keeps <a> pairs intact across cuts', () => {
   const links = Array.from({ length: 60 }, (_, i) =>
