@@ -30,7 +30,25 @@ jobs:
         with:
           node-version: '20'
 
+      # #28: the Worker's dispatch retry can fire this event twice for the
+      # same /broadcast command if GitHub accepted the original POST but the
+      # response was lost -- without this, every subscriber gets the message
+      # twice. Note this workflow deliberately has no concurrency group
+      # (AUD-3 above), so this check-then-set isn't fully atomic against two
+      # near-simultaneous duplicate runs; it closes the realistic case (a
+      # retry seconds later after backoff), not a theoretical race window of
+      # a few hundred milliseconds.
+      - name: Check dispatch idempotency
+        id: dispatch_guard
+        env:
+          DISPATCH_ID: ${{ github.event.client_payload.dispatch_id }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CF_KV_NAMESPACE_ID: ${{ secrets.CF_KV_NAMESPACE_ID }}
+        run: node scripts/check-dispatch-once.mjs
+
       - name: Deliver broadcast
+        if: steps.dispatch_guard.outputs.duplicate != 'true'
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}

@@ -297,6 +297,30 @@ test('briefing and rate limiting', async (t) => {
     assert.equal(ghDispatches()[0].body.client_payload.chat_id, '222')
     assert.ok(sends()[0].body.text.includes('Generating'))
   })
+
+  // #28 regression: fetchWithRetry can retry the dispatches POST on a
+  // 429/5xx/network error even when GitHub already accepted the original
+  // request, firing a second, distinct repository_dispatch for the same
+  // logical request. dispatch_id lets the workflow dedupe -- must be present
+  // and unique per dispatch so scripts/check-dispatch-once.mjs has something
+  // to key on.
+  await t.test('F10b each dispatch carries a unique dispatch_id (#28)', async () => {
+    const freshCooldown = () => {
+      const rl = doStorage.map.get('briefing_rate'); rl.lastDispatchAt = 0; doStorage.map.set('briefing_rate', rl)
+    }
+    freshCooldown() // F10's dispatch, just above, left the cooldown active
+    kv.map.set('today_briefing_date', '2020-01-01')
+    fetchLog = []
+    await send(upd('222', '/briefing'))
+    const first = ghDispatches().at(-1).body.client_payload.dispatch_id
+    assert.ok(first, 'dispatch_id present')
+    freshCooldown()
+    kv.map.set('today_briefing_date', '2020-01-01')
+    await send(upd('222', '/briefing'))
+    const second = ghDispatches().at(-1).body.client_payload.dispatch_id
+    assert.ok(second, 'dispatch_id present on second dispatch')
+    assert.notEqual(first, second, 'two distinct requests get distinct ids')
+  })
   await t.test('F11 2nd request in cooldown -> no dispatch; cached briefing served if fresh', async () => {
     fetchLog = []
     await send(upd(OWNER, '/newbriefing'))

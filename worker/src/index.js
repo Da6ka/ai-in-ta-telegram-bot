@@ -382,8 +382,17 @@ async function dmCommandGate(stub, message) {
 // Fire a repository_dispatch so a GitHub Actions workflow does the heavy/slow
 // work (briefing generation, broadcast fan-out) outside the Worker's request
 // lifetime and subrequest cap. Returns true iff GitHub accepted the dispatch.
+//
+// dispatch_id lets the workflow (scripts/check-dispatch-once.mjs) detect a
+// duplicate: fetchWithRetry can retry this POST on a 429/5xx/network error
+// even when GitHub already accepted the original request and only the
+// response was lost, which would otherwise fire a second, distinct
+// repository_dispatch for the same logical broadcast/newbriefing (#28).
+// Generated once per call (outside fetchWithRetry's loop), so every retry
+// attempt of the same call carries the same id.
 async function dispatchEvent(env, eventType, clientPayload, { retries = 1 } = {}) {
   try {
+    const payload = { ...clientPayload, dispatch_id: crypto.randomUUID() }
     const res = await fetchWithRetry(`https://api.github.com/repos/${env.GITHUB_REPO}/dispatches`, {
       method: 'POST',
       headers: {
@@ -391,7 +400,7 @@ async function dispatchEvent(env, eventType, clientPayload, { retries = 1 } = {}
         Accept: 'application/vnd.github+json',
         'User-Agent': 'ai-in-ta-telegram-bot-worker',
       },
-      body: JSON.stringify({ event_type: eventType, client_payload: clientPayload }),
+      body: JSON.stringify({ event_type: eventType, client_payload: payload }),
     }, { retries })
     if (!res.ok) {
       console.error(`GitHub dispatch failed (${eventType})`, res.status, await res.text())
