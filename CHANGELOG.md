@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+### Added dispatch idempotency so a retried repository_dispatch can't double-fire (#28)
+
+Another edge-case-review finding: `fetchWithRetry` retries the GitHub
+`dispatches` POST on a 429/5xx/network error, but if GitHub actually
+accepted the original request and only the response was lost, the retry
+fired a second, distinct `repository_dispatch` for the same logical
+action -- every subscriber getting a `/broadcast` message twice, or a
+second $2 LLM generation for the same `/newbriefing` request. `dispatchEvent`
+now stamps a `dispatch_id` (generated once per call, so retries of the same
+call share it) into `client_payload`; both `broadcast.yml` and
+`on-demand-briefing.yml` check it against KV before doing any real work and
+skip a detected duplicate. Known limitation: `broadcast.yml` has no
+concurrency group by design (AUD-3), so this isn't atomic against two
+truly simultaneous duplicate runs -- it closes the realistic retry-after-
+backoff case, not a sub-second race window.
+
 ### Fixed chunk() truncating or hanging on oversized/awkward HTML tags (#27, #37)
 
 Two more findings from the edge-case review, both in the message-splitting
