@@ -2,6 +2,26 @@
 
 ## [Unreleased]
 
+### Fixed two gaps in the story-dedup fix (same-day loss + cold start)
+
+The user reported "Claude Tag" and a Microsoft Teams story repeating from a
+2026-07-03 edition, even after the dedup fix (see above) merged. Two bugs:
+(1) `scripts/update-recent-stories.mjs` *replaced* today's entry on every
+run instead of merging, so multiple same-day editions (a daily run plus
+on-demand runs) lost each other's stories from memory — fixed to merge
+(dedupe by exact bullet text). (2) `state/recent_stories.json` only started
+existing when the dedup PR merged, so it had zero memory of anything from
+before that moment — backfilled it from the full git history of
+`state/today_briefing.md` (2026-07-01 through today), unioning bullets per
+calendar day. That backfill also surfaced a real cost risk: a single
+heavy-testing day merged 60 bullets into one entry, and injecting that
+unbounded into every future prompt would be thousands of extra tokens per
+run — enough to risk re-triggering the `--max-budget-usd` overrun from
+earlier today. Added `recentStoryBullets()` (shared/telegram.mjs), capping
+the prompt-injected list to `MAX_RECENT_STORY_BULLETS` (20), keeping the
+most recent ones; storage itself stays bounded only by the 14-day window and
+will settle down naturally as today's heavy-testing entries age out.
+
 ### Fixed nested *italic* inside **bold** breaking Telegram formatting
 
 A live send on 2026-07-04 reached Telegram with raw, unconverted Markdown

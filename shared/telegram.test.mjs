@@ -2,7 +2,7 @@
 // fetch is mocked; paceMs/baseDelayMs are set to 0 so the suite stays fast.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { tgRequest, sendHtml, sendHtmlToMany, sendTextToMany, isValidBriefing, countBriefingItems, MIN_BRIEFING_ITEMS, extractBriefingBullets, pruneRecentStories, RECENT_STORIES_WINDOW_DAYS } from './telegram.mjs'
+import { tgRequest, sendHtml, sendHtmlToMany, sendTextToMany, isValidBriefing, countBriefingItems, MIN_BRIEFING_ITEMS, extractBriefingBullets, pruneRecentStories, RECENT_STORIES_WINDOW_DAYS, recentStoryBullets, MAX_RECENT_STORY_BULLETS } from './telegram.mjs'
 
 const realFetch = globalThis.fetch
 function mockFetch(handler) {
@@ -133,6 +133,27 @@ test('pruneRecentStories keeps entries within the window and drops older/future 
   ]
   const kept = pruneRecentStories(entries, '2026-07-04', RECENT_STORIES_WINDOW_DAYS)
   assert.deepEqual(kept.map((e) => e.date), ['2026-06-25', '2026-07-04'])
+})
+
+// Regression: a single heavy-testing day can merge dozens of bullets into
+// one date entry (caught live, 2026-07-04: one day alone produced 60). Fed
+// unbounded into the generation prompt, that's thousands of extra tokens on
+// every future run -- risking the same --max-budget-usd overrun PR #19 just
+// fixed. recentStoryBullets must cap the total regardless of how it's
+// distributed across days, keeping the most recent ones.
+test('recentStoryBullets caps the total and keeps the most recent bullets', () => {
+  const entries = [
+    { date: '2026-06-25', bullets: Array.from({ length: 30 }, (_, i) => `- old ${i}`) },
+    { date: '2026-07-04', bullets: ['- newest 1', '- newest 2'] },
+  ]
+  const bullets = recentStoryBullets(entries, '2026-07-04')
+  assert.equal(bullets.length, MAX_RECENT_STORY_BULLETS)
+  assert.deepEqual(bullets.slice(-2), ['- newest 1', '- newest 2'], 'most recent day\'s bullets survive the cap')
+})
+
+test('recentStoryBullets returns everything when under the cap', () => {
+  const entries = [{ date: '2026-07-04', bullets: ['- a', '- b'] }]
+  assert.deepEqual(recentStoryBullets(entries, '2026-07-04'), ['- a', '- b'])
 })
 
 test('sendTextToMany sends plain text (no parse_mode) so HTML is delivered verbatim', async () => {
