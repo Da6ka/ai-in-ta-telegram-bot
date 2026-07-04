@@ -33,10 +33,26 @@ jobs:
         with:
           node-version: '20'
 
+      # #28: the Worker's dispatch retry can fire this event twice for the
+      # same underlying /newbriefing request if GitHub accepted the original
+      # POST but the response was lost. Skips the expensive regeneration for
+      # a detected duplicate -- "Check freshness" below still correctly
+      # sends/rejects based on whatever's actually in state/today_briefing.md.
+      - name: Check dispatch idempotency
+        id: dispatch_guard
+        env:
+          DISPATCH_ID: ${{ github.event.client_payload.dispatch_id }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CF_KV_NAMESPACE_ID: ${{ secrets.CF_KV_NAMESPACE_ID }}
+        run: node scripts/check-dispatch-once.mjs
+
       - name: Install Claude Code
+        if: steps.dispatch_guard.outputs.duplicate != 'true'
         run: npm install -g @anthropic-ai/claude-code@2.1.201
 
       - name: Generate briefing
+        if: steps.dispatch_guard.outputs.duplicate != 'true'
         timeout-minutes: 10
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -64,6 +80,7 @@ jobs:
           done
 
       - name: Force-correct briefing date
+        if: steps.dispatch_guard.outputs.duplicate != 'true'
         run: node scripts/force-briefing-date.mjs
 
       # Same gate as daily-briefing.yml (the BUG-1 fix): a zero-exit garbage
