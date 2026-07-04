@@ -1,0 +1,11 @@
+{
+  "entries": [
+    {
+      "date": "2026-07-04",
+      "bullets": [
+        "- **Anthropic shipped Claude Sonnet 5, sharply cutting the cost of running agents** — priced at $2/million input and $10/million output tokens through 31 August (rising to $3/$15 after), it runs autonomous, tool-using workflows that recently required larger, pricier models. For TA leaders, this resets the build-vs-buy math on agentic recruiting automations (sourcing, screening, scheduling) and makes near-frontier reasoning affordable at applicant-pool scale. ([TechCrunch](https://techcrunch.com/2026/06/30/anthropic-launches-claude-sonnet-5-as-a-cheaper-way-to-run-agents/)) (30 June)",
+        "- **A California federal judge let the core discrimination claims in *Mobley v. Workday* proceed**, advancing an \"agent\" theory that holds the AI screening vendor — not just the employer — liable under FEHA and the ADA across a proposed class covering roughly 1.1 billion rejected applications. Every TA team running algorithmic screening should treat this as the signal to document human oversight and bias testing at each consequential decision point. ([HR Dive](https://www.hrdive.com/news/workday-california-AI-bias-lawsuit-feha/823555/)) (22 June)"
+      ]
+    }
+  ]
+}
