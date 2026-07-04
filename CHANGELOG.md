@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+### Fixed chunk() truncating or hanging on oversized/awkward HTML tags (#27, #37)
+
+Two more findings from the edge-case review, both in the message-splitting
+`chunk()` used before every Telegram send. (#27) The tag-balance backup only
+backed the cut up before an unclosed tag when that tag started partway
+through the slice; if a single tag's own content exceeded the chunk limit
+(e.g. one bullet with an unusually long bold span or link), the tag started
+at index 0 with nowhere earlier to back up to, and the naive cut could land
+mid-tag. Now extends forward past the full close instead, even if that
+pushes the one chunk past `limit` (still comfortably under Telegram's real
+4096-char ceiling). (#37) Fixing that surfaced a related, more serious bug:
+if a *dangling, not-yet-closed* tag-opening syntax (e.g. `<a href=`) sat at
+index 0 -- possible when the tag's own attribute syntax holds the only
+whitespace before the limit -- nothing corrected the cut at all, risking a
+near-zero-progress slice that could hang the chunking loop. Restructured the
+tag-safety check into two explicit phases (complete the tag syntax, then
+close any open element) to cover both cases. Added regression tests for
+each.
+
 ### Fixed link parser truncating URLs with parens (#26)
 
 Another finding from the edge-case review: the Markdown link regex's URL
