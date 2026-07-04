@@ -17,7 +17,8 @@ export const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 // Used to gate the KV cache write so one bad on-demand /newbriefing can't
 // overwrite the shared today_briefing_md that every user's /briefing serves.
 export function isValidBriefing(md) {
-  return /^# Daily AI Recruitment Briefing — .+/m.test(md ?? '')
+  const firstLine = (md ?? '').trimStart().split('\n', 1)[0]
+  return /^# Daily AI Recruitment Briefing — .+/.test(firstLine)
 }
 
 // A qualifying story is a top-level bullet carrying a Markdown link — the
@@ -39,6 +40,37 @@ export function extractBriefingBullets(md) {
 
 export function countBriefingItems(md) {
   return extractBriefingBullets(md).length
+}
+
+// Same-day merges (update-recent-stories.mjs) must dedupe by the underlying
+// story, not the bullet's exact wording -- the LLM can phrase a re-run of the
+// same story differently, or cite it from a second source domain, and an
+// exact-text Set misses both. Normalizing to host+path (dropping query/hash
+// and a trailing slash) catches same-URL restates; cross-domain restates of
+// the same story still need the prompt's own freshness filter.
+export function bulletUrlKey(line) {
+  const m = String(line ?? '').match(/\]\((https?:\/\/[^)]+)\)/)
+  if (!m) return null
+  try {
+    const u = new URL(m[1])
+    return `${u.hostname}${u.pathname}`.replace(/\/$/, '').toLowerCase()
+  } catch {
+    return m[1]
+  }
+}
+
+// Dedupe bullets by bulletUrlKey (falling back to exact text for a bullet
+// with no parseable URL), keeping the first occurrence of each key.
+export function dedupeBullets(bullets) {
+  const seen = new Set()
+  const out = []
+  for (const b of bullets ?? []) {
+    const key = bulletUrlKey(b) ?? b
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(b)
+  }
+  return out
 }
 
 // How long a covered story is remembered and fed back into the generation

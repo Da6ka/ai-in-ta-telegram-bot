@@ -401,6 +401,12 @@ test('admin commands', async (t) => {
     await send(upd(OWNER, '/adduser 555'))
     assert.ok(sends()[0].body.text.includes('already on the allowlist'))
   })
+  await t.test('/adduser with extra arguments warns instead of silently dropping them', async () => {
+    fetchLog = []
+    await send(upd(OWNER, '/adduser 556 557'))
+    assert.ok(sends()[0].body.text.includes('ignoring extra argument'))
+    assert.ok(!doStorage.map.get('access').allowFrom.includes('556'), 'id not added when extra args present')
+  })
   await t.test('BUG-7 fixed: /adduser clears the matching pending entry', async () => {
     const access = doStorage.map.get('access')
     access.pending['777'] = { displayName: 'P', username: '@p', createdAt: 1 }
@@ -419,6 +425,11 @@ test('admin commands', async (t) => {
     fetchLog = []
     await send(upd(OWNER, '/removeuser 88888'))
     assert.ok(sends()[0].body.text.includes('not found'))
+  })
+  await t.test('/removeuser with extra arguments warns instead of silently dropping them', async () => {
+    fetchLog = []
+    await send(upd(OWNER, '/removeuser 88888 99999'))
+    assert.ok(sends()[0].body.text.includes('ignoring extra argument'))
   })
   await t.test('F17 /broadcast dispatches delivery to the Actions runner with message + owner + count ack', async () => {
     await send(upd('222', '/subscribe'))

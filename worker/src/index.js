@@ -19,11 +19,12 @@
 //     hand-maintained TELEGRAM_SUBSCRIBER_CHAT_IDS repo secret.
 //   - `usage_stats` stays in the BOT_STATE KV namespace as before. It's also
 //     written directly by the GitHub Actions pipeline (scripts/sync-kv.mjs),
-//     so fully fixing its concurrency would mean giving that pipeline a way
-//     to call into the Durable Object too. Command_counts/last_seen can still
-//     race against each other Worker-side, but the impact is cosmetic
-//     (slightly-off admin stats), unlike losing a real subscription or
-//     allowlist entry — left as a known, accepted limitation.
+//     which can't be made to go through the Durable Object -- that
+//     Worker-vs-CI race on the KV blob is a known, accepted limitation
+//     (slightly-off admin stats at worst). But bumpCommandCount/touchLastSeen/
+//     purgeUsageStats are now DO methods (below), so the Worker-vs-Worker
+//     race is closed: a real erasure (/forgetme, /removeuser) can no longer
+//     be silently undone by a concurrent command's touchLastSeen write.
 //   - `today_briefing_md` / `today_briefing_date` stay in KV: only the CI
 //     pipeline ever writes them, so there's no concurrent-writer race.
 
@@ -249,6 +250,43 @@ export class BotState extends DurableObject {
     await this.ctx.storage.put('seen_updates', seen)
     return true
   }
+
+  // usage_stats lives in KV (not DO storage -- see the top-of-file note: the
+  // CI pipeline's scripts/sync-kv.mjs writes it directly via the REST API, so
+  // it can never be fully race-free). But routing every Worker-side writer
+  // through this singleton DO does close the Worker-vs-Worker race: a DO
+  // processes one request at a time, so bump/touch/purge calls that land
+  // concurrently (e.g. /forgetme's erasure racing a concurrent /briefing's
+  // touchLastSeen) serialize instead of read-modify-writing the same KV blob
+  // out of order and silently un-erasing a just-purged entry.
+  async bumpCommandCount(name) {
+    const stats = await getJSON(this.env, 'usage_stats', DEFAULT_USAGE)
+    const prev = Object.hasOwn(stats.command_counts, name) ? stats.command_counts[name] : 0
+    stats.command_counts[name] = prev + 1
+    await putJSON(this.env, 'usage_stats', stats)
+  }
+
+  async touchLastSeen(senderId) {
+    const stats = await getJSON(this.env, 'usage_stats', DEFAULT_USAGE)
+    stats.last_seen[senderId] = todayUTC()
+    const cutoff = new Date(Date.now() - RETENTION_DAYS * 86400000).toISOString().slice(0, 10)
+    for (const [id, date] of Object.entries(stats.last_seen)) {
+      if (typeof date === 'string' && date < cutoff) delete stats.last_seen[id]
+    }
+    await putJSON(this.env, 'usage_stats', stats)
+  }
+
+  // Right-to-erasure counterpart to touchLastSeen/bumpCommandCount above --
+  // must go through this same DO for the serialization to actually protect it.
+  async purgeUsageStats(id) {
+    const stats = await getJSON(this.env, 'usage_stats', DEFAULT_USAGE)
+    if (stats.last_seen && id in stats.last_seen) {
+      delete stats.last_seen[id]
+      await putJSON(this.env, 'usage_stats', stats)
+      return true
+    }
+    return false
+  }
 }
 
 async function getJSON(env, key, fallback) {
@@ -329,39 +367,9 @@ function todayUTC() {
   return new Date().toISOString().slice(0, 10)
 }
 
-async function bumpCommandCount(env, name) {
-  const stats = await getJSON(env, 'usage_stats', DEFAULT_USAGE)
-  const prev = Object.hasOwn(stats.command_counts, name) ? stats.command_counts[name] : 0
-  stats.command_counts[name] = prev + 1
-  await putJSON(env, 'usage_stats', stats)
-}
-
-async function touchLastSeen(env, senderId) {
-  const stats = await getJSON(env, 'usage_stats', DEFAULT_USAGE)
-  stats.last_seen[senderId] = todayUTC()
-  // Retention sweep: drop activity entries older than RETENTION_DAYS. Runs on
-  // every command, so inactive users' stale entries get cleaned up over time
-  // even though they never trigger this themselves. YYYY-MM-DD compares
-  // lexicographically, so a string < is a valid date comparison here.
-  const cutoff = new Date(Date.now() - RETENTION_DAYS * 86400000).toISOString().slice(0, 10)
-  for (const [id, date] of Object.entries(stats.last_seen)) {
-    if (typeof date === 'string' && date < cutoff) delete stats.last_seen[id]
-  }
-  await putJSON(env, 'usage_stats', stats)
-}
-
-// Remove one user's per-user entry from the usage_stats activity log (KV).
-// command_counts is aggregate-by-command, not per-user, so there's nothing
-// personal to purge there.
-async function purgeUsageStats(env, id) {
-  const stats = await getJSON(env, 'usage_stats', DEFAULT_USAGE)
-  if (stats.last_seen && id in stats.last_seen) {
-    delete stats.last_seen[id]
-    await putJSON(env, 'usage_stats', stats)
-    return true
-  }
-  return false
-}
+// bumpCommandCount/touchLastSeen/purgeUsageStats now live as BotState DO
+// methods above, so all three usage_stats writers serialize through the
+// singleton stub instead of racing each other's KV read-modify-write.
 
 // Like the old dmCommandGate(): DM only, dmPolicy check. No pairing-code
 // machinery here — /start's approve/deny buttons are the only approval path
@@ -597,7 +605,7 @@ const COMMAND_HANDLERS = {
       return
     }
     const r = await stub.forgetUser(senderId)
-    const purged = await purgeUsageStats(env, senderId)
+    const purged = await stub.purgeUsageStats(senderId)
     const hadData = r.wasAllowed || r.wasSubscribed || r.wasPending || purged
     await reply(env, senderId, hadData
       ? "Done — everything the bot stored about you has been erased: allowlist access, subscription, any pending request, and your activity log. Send /start if you ever want to come back."
@@ -698,6 +706,10 @@ const COMMAND_HANDLERS = {
       await reply(env, senderId, `"${id}" doesn't look like a Telegram chat id (should be numeric). Usage: /adduser <chat_id>`)
       return
     }
+    if (args.length > 1) {
+      await reply(env, senderId, `/adduser takes one chat id at a time — ignoring extra argument(s): ${args.slice(1).join(' ')}`)
+      return
+    }
     const { added, atCapacity } = await stub.addAllowedUser(id)
     if (atCapacity) {
       await reply(env, senderId, `Can't add <code>${escapeHtml(id)}</code> — the bot is at capacity (${MAX_USERS} users). Remove someone with /removeuser first, or raise the limit.`, { parse_mode: 'HTML' })
@@ -721,12 +733,16 @@ const COMMAND_HANDLERS = {
       await reply(env, senderId, 'Usage: /removeuser <chat_id>')
       return
     }
+    if (args.length > 1) {
+      await reply(env, senderId, `/removeuser takes one chat id at a time — ignoring extra argument(s): ${args.slice(1).join(' ')}`)
+      return
+    }
     if (id === access.ownerChatId) {
       await reply(env, senderId, "You can't remove the bot owner.")
       return
     }
     const r = await stub.forgetUser(id)
-    const purged = await purgeUsageStats(env, id)
+    const purged = await stub.purgeUsageStats(id)
     if (!r.wasAllowed && !r.wasSubscribed && !r.wasPending && !purged) {
       await reply(env, senderId, `User <code>${escapeHtml(id)}</code> not found.`, { parse_mode: 'HTML' })
       return
@@ -851,8 +867,8 @@ async function handleMessage(env, stub, message) {
   }
 
   const argStr = m[2]
-  await touchLastSeen(env, gated.senderId)
-  await bumpCommandCount(env, cmd)
+  await stub.touchLastSeen(gated.senderId)
+  await stub.bumpCommandCount(cmd)
 
   const args = (argStr ?? '').split(/\s+/).filter(Boolean)
   await handler(env, message, gated, args, text)

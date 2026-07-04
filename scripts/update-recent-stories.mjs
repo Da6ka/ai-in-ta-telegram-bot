@@ -7,7 +7,7 @@
 // Claude Sonnet 5 launch (30 June) ran in both the 2026-07-03 and
 // 2026-07-04 editions.
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
-import { extractBriefingBullets, pruneRecentStories } from '../shared/telegram.mjs'
+import { extractBriefingBullets, pruneRecentStories, dedupeBullets } from '../shared/telegram.mjs'
 
 const path = 'state/recent_stories.json'
 // BRIEFING_DATE_ISO is set once per job by the workflow's "Pin today's date"
@@ -23,10 +23,11 @@ const existing = existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : { e
 // land the same day (a daily run plus one or more /newbriefing on-demand
 // runs), and each one's stories must stay remembered. Replacing lost earlier
 // same-day stories entirely (caught live, 2026-07-04: a run repeated a story
-// two runs earlier had already covered, same day). Dedupe by exact bullet
-// text since the same run can't produce the same bullet twice.
+// two runs earlier had already covered, same day). Dedupe by URL (not exact
+// bullet text) since a re-run can restate the same story with different
+// wording or a different source domain.
 const todayEntry = (existing.entries ?? []).find((e) => e.date === today)
-const mergedBullets = [...new Set([...(todayEntry?.bullets ?? []), ...bullets])]
+const mergedBullets = dedupeBullets([...(todayEntry?.bullets ?? []), ...bullets])
 const withoutToday = (existing.entries ?? []).filter((e) => e.date !== today)
 const entries = pruneRecentStories([...withoutToday, { date: today, bullets: mergedBullets }], today)
 
