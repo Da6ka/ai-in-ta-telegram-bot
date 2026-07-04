@@ -2,7 +2,7 @@
 // fetch is mocked; paceMs/baseDelayMs are set to 0 so the suite stays fast.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { tgRequest, sendHtml, sendHtmlToMany, sendTextToMany, isValidBriefing, countBriefingItems, MIN_BRIEFING_ITEMS } from './telegram.mjs'
+import { tgRequest, sendHtml, sendHtmlToMany, sendTextToMany, isValidBriefing, countBriefingItems, MIN_BRIEFING_ITEMS, extractBriefingBullets, pruneRecentStories, RECENT_STORIES_WINDOW_DAYS } from './telegram.mjs'
 
 const realFetch = globalThis.fetch
 function mockFetch(handler) {
@@ -110,6 +110,29 @@ test('countBriefingItems counts only linked story bullets (AUD-1)', () => {
   // Robust to non-string input like isValidBriefing.
   assert.equal(countBriefingItems(null), 0)
   assert.equal(countBriefingItems(undefined), 0)
+})
+
+test('extractBriefingBullets returns the raw linked bullet lines', () => {
+  const md = '# Daily AI Recruitment Briefing — 4 July 2026\n\n## Claude & Anthropic in TA\n- **A** thing happened. [Src](https://ex1.com/a) (30 June)\n- a linkless bullet\n\n## Worth Reading\n- **B** thing happened. [Src2](https://ex2.com/b) (1 July)\n'
+  assert.deepEqual(extractBriefingBullets(md), [
+    '- **A** thing happened. [Src](https://ex1.com/a) (30 June)',
+    '- **B** thing happened. [Src2](https://ex2.com/b) (1 July)',
+  ])
+  assert.deepEqual(extractBriefingBullets(null), [])
+})
+
+// Regression for the repeat-story bug: the Claude Sonnet 5 launch (30 June)
+// ran in both the 2026-07-03 and 2026-07-04 editions because nothing tracked
+// what a prior edition had already covered.
+test('pruneRecentStories keeps entries within the window and drops older/future ones', () => {
+  const entries = [
+    { date: '2026-06-20', bullets: ['- too old'] },
+    { date: '2026-06-25', bullets: ['- just inside the 14-day window'] },
+    { date: '2026-07-04', bullets: ['- today'] },
+    { date: '2026-07-05', bullets: ['- future, should never happen but must not crash'] },
+  ]
+  const kept = pruneRecentStories(entries, '2026-07-04', RECENT_STORIES_WINDOW_DAYS)
+  assert.deepEqual(kept.map((e) => e.date), ['2026-06-25', '2026-07-04'])
 })
 
 test('sendTextToMany sends plain text (no parse_mode) so HTML is delivered verbatim', async () => {
