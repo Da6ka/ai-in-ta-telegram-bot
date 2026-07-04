@@ -18,6 +18,13 @@ injects a "stories already covered, do not repeat" list into the generation
 prompt in both `daily-briefing.yml` and `on-demand-briefing.yml`. Both
 prompt files now document the rule explicitly.
 
+Verified live post-merge with two back-to-back `/newbriefing` runs: the
+first had nothing to dedupe against yet (the day's only prior edition ran
+before this fix merged) and re-cited the Sonnet 5 launch; the second, now
+reading real history from `recent_stories.json`, produced two entirely new
+stories (Claude Enterprise admin controls, Claude GA on Microsoft Foundry)
+with no repeats.
+
 ### Pinned the Claude Code CLI version
 
 Both briefing workflows ran `npm install -g @anthropic-ai/claude-code` with
