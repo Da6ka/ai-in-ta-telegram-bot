@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+### Fixed nested *italic* inside **bold** breaking Telegram formatting
+
+A live send on 2026-07-04 reached Telegram with raw, unconverted Markdown
+in one bullet — literal `**`/`*` characters instead of bold/italic. Cause:
+`shared/telegram-markdown.mjs`'s bold regex (`\*\*([^*]+)\*\*`) required the
+bold span to contain zero asterisks, so a case name italicized *inside* a
+bold sentence (`**...the claims in *Mobley v. Workday* proceed**`, a real
+generation) made the whole bold match fail and fall through as literal text.
+Rewrote the tokenizer to match bold non-greedily up to the next `**` and to
+recurse into its contents, so nested `*italic*` now renders as `<i>` instead
+of breaking the enclosing `<b>`. `chunk()`'s tag-balance scan already handled
+nesting correctly (it's a real stack, despite its comment claiming otherwise
+— comment corrected) so no change was needed there.
+
 ### Cross-day story dedup (no more repeat "news")
 
 The Claude Sonnet 5 launch (30 June) ran in both the 2026-07-03 and

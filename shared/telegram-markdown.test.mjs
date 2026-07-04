@@ -39,6 +39,22 @@ test('link text is HTML-escaped', () => {
   )
 })
 
+test('inline italic converts', () => {
+  assert.equal(mdToHtml('*hi*'), '<i>hi</i>')
+})
+
+// Regression, caught live in Telegram on 2026-07-04: a real generation
+// italicized a case name inside a bold sentence --
+// "**...the claims in *Mobley v. Workday* proceed**, advancing..." -- and
+// the old bold regex ([^*]+) couldn't match across the nested asterisks, so
+// the whole bold span (and the closing **) fell through as literal,
+// unconverted Markdown all the way to the user.
+test('a nested *italic* span inside **bold** converts instead of falling through as literal Markdown (2026-07-04 regression)', () => {
+  const out = mdToHtml('**the claims in *Mobley v. Workday* proceed**, advancing')
+  assert.equal(out, '<b>the claims in <i>Mobley v. Workday</i> proceed</b>, advancing')
+  assert.ok(!out.includes('*'), 'no literal asterisk should survive conversion')
+})
+
 test('non-http(s) schemes are not turned into links', () => {
   // javascript: and other schemes fall through to plain escaped text.
   const out = mdToHtml('[click](javascript:alert(1))')
@@ -81,6 +97,26 @@ test('chunk keeps <b> pairs intact when the boundary lands inside a bold span (A
       (p.match(/<\/b>/g) ?? []).length,
       `unbalanced <b> in chunk: …${p.slice(-40)}`,
     )
+  }
+  assert.equal(parts.join(''), html, 'no content lost')
+})
+
+// Nested <i> inside <b> (the 2026-07-04 regression fix) must stay balanced
+// across a chunk boundary the same way plain <b> does above.
+test('chunk keeps nested <b><i>…</i></b> pairs intact across a boundary', () => {
+  const md = 'x'.repeat(3470) + ' **a bold phrase with an *italic title* inside** tail ' + 'y'.repeat(200)
+  const html = mdToHtml(md)
+  const parts = chunk(html, 3500)
+  assert.ok(parts.length >= 2, 'long line actually chunked')
+  for (const p of parts) {
+    assert.ok(p.length <= 3500, 'chunk within limit')
+    for (const tag of ['b', 'i']) {
+      assert.equal(
+        (p.match(new RegExp(`<${tag}>`, 'g')) ?? []).length,
+        (p.match(new RegExp(`</${tag}>`, 'g')) ?? []).length,
+        `unbalanced <${tag}> in chunk: …${p.slice(-40)}`,
+      )
+    }
   }
   assert.equal(parts.join(''), html, 'no content lost')
 })
