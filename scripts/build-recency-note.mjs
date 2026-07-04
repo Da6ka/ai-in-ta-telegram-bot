@@ -4,12 +4,12 @@
 // repeat them. Prints nothing if there's no history yet, so callers can
 // safely no-op on an empty result.
 import { readFileSync, existsSync } from 'node:fs'
-import { pruneRecentStories, RECENT_STORIES_WINDOW_DAYS } from '../shared/telegram.mjs'
+import { recentStoryBullets, RECENT_STORIES_WINDOW_DAYS } from '../shared/telegram.mjs'
 
 const path = 'state/recent_stories.json'
 const today = new Date().toISOString().slice(0, 10)
 const existing = existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : { entries: [] }
-const bullets = pruneRecentStories(existing.entries, today).flatMap((e) => e.bullets)
+const bullets = recentStoryBullets(existing.entries, today)
 
 if (bullets.length > 0) {
   console.log(

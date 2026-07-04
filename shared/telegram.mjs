@@ -58,6 +58,20 @@ export function pruneRecentStories(entries, todayISO, windowDays = RECENT_STORIE
   })
 }
 
+// Caps how many bullets get injected into the generation prompt, independent
+// of the date window. A single heavy-testing day (many /newbriefing runs)
+// can produce dozens of merged bullets for one date -- unbounded, that's
+// thousands of extra tokens on every future generation, risking blowing
+// through --max-budget-usd again (see the 2026-07-04 budget-cap incident).
+// Keeps the most recent bullets, since those are the most likely to still be
+// "fresh" enough for the model to consider re-reporting.
+export const MAX_RECENT_STORY_BULLETS = 20
+
+export function recentStoryBullets(entries, todayISO) {
+  const sorted = [...pruneRecentStories(entries, todayISO)].sort((a, b) => (a.date < b.date ? -1 : 1))
+  return sorted.flatMap((e) => e.bullets).slice(-MAX_RECENT_STORY_BULLETS)
+}
+
 // Pace sends to stay under Telegram's ~30 msg/s ceiling. 40ms ≈ 25/s, leaving
 // headroom for the API's own variability.
 const DEFAULT_PACE_MS = 40

@@ -15,10 +15,16 @@ const briefing = readFileSync('state/today_briefing.md', 'utf8')
 const bullets = extractBriefingBullets(briefing)
 
 const existing = existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : { entries: [] }
-// Drop any existing entry for today first so a same-day re-run (e.g. a
-// daily run followed by an on-demand one) replaces rather than duplicates it.
+// Merge into today's entry rather than replacing it -- multiple editions can
+// land the same day (a daily run plus one or more /newbriefing on-demand
+// runs), and each one's stories must stay remembered. Replacing lost earlier
+// same-day stories entirely (caught live, 2026-07-04: a run repeated a story
+// two runs earlier had already covered, same day). Dedupe by exact bullet
+// text since the same run can't produce the same bullet twice.
+const todayEntry = (existing.entries ?? []).find((e) => e.date === today)
+const mergedBullets = [...new Set([...(todayEntry?.bullets ?? []), ...bullets])]
 const withoutToday = (existing.entries ?? []).filter((e) => e.date !== today)
-const entries = pruneRecentStories([...withoutToday, { date: today, bullets }], today)
+const entries = pruneRecentStories([...withoutToday, { date: today, bullets: mergedBullets }], today)
 
 writeFileSync(path, JSON.stringify({ entries }, null, 2) + '\n')
-console.log(`Recorded ${bullets.length} bullet(s) for ${today}; ${entries.length} day(s) retained in recent_stories.json.`)
+console.log(`Recorded ${bullets.length} bullet(s) from this run (${mergedBullets.length} total for ${today}); ${entries.length} day(s) retained in recent_stories.json.`)
