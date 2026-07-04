@@ -10,7 +10,11 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { extractBriefingBullets, pruneRecentStories } from '../shared/telegram.mjs'
 
 const path = 'state/recent_stories.json'
-const today = new Date().toISOString().slice(0, 10)
+// BRIEFING_DATE_ISO is set once per job by the workflow's "Pin today's date"
+// step, so this can't disagree with the date force-briefing-date.mjs stamped
+// on the title even if the job straddles UTC midnight (#25). Falls back to
+// computing fresh for standalone/manual runs outside the workflow.
+const today = process.env.BRIEFING_DATE_ISO || new Date().toISOString().slice(0, 10)
 const briefing = readFileSync('state/today_briefing.md', 'utf8')
 const bullets = extractBriefingBullets(briefing)
 

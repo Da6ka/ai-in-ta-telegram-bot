@@ -43,7 +43,11 @@ if (chatIds.length === 0) {
 
 const md = readFileSync('state/today_briefing.md', 'utf8')
 
-const today = new Date().toLocaleDateString('en-GB', {
+// BRIEFING_DATE_HUMAN is set once per job by the workflow's "Pin today's
+// date" step, so this freshness re-check can't disagree with the date
+// force-briefing-date.mjs already stamped on the title (#25). Falls back to
+// computing fresh for standalone/manual runs outside the workflow.
+const today = process.env.BRIEFING_DATE_HUMAN || new Date().toLocaleDateString('en-GB', {
   day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC',
 })
 

@@ -7,7 +7,11 @@ import { readFileSync, existsSync } from 'node:fs'
 import { recentStoryBullets, RECENT_STORIES_WINDOW_DAYS } from '../shared/telegram.mjs'
 
 const path = 'state/recent_stories.json'
-const today = new Date().toISOString().slice(0, 10)
+// BRIEFING_DATE_ISO is set once per job by the workflow's "Pin today's date"
+// step, so the window this call computes stays in sync with the date the
+// rest of the job uses (#25). Falls back to computing fresh for
+// standalone/manual runs outside the workflow.
+const today = process.env.BRIEFING_DATE_ISO || new Date().toISOString().slice(0, 10)
 const existing = existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : { entries: [] }
 const bullets = recentStoryBullets(existing.entries, today)
 
