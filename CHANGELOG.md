@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+### Surfaced briefing generation errors; bumped budget cap (#18, #19)
+
+Today's briefing runs failed with no useful detail in the Actions log — both
+`daily-briefing.yml` and `on-demand-briefing.yml` redirected `claude`'s
+stdout straight into `state/today_briefing.md` on each retry and logged only
+"Generation attempt N failed.", so the actual cause was invisible. Root
+causes turned out to be two distinct, sequential issues: an Anthropic API
+rate limit (resolved by adding funds), then the `--max-budget-usd 1` ceiling
+from 1.1.0 being too tight for a successful generation. Now both workflows
+capture and print `claude`'s stdout and stderr on a failed attempt (#18), and
+the budget cap is raised from `1` to `2` (#19). `state/briefing_stderr.log`
+is gitignored so it never pollutes the state commit on success.
+
 ### Documented the release policy
 
 There was no written rule for when a changelog entry graduates from
