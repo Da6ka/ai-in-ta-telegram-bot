@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+### Fixed usage_stats erasure race, story dedup, arg validation, and briefing header check (#29, #30, #31, #32)
+
+Four more findings from the edge-case review. `purgeUsageStats`,
+`bumpCommandCount`, and `touchLastSeen` are now `BotState` Durable Object
+methods instead of free functions hitting KV directly, so all three
+serialize through the singleton stub -- a concurrent command's
+`touchLastSeen` write can no longer race a `/forgetme`/`/removeuser`
+erasure and silently restore the just-purged entry (#31; the Worker-vs-CI
+race against `scripts/sync-kv.mjs`'s direct KV write stays a known,
+accepted limitation, same as before). Same-day story merges in
+`update-recent-stories.mjs` now dedupe by normalized URL (`bulletUrlKey`/
+`dedupeBullets`) instead of exact bullet text, so a reworded restate or a
+second source domain for the same story collapses to one entry instead of
+two (#30). `/adduser` and `/removeuser` now warn and no-op on extra
+arguments instead of silently dropping them (#29). `isValidBriefing` only
+accepts the header on the first non-empty line, closing the gap where a
+refusal quoting the expected title format later in its text would pass
+validation (#32).
+
 ### Added dispatch idempotency so a retried repository_dispatch can't double-fire (#28)
 
 Another edge-case-review finding: `fetchWithRetry` retries the GitHub
