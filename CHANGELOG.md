@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+### Retry the state commit/push on rebase conflict or transient failure (#24)
+
+A subagent edge-case review flagged that the "Commit updated state" step in
+`daily-briefing.yml`/`on-demand-briefing.yml` had no retry around `git pull
+--rebase && git push`: a rebase conflict or transient push failure aborted
+the job *after* the briefing/on-demand response had already been delivered,
+silently dropping that run's recent-stories/usage-stats update with no
+recovery path. Both steps now retry the pull-rebase+push up to 3 times with
+backoff, using `-X theirs` (safe here since the commit only ever touches
+`state/`, so it's fine to always keep our freshly-generated data over
+whatever a conflicting upstream commit did to the same lines — note
+`rebase`'s `theirs`/`ours` meaning is the reverse of `merge`'s). If all
+retries are exhausted, the step now exits with an explicit `::error::`
+instead of a bare git failure, so the existing failure-alert steps correctly
+notify that delivery succeeded but state wasn't persisted.
+
 ### Fixed two gaps in the story-dedup fix (same-day loss + cold start)
 
 The user reported "Claude Tag" and a Microsoft Teams story repeating from a
