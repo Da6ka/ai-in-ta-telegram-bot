@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+### Pin one run date per job to prevent UTC-midnight desync (#25)
+
+The same edge-case review found that "today" was recomputed independently in
+~7 places per job (`force-briefing-date.mjs`, `update-recent-stories.mjs`,
+`build-recency-note.mjs`, `sync-kv.mjs`, `update-usage-stats.mjs`,
+`send-briefing.mjs`, plus several `date -u` calls in the workflow YAMLs). A
+generation run can take 10+ minutes, so a job straddling UTC midnight could
+stamp the briefing title with one date while recording it in
+`state/recent_stories.json` under a different one, silently breaking the
+"don't repeat this story" guard. Both workflows now compute
+`BRIEFING_DATE_ISO`/`BRIEFING_DATE_HUMAN` once at job start via `GITHUB_ENV`,
+and every step/script reads that instead of calling `date -u`/`new Date()`
+on its own (each script still falls back to computing fresh when run
+standalone, so manual invocations are unaffected).
+
 ### Retry the state commit/push on rebase conflict or transient failure (#24)
 
 A subagent edge-case review flagged that the "Commit updated state" step in
