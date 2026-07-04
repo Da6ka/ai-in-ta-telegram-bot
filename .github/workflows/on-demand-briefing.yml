@@ -19,6 +19,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Pinned once, at job start, so every later step (generation, the
+      # freshness check, force-briefing-date.mjs, update-recent-stories.mjs,
+      # sync-kv.mjs, the commit message) agrees on "today" even if generation
+      # runs long enough to straddle UTC midnight -- each step recomputing its
+      # own `date -u`/`new Date()` independently could otherwise disagree (#25).
+      - name: Pin today's date
+        run: |
+          echo "BRIEFING_DATE_ISO=$(date -u +%F)" >> "$GITHUB_ENV"
+          echo "BRIEFING_DATE_HUMAN=$(date -u '+%-d %B %Y')" >> "$GITHUB_ENV"
+
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -31,8 +41,7 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          TODAY_HUMAN=$(date -u '+%-d %B %Y')
-          NOTE="Today's date (UTC) is ${TODAY_HUMAN}. Use this exact date in the title, and use it to judge which search results are genuinely from the past 24-48 hours."
+          NOTE="Today's date (UTC) is ${BRIEFING_DATE_HUMAN}. Use this exact date in the title, and use it to judge which search results are genuinely from the past 24-48 hours."
           RECENT=$(node scripts/build-recency-note.mjs)
           if [ -n "$RECENT" ]; then
             NOTE="${NOTE}"$'\n\n'"${RECENT}"
@@ -65,7 +74,7 @@ jobs:
       - name: Check freshness
         id: freshness
         run: |
-          TODAY=$(date -u '+%-d %B %Y')
+          TODAY="$BRIEFING_DATE_HUMAN"
           # AUD-1: also count linked story bullets. The requester still gets a
           # real-but-thin (1-story) briefing — they asked for it — but a
           # zero-story generation (the "no content" fallback) is treated like a
@@ -121,7 +130,7 @@ jobs:
             echo "No state changes to commit"
             exit 0
           fi
-          git commit -m "Update briefing state (on-demand, $(date -u +%F))"
+          git commit -m "Update briefing state (on-demand, $BRIEFING_DATE_ISO)"
           for attempt in 1 2 3; do
             if git pull --rebase -X theirs origin main && git push; then
               exit 0

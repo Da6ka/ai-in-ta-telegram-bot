@@ -27,7 +27,11 @@ async function kvPut(key, value) {
 }
 
 const md = readFileSync('state/today_briefing.md', 'utf8')
-const today = new Date().toISOString().slice(0, 10)
+// BRIEFING_DATE_ISO is set once per job by the workflow's "Pin today's date"
+// step, so the date stamped into KV can't disagree with the title date or
+// recent_stories.json's key for the same edition (#25). Falls back to
+// computing fresh for standalone/manual runs outside the workflow.
+const today = process.env.BRIEFING_DATE_ISO || new Date().toISOString().slice(0, 10)
 
 // Defense-in-depth (NEW-1): never overwrite the shared cache with a garbage
 // generation. The on-demand workflow gates this step on its freshness check,

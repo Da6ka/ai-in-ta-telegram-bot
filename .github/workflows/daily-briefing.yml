@@ -24,6 +24,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Pinned once, at job start, so every later step (idempotency check,
+      # generation, the freshness check, force-briefing-date.mjs,
+      # update-recent-stories.mjs, sync-kv.mjs, the commit message, the Phase
+      # 16 scorer) agrees on "today" even if generation runs long enough to
+      # straddle UTC midnight -- each step recomputing its own `date -u`/
+      # `new Date()` independently could otherwise disagree (#25).
+      - name: Pin today's date
+        run: |
+          echo "BRIEFING_DATE_ISO=$(date -u +%F)" >> "$GITHUB_ENV"
+          echo "BRIEFING_DATE_HUMAN=$(date -u '+%-d %B %Y')" >> "$GITHUB_ENV"
+
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -34,7 +45,7 @@ jobs:
       - name: Check idempotency
         id: idempotency
         run: |
-          TODAY=$(date -u +%F)
+          TODAY="$BRIEFING_DATE_ISO"
           LAST=$(node -e "try{console.log(JSON.parse(require('fs').readFileSync('state/usage_stats.json','utf8')).last_briefing_at||'')}catch{console.log('')}")
           if [ "$LAST" = "$TODAY" ]; then
             echo "A briefing was already generated today ($TODAY) — skipping."
@@ -49,8 +60,7 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          TODAY_HUMAN=$(date -u '+%-d %B %Y')
-          NOTE="Today's date (UTC) is ${TODAY_HUMAN}. Use this exact date in the title, and use it to judge which search results are genuinely from the past 24-48 hours."
+          NOTE="Today's date (UTC) is ${BRIEFING_DATE_HUMAN}. Use this exact date in the title, and use it to judge which search results are genuinely from the past 24-48 hours."
           RECENT=$(node scripts/build-recency-note.mjs)
           if [ -n "$RECENT" ]; then
             NOTE="${NOTE}"$'\n\n'"${RECENT}"
@@ -86,7 +96,7 @@ jobs:
         if: steps.idempotency.outputs.should_run == 'true'
         id: freshness
         run: |
-          TODAY=$(date -u '+%-d %B %Y')
+          TODAY="$BRIEFING_DATE_HUMAN"
           ITEMS=$(node --input-type=module -e "import {countBriefingItems} from './shared/telegram.mjs'; import {readFileSync} from 'node:fs'; console.log(countBriefingItems(readFileSync('state/today_briefing.md','utf8')))")
           MIN=$(node --input-type=module -e "import {MIN_BRIEFING_ITEMS} from './shared/telegram.mjs'; console.log(MIN_BRIEFING_ITEMS)")
           if grep -q "$TODAY" state/today_briefing.md && [ "$ITEMS" -ge "$MIN" ]; then
@@ -154,7 +164,7 @@ jobs:
             echo "No state changes to commit"
             exit 0
           fi
-          git commit -m "Update briefing state for $(date -u +%F)"
+          git commit -m "Update briefing state for $BRIEFING_DATE_ISO"
           for attempt in 1 2 3; do
             if git pull --rebase -X theirs origin main && git push; then
               exit 0
@@ -181,7 +191,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TODAY=$(date -u +%F)
+          TODAY="$BRIEFING_DATE_ISO"
           set +e
           OUT=$(node scripts/score-briefing.mjs state/today_briefing.md --no-fetch 2>&1)
           CODE=$?
