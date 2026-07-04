@@ -38,7 +38,7 @@ jobs:
           # timeout-minutes above is a hard wall-clock ceiling (ASI02) on the
           # WebSearch-driven agent loop, which has no other iteration cap.
           for attempt in 1 2; do
-            if claude -p "$(cat briefing-prompt-ondemand.md)"$'\n\n'"$NOTE" --allowedTools "WebSearch" --max-budget-usd 1 > state/today_briefing.md 2> state/briefing_stderr.log; then
+            if claude -p "$(cat briefing-prompt-ondemand.md)"$'\n\n'"$NOTE" --allowedTools "WebSearch" --max-budget-usd 2 > state/today_briefing.md 2> state/briefing_stderr.log; then
               break
             fi
             echo "Generation attempt $attempt failed. claude's stdout/stderr follow so the actual cause (rate limit, budget, auth, etc.) is visible in the log instead of silently landing in a file nobody prints on failure:"
