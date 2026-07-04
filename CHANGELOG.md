@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Documented the release policy
+
+There was no written rule for when a changelog entry graduates from
+`[Unreleased]` into a tagged version. Added a "Releasing" section to
+`README.md`: SemVer bump rules (patch/minor/major) and a per-batch (not
+per-PR) cadence for cutting a release. Docs-only, no code change.
+
 ### Daily briefing watchdog (#17)
 
 `daily-briefing.yml`'s 09:00 UTC `schedule` trigger fired ~2.5h late two days
