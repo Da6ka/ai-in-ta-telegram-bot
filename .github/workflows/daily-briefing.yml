@@ -136,15 +136,35 @@ jobs:
           RECIPIENT_COUNT: ${{ steps.send.outputs.recipient_count }}
         run: node scripts/sync-kv.mjs
 
+      # Issue #24: a bare pull-rebase+push here had no retry, so a push that lost
+      # a race (or hit a transient failure) failed the whole job AFTER subscribers
+      # already got the briefing — silently dropping the usage-stats/recent-stories
+      # update for the day with no recovery. This commit only ever touches state/,
+      # so on a rebase conflict `-X theirs` is safe: it always keeps our
+      # freshly-generated state over whatever the conflicting upstream commit did
+      # to the same lines (note: for `rebase`, "theirs" means the commit being
+      # replayed — i.e. ours — the opposite of `merge`'s meaning).
       - name: Commit updated state
         if: steps.idempotency.outputs.should_run == 'true'
         run: |
           git config user.name "daily-briefing-bot"
           git config user.email "actions@users.noreply.github.com"
           git add state/
-          git diff --cached --quiet && echo "No state changes to commit" || git commit -m "Update briefing state for $(date -u +%F)"
-          git pull --rebase origin main
-          git push
+          if git diff --cached --quiet; then
+            echo "No state changes to commit"
+            exit 0
+          fi
+          git commit -m "Update briefing state for $(date -u +%F)"
+          for attempt in 1 2 3; do
+            if git pull --rebase -X theirs origin main && git push; then
+              exit 0
+            fi
+            echo "Push attempt $attempt failed — retrying after a fresh pull."
+            git rebase --abort 2>/dev/null || true
+            sleep $((attempt * 5))
+          done
+          echo "::error::Failed to push updated state after 3 attempts. Today's briefing already went out to subscribers, but state/ (usage stats, recent-story dedup) was NOT updated — a manual push may be needed."
+          exit 1
 
       # Phase 16 editorial re-benchmark (pre-growth consistency check). OFF by
       # default; flip on with `gh variable set PHASE16_BENCH --body on` for the
