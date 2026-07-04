@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+### Pinned the Claude Code CLI version
+
+Both briefing workflows ran `npm install -g @anthropic-ai/claude-code` with
+no version pin, so every run installed whatever was newest at the time. The
+likely explanation for generation suddenly exceeding the `--max-budget-usd 1`
+cap the day after that cap was tuned (see below) is a CLI update changing
+cost-relevant behavior (model default, WebSearch/verification depth, token
+accounting) — nothing in this repo's prompt or scoring logic changed in that
+window. Pinned to `@anthropic-ai/claude-code@2.1.201` in both workflows so a
+future CLI release can't silently shift generation cost or behavior; bump the
+pin deliberately when upgrading.
+
 ### Surfaced briefing generation errors; bumped budget cap (#18, #19)
 
 Today's briefing runs failed with no useful detail in the Actions log — both

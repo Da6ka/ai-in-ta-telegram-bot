@@ -24,7 +24,7 @@ jobs:
           node-version: '20'
 
       - name: Install Claude Code
-        run: npm install -g @anthropic-ai/claude-code
+        run: npm install -g @anthropic-ai/claude-code@2.1.201
 
       - name: Generate briefing
         timeout-minutes: 10
