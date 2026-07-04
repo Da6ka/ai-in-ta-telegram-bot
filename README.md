@@ -19,6 +19,7 @@ Subscribers tap `/subscribe` and get the briefing every morning at **09:00 UTC /
 - [Cloudflare Worker (on-demand commands)](#cloudflare-worker-on-demand-commands)
 - [Staging environment](#staging-environment-optional)
 - [Secrets, scopes & rotation](#secrets-scopes--rotation)
+- [Releasing](#releasing)
 
 ---
 
@@ -235,3 +236,18 @@ Least-privilege scope for each credential:
 3. **GitHub PAT** — regenerate the fine-grained token, `npx wrangler secret put GITHUB_TOKEN`.
 4. **Cloudflare API token** — roll in the Cloudflare dashboard, update the `CF_API_TOKEN` repo secret.
 5. Trigger `daily-briefing.yml` manually afterward to confirm generation, send, and KV sync all still pass with the rotated credentials.
+
+## Releasing
+
+`CHANGELOG.md` follows [Keep a Changelog](https://keepachangelog.com/) + [SemVer](https://semver.org/). Every merged change gets an entry under `[Unreleased]` right away — documenting the change and deciding when to release it are separate steps.
+
+**When to cut a version bump:**
+
+- **Patch (x.y.Z)** — a single bug fix or hardening change with no behavior change for users.
+- **Minor (x.Y.0)** — a batch of related fixes/features, or a new user-facing capability (new command, new workflow) that doesn't break existing usage.
+- **Major (X.0.0)** — a breaking change: an existing command's behavior changes incompatibly, a secret/config gets renamed, or something an operator or subscriber depends on now works differently.
+
+**When to actually release:**
+
+- Release per batch, not per PR. Let entries accumulate under `[Unreleased]` and cut a version once a cluster of related work is stable and complete, not after every individual merge.
+- To cut a release: rename `[Unreleased]` to `[x.y.z] - YYYY-MM-DD`, open a fresh empty `[Unreleased]` above it, then tag it (`git tag vX.Y.Z && git push --tags`, or `gh release create vX.Y.Z`).
