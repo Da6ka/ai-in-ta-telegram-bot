@@ -136,6 +136,24 @@ test('chunk keeps nested <b><i>…</i></b> pairs intact across a boundary', () =
   assert.equal(parts.join(''), html, 'no content lost')
 })
 
+// #27 regression: the "back up before the outermost open tag" fix only
+// applied when that tag started partway through the slice (stack[0].index >
+// 0). If a single tag's content alone exceeds the chunk limit -- so the
+// outermost open tag starts at index 0 -- there was no earlier point to back
+// up to, and the naive whitespace-based cut could land mid-tag. Extending
+// forward past the full close keeps the chunk valid even though it then
+// exceeds `limit` (still comfortably under Telegram's real 4096 ceiling for
+// any realistic single span).
+test('chunk extends past the limit rather than truncate a single oversized tag (#27)', () => {
+  const html = `<b>${'z'.repeat(4200)}</b> tail`
+  const parts = chunk(html, 4000)
+  assert.ok(parts.length >= 2, 'oversized content actually chunked')
+  for (const p of parts) {
+    assert.equal((p.match(/<b>/g) ?? []).length, (p.match(/<\/b>/g) ?? []).length, `unbalanced <b> in chunk: …${p.slice(-40)}`)
+  }
+  assert.equal(parts.join(''), html, 'no content lost')
+})
+
 // The generalized balance check must not regress the anchor case (L6).
 test('chunk still keeps <a> pairs intact across cuts', () => {
   const links = Array.from({ length: 60 }, (_, i) =>
