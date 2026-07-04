@@ -23,6 +23,21 @@ test('inline bold and links convert', () => {
   )
 })
 
+// #26 regression: a source URL with a literal paren -- a common shape for
+// Wikipedia-style links (`.../wiki/Foo_(bar)`) -- used to stop the URL match
+// at the first `)`, truncating the href and leaving `(bar)` as stray text
+// outside the closed anchor.
+test('a URL containing one level of nested parens is not truncated (#26)', () => {
+  assert.equal(
+    mdToHtml('[Foo](https://en.wikipedia.org/wiki/Foo_(bar))'),
+    '<a href="https://en.wikipedia.org/wiki/Foo_(bar)">Foo</a>',
+  )
+  assert.equal(
+    mdToHtml('see [Foo](https://en.wikipedia.org/wiki/Foo_(bar)) for details'),
+    'see <a href="https://en.wikipedia.org/wiki/Foo_(bar)">Foo</a> for details',
+  )
+})
+
 test('a double-quote in a URL is escaped so it cannot break out of the href attribute', () => {
   // This is the regression this module was written to prevent: an unescaped
   // `"` in a scraped/LLM-composed link would close the attribute and make

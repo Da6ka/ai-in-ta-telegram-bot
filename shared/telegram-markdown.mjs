@@ -25,8 +25,15 @@ function escapeHtmlAttr(s) {
 // RegExp is built per call rather than sharing one module-level `g` regex,
 // because bold recurses into this function for its own contents and a
 // shared regex's mutable lastIndex would corrupt the outer scan.
+//
+// The URL is matched as alternating runs of "no space/parens" and balanced
+// `(...)` groups, rather than a single `[^\s)]+` -- a source URL containing a
+// paren (common for Wikipedia-style links, e.g. `.../Foo_(bar)`) would
+// otherwise stop at the first `)`, truncating the href and leaving `(bar)`
+// as stray literal text after the closed anchor (#26). This only handles one
+// level of nesting, which covers every real URL shape seen so far.
 function inlineRe() {
-  return /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|\*\*(.+?)\*\*|\*([^*\n]+)\*/g
+  return /\[([^\]]+)\]\((https?:\/\/(?:[^\s()]+|\([^\s()]*\))+)\)|\*\*(.+?)\*\*|\*([^*\n]+)\*/g
 }
 
 function inlineToHtml(text) {
