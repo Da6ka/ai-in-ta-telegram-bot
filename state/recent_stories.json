@@ -125,6 +125,13 @@
         "- **Anthropic restored access to Claude Fable 5 (and Mythos 5) after adding new cybersecurity classifiers**, following conversations with the US government. It's a reminder that model availability and guardrails move fast — and directly bound what agentic sourcing and screening features the vendors on your stack can ship. ([9to5Google](https://9to5google.com/2026/07/01/anthropic-fable-5-returns-to-claude/)) (1 July)",
         "- **The Council of the EU gave final sign-off to the AI Act \"omnibus\" simplification package, deferring the high-risk compliance deadline — which covers AI used in recruitment, candidate evaluation and selection — from 2 August 2026 to 2 December 2027.** TA teams running AI hiring tools in the EU gain roughly 16 months, but the extension is runway to finish bias testing, human-oversight documentation and vendor due diligence, not a reason to pause them. ([Gibson Dunn](https://www.gibsondunn.com/eu-ai-act-omnibus-agreement-postponed-high-risk-deadlines-and-other-key-changes/)) (29 June)"
       ]
+    },
+    {
+      "date": "2026-07-05",
+      "bullets": [
+        "- **A Ramp Economics Lab / Revelio Labs study of 21,559 US firms found the heaviest AI adopters grew headcount 10.2% over the two years after adoption — with entry-level roles up 12% — while low-intensity \"dabblers\" saw no significant gains.** For TA leaders, this reframes AI from a headcount-cutter to a growth signal: depth of adoption, not tool procurement, predicts hiring expansion, so workforce plans should track which business units are actually operationalizing AI. ([Ramp Economics Lab](https://ramp.com/data/heavy-ai-adopters-hire-more)) (30 June)",
+        "- **Palo Alto Networks CEO Nikesh Arora said he now hires almost exclusively through hackathons and is reshaping his ~21,000-person workforce via ~2% monthly attrition, warning that 90% of large-company employees lack the AI skills their roles will demand — a \"Darwinian moment.\"** It's an aggressive template for skills-first, demonstrated-ability hiring over credential screening; TA leaders should pressure-test whether their assessment process can actually surface applied AI fluency rather than claimed proficiency. ([Fortune](https://fortune.com/2026/07/01/ceo-of-palo-alto-networks-nikesh-arora-workers-about-to-face-darwinian-moment-thanks-to-ai-evolve-or-get-cut/)) (1 July)"
+      ]
     }
   ]
 }
