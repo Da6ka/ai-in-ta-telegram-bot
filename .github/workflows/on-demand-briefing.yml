@@ -31,7 +31,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: "20"
 
       # #28: the Worker's dispatch retry can fire this event twice for the
       # same underlying /newbriefing request if GitHub accepted the original
@@ -50,6 +50,40 @@ jobs:
       - name: Install Claude Code
         if: steps.dispatch_guard.outputs.duplicate != 'true'
         run: npm install -g @anthropic-ai/claude-code@2.1.201
+
+      # Same precheck as daily-briefing.yml: catch a drained ANTHROPIC_API_KEY
+      # with the cheapest possible real request before burning the requester's
+      # wait time on a generation that's already known to fail.
+      - name: Check API credit balance
+        id: balance_check
+        if: steps.dispatch_guard.outputs.duplicate != 'true'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: node scripts/check-credit-balance.mjs
+
+      - name: Alert owner on low credit balance
+        if: steps.balance_check.outputs.low_balance == 'true'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ vars.OWNER_CHAT_ID }}
+          ALERT_TEXT: "[ai-in-ta] Anthropic API credit balance is too low -- an on-demand briefing request just failed because of it. Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        run: node scripts/send-alert.mjs
+
+      - name: Notify requester on low credit balance
+        if: steps.balance_check.outputs.low_balance == 'true'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ github.event.client_payload.chat_id }}
+          ALERT_TEXT: "Sorry -- the bot is temporarily out of API credits. The owner has been notified. Please try /newbriefing again later, or /briefing for the last saved one."
+        run: node scripts/send-alert.mjs
+
+      # Fails the job now instead of letting "Generate briefing" run anyway --
+      # see daily-briefing.yml's identical step for why. "Notify requester on
+      # failure" below is skipped for this case (its condition excludes
+      # low_balance) so the requester doesn't get a duplicate message.
+      - name: Fail job on low credit balance
+        if: steps.balance_check.outputs.low_balance == 'true'
+        run: exit 1
 
       - name: Generate briefing
         if: steps.dispatch_guard.outputs.duplicate != 'true'
@@ -174,8 +208,10 @@ jobs:
 
       # The requester already saw "Generating a fresh briefing..." from the
       # Worker; on failure, close the loop instead of leaving them in silence.
+      # Excludes the low-balance case -- that already got a specific alert
+      # above, so the requester doesn't get a duplicate message.
       - name: Notify requester on failure
-        if: failure()
+        if: failure() && steps.balance_check.outputs.low_balance != 'true'
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           CHAT_ID: ${{ github.event.client_payload.chat_id }}

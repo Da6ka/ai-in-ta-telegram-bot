@@ -3,7 +3,7 @@ name: Daily AI-in-TA Briefing
 on:
   schedule:
     # 09:00 UTC == 12:00 MSK, matching the local launchd job it replaces
-    - cron: '0 9 * * *'
+    - cron: "0 9 * * *"
   workflow_dispatch: {}
 
 permissions:
@@ -37,7 +37,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: "20"
 
       - name: Install Claude Code
         run: npm install -g @anthropic-ai/claude-code@2.1.201
@@ -53,6 +53,35 @@ jobs:
           else
             echo "should_run=true" >> "$GITHUB_OUTPUT"
           fi
+
+      # Cheapest possible real request (Haiku, max_tokens: 1) to catch a
+      # drained ANTHROPIC_API_KEY before the multi-dollar WebSearch generation
+      # below burns its 2-attempt retry loop on a call that's already known to
+      # fail. There's no balance-inspection endpoint (see script comment) --
+      # this is the earliest observable signal.
+      - name: Check API credit balance
+        id: balance_check
+        if: steps.idempotency.outputs.should_run == 'true'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: node scripts/check-credit-balance.mjs
+
+      - name: Alert owner on low credit balance
+        if: steps.balance_check.outputs.low_balance == 'true'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ vars.OWNER_CHAT_ID }}
+          ALERT_TEXT: "[ai-in-ta] Anthropic API credit balance is too low -- today's briefing will not be generated until credits are topped up in the Anthropic Console. Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        run: node scripts/send-alert.mjs
+
+      # Fails the job now instead of letting "Generate briefing" run anyway --
+      # a run that's already known to fail shouldn't burn its retry loop and
+      # ~10-minute timeout. The generic "Alert owner on failure" step below
+      # is skipped for this case (its condition excludes low_balance) so the
+      # owner gets exactly one, specific alert instead of two.
+      - name: Fail job on low credit balance
+        if: steps.balance_check.outputs.low_balance == 'true'
+        run: exit 1
 
       - name: Generate briefing
         if: steps.idempotency.outputs.should_run == 'true'
@@ -237,8 +266,10 @@ jobs:
 
       # Any step above threw (generation, send, KV sync, commit/push): the day's
       # briefing did not go out cleanly. Fires last so it catches every prior step.
+      # Excludes the low-balance case -- that already got a more specific alert
+      # above, and we don't want the owner getting two messages for one cause.
       - name: Alert owner on failure
-        if: failure()
+        if: failure() && steps.balance_check.outputs.low_balance != 'true'
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           CHAT_ID: ${{ vars.OWNER_CHAT_ID }}
