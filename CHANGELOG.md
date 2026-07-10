@@ -2,6 +2,23 @@
 
 ## [Unreleased]
 
+### Added a low-credit-balance precheck to catch a drained API key before generation runs
+
+The daily briefing silently failed for several days (2026-07-06 through
+2026-07-10) because `ANTHROPIC_API_KEY` ran out of credits -- nobody
+noticed until asked to check the Actions tab. There's no Anthropic endpoint
+to inspect remaining credit balance, so `scripts/check-credit-balance.mjs`
+makes the cheapest possible real request (Haiku, `max_tokens: 1`) before
+the multi-dollar WebSearch generation in both `daily-briefing.yml` and
+`on-demand-briefing.yml`. On the specific "credit balance is too low"
+error it sends one immediate, specific Telegram alert (owner, and the
+requester too for on-demand) and fails the job right away instead of
+burning the 2-attempt retry loop and 10-minute timeout on a call already
+known to fail. The existing generic failure alerts skip this case so only
+one message goes out per incident. This doesn't give advance warning
+before the balance hits zero (no such signal exists via the API) -- it
+converts a multi-day silent failure into a same-run alert.
+
 ### Fixed REL-2: subscriber-mirror write ordering could un-erase a removed user's send-list entry
 
 `BotState.forgetUser`/`unsubscribe` committed the removal to Durable Object
