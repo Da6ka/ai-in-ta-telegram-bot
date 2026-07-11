@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+### Re-tuned the daily briefing search fan-out after Phase 16 re-benchmark FAIL
+
+The 5-run Phase 16 editorial re-benchmark (issue #15) came back FAIL: 2 of 5
+real editions (2026-07-04, 2026-07-05) landed at only 2 items against the
+prompt's own 4-item target, both stuck in the same narrow beat (AI
+models/agents or a single labor-market trend). Root cause: `briefing-prompt.md`
+only ran 4 generic searches up front and treated beat-diversifying queries
+(funding/M&A, vendor/ATS product, workforce platforms) as an optional
+last-resort fallback ("run up to 3 additional searches") that the model could
+skip once it judged it had "enough." Two changes: (1) moved the two most
+reliably orthogonal beats (funding round, ATS vendor product) into the
+mandatory primary search set, run every time rather than only on shortfall;
+(2) replaced the "up to 3" fallback cap with "run all of the following" plus a
+richer category list (borrowed from `briefing-prompt-ondemand.md`'s existing,
+more thorough fallback), and added explicit beat-diversity-over-volume
+guidance so two items on the same underlying story no longer count as
+covering two beats. Closed issue #15 and re-armed `PHASE16_BENCH` for a fresh
+5-run window against the retuned prompt.
+
 ### Added a low-credit-balance precheck to catch a drained API key before generation runs
 
 The daily briefing silently failed for several days (2026-07-06 through
