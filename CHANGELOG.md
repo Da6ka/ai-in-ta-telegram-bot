@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Pinned daily/on-demand briefing generation to Sonnet
+
+`claude -p` calls in `daily-briefing.yml` and `on-demand-briefing.yml` never
+passed `--model`, so generation silently ran on whatever the pinned Claude
+Code CLI version's own default happened to be (Opus-tier) -- not a deliberate
+choice, just an unset flag. Added `--model claude-sonnet-5` to both, for
+lower cost per generation.
+
 ## [1.3.0] - 2026-07-11
 
 ### Re-tuned the daily briefing search fan-out after Phase 16 re-benchmark FAIL
