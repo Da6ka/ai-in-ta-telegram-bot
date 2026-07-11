@@ -2,13 +2,21 @@
 
 ## [Unreleased]
 
-### Pinned daily/on-demand briefing generation to Sonnet
+### Pinned briefing generation to Sonnet, then reverted back to Opus same day
 
 `claude -p` calls in `daily-briefing.yml` and `on-demand-briefing.yml` never
 passed `--model`, so generation silently ran on whatever the pinned Claude
 Code CLI version's own default happened to be (Opus-tier) -- not a deliberate
 choice, just an unset flag. Added `--model claude-sonnet-5` to both, for
 lower cost per generation.
+
+Same day, reverted both back to `--model claude-opus-4-8`: the first real
+production run of `daily-briefing.yml` under Sonnet returned only 1 story
+(vs. a typical 2-5), and a local side-by-side rerun of the identical
+prompt/inputs on Opus returned 6 stories across all three sections. Two data
+points in the same direction was enough to treat this as a real coverage
+regression rather than noise, so `on-demand-briefing.yml` was reverted too
+rather than leaving the two workflows on different models.
 
 ## [1.3.0] - 2026-07-11
 

@@ -100,11 +100,14 @@ jobs:
           # --max-budget-usd is a hard cost ceiling (LLM10) and the step-level
           # timeout-minutes above is a hard wall-clock ceiling (ASI02) on the
           # WebSearch-driven agent loop, which has no other iteration cap.
-          # --model pins Sonnet explicitly -- previously unset, silently
-          # defaulting to whatever the pinned Claude Code CLI version's own
-          # default model was (Opus-tier).
+          # --model pins Opus explicitly. Briefly pinned to Sonnet (2026-07-11)
+          # for cost, but reverted the same day: the daily briefing's first
+          # real run under Sonnet returned 1 story vs. a local Opus rerun of
+          # the identical prompt/inputs returning 6 -- a real coverage
+          # regression, not noise. Reverting this on-demand path too rather
+          # than running the two workflows on different models.
           for attempt in 1 2; do
-            if claude -p "$(cat briefing-prompt-ondemand.md)"$'\n\n'"$NOTE" --model claude-sonnet-5 --allowedTools "WebSearch" --max-budget-usd 2 > state/today_briefing.md 2> state/briefing_stderr.log; then
+            if claude -p "$(cat briefing-prompt-ondemand.md)"$'\n\n'"$NOTE" --model claude-opus-4-8 --allowedTools "WebSearch" --max-budget-usd 2 > state/today_briefing.md 2> state/briefing_stderr.log; then
               break
             fi
             echo "Generation attempt $attempt failed. claude's stdout/stderr follow so the actual cause (rate limit, budget, auth, etc.) is visible in the log instead of silently landing in a file nobody prints on failure:"
