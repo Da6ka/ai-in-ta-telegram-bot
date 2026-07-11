@@ -35,7 +35,9 @@ export const MIN_BRIEFING_ITEMS = 2
 // global-regex match() here would cut each result off right after the
 // "https://" it matched on, since the pattern has no end anchor).
 export function extractBriefingBullets(md) {
-  return String(md ?? '').split('\n').filter((line) => /^- .*\]\(https?:\/\//.test(line))
+  return String(md ?? '')
+    .split('\n')
+    .filter((line) => /^- .*\]\(https?:\/\//.test(line))
 }
 
 export function countBriefingItems(md) {
@@ -108,6 +110,9 @@ export function recentStoryBullets(entries, todayISO) {
 // headroom for the API's own variability.
 const DEFAULT_PACE_MS = 40
 
+// Telegram's per-message text length cap.
+const TELEGRAM_MAX_MESSAGE_LEN = 4000
+
 // POST one Telegram API call, retrying 429/5xx and network errors with backoff.
 // Retry-After is respected in SECONDS (the header's unit) rather than the
 // Worker's historical seconds×0.3 under-wait. Returns the final Response;
@@ -140,13 +145,18 @@ export async function tgRequest(token, method, body, { retries = 3, baseDelayMs 
 // chunk it calls onError(chatId, res) so the caller can log/count.
 export async function sendHtml(token, chatId, html, { onError, retries = 3 } = {}) {
   let allOk = true
-  for (const part of chunk(html, 4000)) {
-    const res = await tgRequest(token, 'sendMessage', {
-      chat_id: chatId,
-      text: part,
-      parse_mode: 'HTML',
-      link_preview_options: { is_disabled: true },
-    }, { retries })
+  for (const part of chunk(html, TELEGRAM_MAX_MESSAGE_LEN)) {
+    const res = await tgRequest(
+      token,
+      'sendMessage',
+      {
+        chat_id: chatId,
+        text: part,
+        parse_mode: 'HTML',
+        link_preview_options: { is_disabled: true },
+      },
+      { retries },
+    )
     if (!res.ok) {
       allOk = false
       if (onError) await onError(chatId, res)
@@ -155,16 +165,48 @@ export async function sendHtml(token, chatId, html, { onError, retries = 3 } = {
   return allOk
 }
 
-// Broadcast one HTML message to many chats, paced under the rate limit.
-// Returns { total, failed } where failed counts recipients with >=1 bad chunk.
-export async function sendHtmlToMany(token, chatIds, html, { onError, paceMs = DEFAULT_PACE_MS, retries = 3 } = {}) {
+// Send one plain-text message to one chat (no parse_mode, so the text is
+// delivered verbatim rather than interpreted as HTML), splitting into
+// Telegram-sized chunks. Returns true iff every chunk was accepted; on a
+// failed chunk it calls onError(chatId, res) so the caller can log/count.
+export async function sendText(token, chatId, text, { onError, retries = 3 } = {}) {
+  let allOk = true
+  for (const part of chunk(text, TELEGRAM_MAX_MESSAGE_LEN)) {
+    const res = await tgRequest(
+      token,
+      'sendMessage',
+      {
+        chat_id: chatId,
+        text: part,
+        link_preview_options: { is_disabled: true },
+      },
+      { retries },
+    )
+    if (!res.ok) {
+      allOk = false
+      if (onError) await onError(chatId, res)
+    }
+  }
+  return allOk
+}
+
+// Broadcast to many chats, paced under the rate limit, using sendOne (either
+// sendHtml or sendText bound to a message). Returns { total, failed } where
+// failed counts recipients with >=1 bad chunk.
+async function broadcast(sendOne, chatIds, paceMs) {
   let failed = 0
   for (let i = 0; i < chatIds.length; i++) {
-    const ok = await sendHtml(token, chatIds[i], html, { onError, retries })
+    const ok = await sendOne(chatIds[i])
     if (!ok) failed++
     if (i < chatIds.length - 1 && paceMs > 0) await sleep(paceMs)
   }
   return { total: chatIds.length, failed }
+}
+
+// Broadcast one HTML message to many chats, paced under the rate limit.
+// Returns { total, failed } where failed counts recipients with >=1 bad chunk.
+export function sendHtmlToMany(token, chatIds, html, { onError, paceMs = DEFAULT_PACE_MS, retries = 3 } = {}) {
+  return broadcast((chatId) => sendHtml(token, chatId, html, { onError, retries }), chatIds, paceMs)
 }
 
 // Broadcast one PLAIN-TEXT message to many chats (no parse_mode, so the owner's
@@ -173,23 +215,6 @@ export async function sendHtmlToMany(token, chatIds, html, { onError, paceMs = D
 // runner instead of in the Worker — the Worker's per-invocation subrequest cap
 // bounded broadcast fan-out to ~45 recipients (BUG-4); the runner has no such
 // cap. Returns { total, failed }.
-export async function sendTextToMany(token, chatIds, text, { onError, paceMs = DEFAULT_PACE_MS, retries = 3 } = {}) {
-  let failed = 0
-  for (let i = 0; i < chatIds.length; i++) {
-    let ok = true
-    for (const part of chunk(text, 4000)) {
-      const res = await tgRequest(token, 'sendMessage', {
-        chat_id: chatIds[i],
-        text: part,
-        link_preview_options: { is_disabled: true },
-      }, { retries })
-      if (!res.ok) {
-        ok = false
-        if (onError) await onError(chatIds[i], res)
-      }
-    }
-    if (!ok) failed++
-    if (i < chatIds.length - 1 && paceMs > 0) await sleep(paceMs)
-  }
-  return { total: chatIds.length, failed }
+export function sendTextToMany(token, chatIds, text, { onError, paceMs = DEFAULT_PACE_MS, retries = 3 } = {}) {
+  return broadcast((chatId) => sendText(token, chatId, text, { onError, retries }), chatIds, paceMs)
 }

@@ -21,10 +21,14 @@
 //     written directly by the GitHub Actions pipeline (scripts/sync-kv.mjs),
 //     which can't be made to go through the Durable Object -- that
 //     Worker-vs-CI race on the KV blob is a known, accepted limitation
-//     (slightly-off admin stats at worst). But bumpCommandCount/touchLastSeen/
-//     purgeUsageStats are now DO methods (below), so the Worker-vs-Worker
-//     race is closed: a real erasure (/forgetme, /removeuser) can no longer
-//     be silently undone by a concurrent command's touchLastSeen write.
+//     (slightly-off admin stats at worst). bumpCommandCount/touchLastSeen/
+//     purgeUsageStats are DO methods (below) that read/write this KV key via
+//     `fetch()`, which Cloudflare's automatic input/output gating does NOT
+//     cover (only `ctx.storage` calls are gated) -- so routing them through
+//     the singleton DO alone would NOT close the Worker-vs-Worker race. They
+//     additionally serialize via an in-memory mutex (`withUsageLock`) so a
+//     real erasure (/forgetme, /removeuser) can't be silently undone by a
+//     concurrent command's touchLastSeen write.
 //   - `today_briefing_md` / `today_briefing_date` stay in KV: only the CI
 //     pipeline ever writes them, so there's no concurrent-writer race.
 
@@ -59,21 +63,21 @@ const MAX_USERS = 30
 const RETENTION_DAYS = 90
 
 const PRIVACY_TEXT =
-  "<b>Privacy notice — AI in TA News</b>\n\n" +
-  "<b>What we store</b>\n" +
-  "- Your Telegram user ID — to control access and deliver the briefing\n" +
-  "- Your name and @username — shown to the owner when you request access\n" +
-  "- The date you last used the bot — an activity log, auto-deleted after 90 days\n\n" +
-  "We never read or store your ordinary messages — only slash commands are processed.\n\n" +
-  "<b>Why</b>\n" +
-  "To run the private allowlist and send the daily AI-recruitment briefing you asked for. Legal basis is your consent, which you can withdraw any time.\n\n" +
-  "<b>Where</b>\n" +
-  "On Cloudflare infrastructure, which may process data outside your country. Telegram also handles your messages under its own privacy policy.\n\n" +
-  "<b>Your rights</b>\n" +
-  "- /mydata — see everything stored about you\n" +
-  "- /unsubscribe — stop the daily briefing\n" +
-  "- /forgetme — erase all your data from the bot\n\n" +
-  "Questions? Contact the bot owner."
+  '<b>Privacy notice — AI in TA News</b>\n\n' +
+  '<b>What we store</b>\n' +
+  '- Your Telegram user ID — to control access and deliver the briefing\n' +
+  '- Your name and @username — shown to the owner when you request access\n' +
+  '- The date you last used the bot — an activity log, auto-deleted after 90 days\n\n' +
+  'We never read or store your ordinary messages — only slash commands are processed.\n\n' +
+  '<b>Why</b>\n' +
+  'To run the private allowlist and send the daily AI-recruitment briefing you asked for. Legal basis is your consent, which you can withdraw any time.\n\n' +
+  '<b>Where</b>\n' +
+  'On Cloudflare infrastructure, which may process data outside your country. Telegram also handles your messages under its own privacy policy.\n\n' +
+  '<b>Your rights</b>\n' +
+  '- /mydata — see everything stored about you\n' +
+  '- /unsubscribe — stop the daily briefing\n' +
+  '- /forgetme — erase all your data from the bot\n\n' +
+  'Questions? Contact the bot owner.'
 
 const DEFAULT_ACCESS = { dmPolicy: 'allowlist', allowFrom: [], ownerChatId: '', pending: {} }
 const DEFAULT_SUBSCRIBERS = { subscribers: [], owner: '' }
@@ -94,6 +98,30 @@ export class BotState extends DurableObject {
   constructor(ctx, env) {
     super(ctx, env)
     this.env = env
+    this._usageLock = Promise.resolve()
+  }
+
+  // In-memory mutex for the usage_stats KV read-modify-write methods below.
+  // ctx.storage calls are automatically serialized per-instance by Cloudflare's
+  // input/output gating, but KV access via fetch() is not -- without this,
+  // two overlapping calls (e.g. /forgetme's purgeUsageStats racing a
+  // concurrent command's touchLastSeen) could interleave their get/put and
+  // silently un-erase a just-purged entry. Safe as plain in-memory state
+  // because a DO's JS execution is single-threaded/cooperative: concurrent
+  // calls only interleave at await points, which is exactly what this queues
+  // through serially.
+  async withUsageLock(fn) {
+    const prev = this._usageLock
+    let release
+    this._usageLock = new Promise((resolve) => {
+      release = resolve
+    })
+    await prev
+    try {
+      return await fn()
+    } finally {
+      release()
+    }
   }
 
   async getAccess() {
@@ -140,11 +168,11 @@ export class BotState extends DurableObject {
     const access = await this.getAccess()
     const wasAllowed = access.allowFrom.includes(id)
     const wasPending = Boolean(access.pending[id])
-    access.allowFrom = access.allowFrom.filter(x => x !== id)
+    access.allowFrom = access.allowFrom.filter((x) => x !== id)
     delete access.pending[id]
     const subs = await this.getSubscribers()
     const wasSubscribed = subs.subscribers.includes(id)
-    subs.subscribers = subs.subscribers.filter(x => x !== id)
+    subs.subscribers = subs.subscribers.filter((x) => x !== id)
     // Mirror to KV *before* committing DO storage (REL-2): a kill/eviction
     // between the two must not leave an erased user still on the KV list
     // scripts/send-briefing.mjs reads, since that would keep sending them the
@@ -188,7 +216,7 @@ export class BotState extends DurableObject {
   async unsubscribe(id) {
     const subs = await this.getSubscribers()
     const wasSubscribed = subs.subscribers.includes(id)
-    if (wasSubscribed) subs.subscribers = subs.subscribers.filter(x => x !== id)
+    if (wasSubscribed) subs.subscribers = subs.subscribers.filter((x) => x !== id)
     // Mirror before the DO commit (REL-2) -- same reasoning as forgetUser:
     // a removal must reach the KV read-side before it's durable in the DO.
     await this.mirrorSubscribers(subs)
@@ -259,39 +287,47 @@ export class BotState extends DurableObject {
 
   // usage_stats lives in KV (not DO storage -- see the top-of-file note: the
   // CI pipeline's scripts/sync-kv.mjs writes it directly via the REST API, so
-  // it can never be fully race-free). But routing every Worker-side writer
-  // through this singleton DO does close the Worker-vs-Worker race: a DO
-  // processes one request at a time, so bump/touch/purge calls that land
-  // concurrently (e.g. /forgetme's erasure racing a concurrent /briefing's
-  // touchLastSeen) serialize instead of read-modify-writing the same KV blob
-  // out of order and silently un-erasing a just-purged entry.
+  // it can never be fully race-free). Routing every Worker-side writer
+  // through this singleton DO is not by itself enough to close the
+  // Worker-vs-Worker race, since KV access via fetch() isn't covered by the
+  // DO's automatic gating -- withUsageLock() (above) provides the actual
+  // serialization, so bump/touch/purge calls that land concurrently (e.g.
+  // /forgetme's erasure racing a concurrent /briefing's touchLastSeen)
+  // queue instead of read-modify-writing the same KV blob out of order and
+  // silently un-erasing a just-purged entry.
   async bumpCommandCount(name) {
-    const stats = await getJSON(this.env, 'usage_stats', DEFAULT_USAGE)
-    const prev = Object.hasOwn(stats.command_counts, name) ? stats.command_counts[name] : 0
-    stats.command_counts[name] = prev + 1
-    await putJSON(this.env, 'usage_stats', stats)
+    return this.withUsageLock(async () => {
+      const stats = await getJSON(this.env, 'usage_stats', DEFAULT_USAGE)
+      const prev = Object.hasOwn(stats.command_counts, name) ? stats.command_counts[name] : 0
+      stats.command_counts[name] = prev + 1
+      await putJSON(this.env, 'usage_stats', stats)
+    })
   }
 
   async touchLastSeen(senderId) {
-    const stats = await getJSON(this.env, 'usage_stats', DEFAULT_USAGE)
-    stats.last_seen[senderId] = todayUTC()
-    const cutoff = new Date(Date.now() - RETENTION_DAYS * 86400000).toISOString().slice(0, 10)
-    for (const [id, date] of Object.entries(stats.last_seen)) {
-      if (typeof date === 'string' && date < cutoff) delete stats.last_seen[id]
-    }
-    await putJSON(this.env, 'usage_stats', stats)
+    return this.withUsageLock(async () => {
+      const stats = await getJSON(this.env, 'usage_stats', DEFAULT_USAGE)
+      stats.last_seen[senderId] = todayUTC()
+      const cutoff = new Date(Date.now() - RETENTION_DAYS * 86400000).toISOString().slice(0, 10)
+      for (const [id, date] of Object.entries(stats.last_seen)) {
+        if (typeof date === 'string' && date < cutoff) delete stats.last_seen[id]
+      }
+      await putJSON(this.env, 'usage_stats', stats)
+    })
   }
 
   // Right-to-erasure counterpart to touchLastSeen/bumpCommandCount above --
-  // must go through this same DO for the serialization to actually protect it.
+  // must go through this same lock for the serialization to actually protect it.
   async purgeUsageStats(id) {
-    const stats = await getJSON(this.env, 'usage_stats', DEFAULT_USAGE)
-    if (stats.last_seen && id in stats.last_seen) {
-      delete stats.last_seen[id]
-      await putJSON(this.env, 'usage_stats', stats)
-      return true
-    }
-    return false
+    return this.withUsageLock(async () => {
+      const stats = await getJSON(this.env, 'usage_stats', DEFAULT_USAGE)
+      if (stats.last_seen && id in stats.last_seen) {
+        delete stats.last_seen[id]
+        await putJSON(this.env, 'usage_stats', stats)
+        return true
+      }
+      return false
+    })
   }
 }
 
@@ -325,14 +361,14 @@ async function fetchWithRetry(url, options, { retries = 2 } = {}) {
         // 300ms, so a 5s ask retried in 1.5s and drew a second 429 (SEC-2).
         const retryAfter = Number(res.headers.get('retry-after'))
         const waitMs = retryAfter > 0 ? retryAfter * 1000 : (attempt + 1) * 300
-        await new Promise(r => setTimeout(r, waitMs))
+        await new Promise((r) => setTimeout(r, waitMs))
         continue
       }
       return res
     } catch (err) {
       lastErr = err
       if (attempt < retries) {
-        await new Promise(r => setTimeout(r, (attempt + 1) * 300))
+        await new Promise((r) => setTimeout(r, (attempt + 1) * 300))
         continue
       }
     }
@@ -374,8 +410,8 @@ function todayUTC() {
 }
 
 // bumpCommandCount/touchLastSeen/purgeUsageStats now live as BotState DO
-// methods above, so all three usage_stats writers serialize through the
-// singleton stub instead of racing each other's KV read-modify-write.
+// methods above and serialize via withUsageLock(), so all three usage_stats
+// writers queue instead of racing each other's KV read-modify-write.
 
 // Like the old dmCommandGate(): DM only, dmPolicy check. No pairing-code
 // machinery here — /start's approve/deny buttons are the only approval path
@@ -407,15 +443,19 @@ async function dmCommandGate(stub, message) {
 async function dispatchEvent(env, eventType, clientPayload, { retries = 1 } = {}) {
   try {
     const payload = { ...clientPayload, dispatch_id: crypto.randomUUID() }
-    const res = await fetchWithRetry(`https://api.github.com/repos/${env.GITHUB_REPO}/dispatches`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${env.GITHUB_TOKEN}`,
-        Accept: 'application/vnd.github+json',
-        'User-Agent': 'ai-in-ta-telegram-bot-worker',
+    const res = await fetchWithRetry(
+      `https://api.github.com/repos/${env.GITHUB_REPO}/dispatches`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${env.GITHUB_TOKEN}`,
+          Accept: 'application/vnd.github+json',
+          'User-Agent': 'ai-in-ta-telegram-bot-worker',
+        },
+        body: JSON.stringify({ event_type: eventType, client_payload: payload }),
       },
-      body: JSON.stringify({ event_type: eventType, client_payload: payload }),
-    }, { retries })
+      { retries },
+    )
     if (!res.ok) {
       console.error(`GitHub dispatch failed (${eventType})`, res.status, await res.text())
       return false
@@ -431,6 +471,35 @@ function dispatchBriefing(env, chatId) {
   return dispatchEvent(env, 'newbriefing', { chat_id: String(chatId) })
 }
 
+// Cron Trigger entry point (see scheduled() below / [triggers] in
+// wrangler.toml). Fires daily-briefing.yml via the workflow_dispatch REST
+// endpoint rather than that workflow's own `schedule:` trigger, which is
+// GitHub-documented as best-effort and has run ~2.5h late repeatedly
+// (issue #17, see daily-briefing-watchdog.yml). Needs GITHUB_TOKEN to carry
+// the `Actions: write` permission in addition to the `Contents: write` the
+// rest of this file already relies on.
+async function triggerDailyBriefing(env) {
+  try {
+    const res = await fetchWithRetry(
+      `https://api.github.com/repos/${env.GITHUB_REPO}/actions/workflows/daily-briefing.yml/dispatches`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${env.GITHUB_TOKEN}`,
+          Accept: 'application/vnd.github+json',
+          'User-Agent': 'ai-in-ta-telegram-bot-worker',
+        },
+        body: JSON.stringify({ ref: 'main' }),
+      },
+    )
+    if (!res.ok) {
+      console.error('Cron trigger: daily-briefing workflow_dispatch failed', res.status, await res.text())
+    }
+  } catch (err) {
+    console.error('Cron trigger: daily-briefing workflow_dispatch request failed', err)
+  }
+}
+
 // Shared by /newbriefing and /briefing's stale-cache path: rate-limit check,
 // then dispatch generation, rolling back the reservation if dispatch fails.
 // During the cooldown the user still gets something — the cached briefing if
@@ -440,14 +509,22 @@ async function requestGeneration(env, stub, senderId, generatingMsg) {
   const r = await stub.reserveBriefingDispatch(senderId)
   if (!r.allowed) {
     if (r.reason === 'daily_cap') {
-      await reply(env, senderId, "You've reached today's limit for fresh briefings — /briefing will still get you the latest one.")
+      await reply(
+        env,
+        senderId,
+        "You've reached today's limit for fresh briefings — /briefing will still get you the latest one.",
+      )
       return
     }
     const date = await env.BOT_STATE.get('today_briefing_date')
     if (date === todayUTC()) {
       const md = await env.BOT_STATE.get('today_briefing_md')
       if (md) {
-        await reply(env, senderId, `The briefing was refreshed less than an hour ago — here it is. A new one can be generated in ~${r.retryInMin} min.`)
+        await reply(
+          env,
+          senderId,
+          `The briefing was refreshed less than an hour ago — here it is. A new one can be generated in ~${r.retryInMin} min.`,
+        )
         await sendHtml(env, senderId, mdToHtml(md))
         return
       }
@@ -456,16 +533,24 @@ async function requestGeneration(env, stub, senderId, generatingMsg) {
     // run is plausibly still generating; if it was a while ago (e.g. a cooldown
     // carried over from last night, before today's daily), nothing is running —
     // don't claim it is.
-    await reply(env, senderId, r.sinceLastMin <= GENERATION_IN_FLIGHT_MIN
-      ? 'A briefing is being generated right now — send /briefing in a couple of minutes to get it.'
-      : `Couldn't refresh the briefing just now — a fresh one can be generated in ~${r.retryInMin} min. You'll also get today's automatically with the daily update.`)
+    await reply(
+      env,
+      senderId,
+      r.sinceLastMin <= GENERATION_IN_FLIGHT_MIN
+        ? 'A briefing is being generated right now — send /briefing in a couple of minutes to get it.'
+        : `Couldn't refresh the briefing just now — a fresh one can be generated in ~${r.retryInMin} min. You'll also get today's automatically with the daily update.`,
+    )
     return
   }
   await reply(env, senderId, generatingMsg)
   const dispatched = await dispatchBriefing(env, senderId)
   if (!dispatched) {
     await stub.rollbackBriefingDispatch(senderId, r.prevLastDispatchAt)
-    await reply(env, senderId, "Couldn't start briefing generation right now — please try again shortly, or contact the bot owner if this keeps happening.")
+    await reply(
+      env,
+      senderId,
+      "Couldn't start briefing generation right now — please try again shortly, or contact the bot owner if this keeps happening.",
+    )
   }
 }
 
@@ -473,10 +558,13 @@ const COMMAND_HANDLERS = {
   async start(env, message, gated) {
     const { access, senderId, isAllowed, stub } = gated
     if (isAllowed) {
-      await reply(env, senderId,
-        "Welcome to AI in TA News!\n\n" +
-        "Tap /briefing to get today's AI recruitment digest, or /subscribe to get it every morning automatically.\n\n" +
-        "Send /help anytime to see everything the bot can do.")
+      await reply(
+        env,
+        senderId,
+        'Welcome to AI in TA News!\n\n' +
+          "Tap /briefing to get today's AI recruitment digest, or /subscribe to get it every morning automatically.\n\n" +
+          'Send /help anytime to see everything the bot can do.',
+      )
       return
     }
     const from = message.from
@@ -484,8 +572,11 @@ const COMMAND_HANDLERS = {
     // An already-pending user still falls through to their "still waiting"
     // status below — only brand-new requests are turned away.
     if (!access.pending[senderId] && access.allowFrom.length >= MAX_USERS) {
-      await reply(env, senderId,
-        "Thanks for your interest in AI in TA News! The bot is currently at capacity, so new access requests are paused for now. Please check back later.")
+      await reply(
+        env,
+        senderId,
+        'Thanks for your interest in AI in TA News! The bot is currently at capacity, so new access requests are paused for now. Please check back later.',
+      )
       return
     }
     const displayName = [from.first_name, from.last_name].filter(Boolean).join(' ')
@@ -496,19 +587,24 @@ const COMMAND_HANDLERS = {
         chat_id: access.ownerChatId,
         text: `New access request\n\nName: ${displayName}\nUsername: ${username}\nID: ${from.id}`,
         reply_markup: {
-          inline_keyboard: [[
-            { text: 'Approve', callback_data: `acc:Y:${from.id}` },
-            { text: 'Deny', callback_data: `acc:N:${from.id}` },
-          ]],
+          inline_keyboard: [
+            [
+              { text: 'Approve', callback_data: `acc:Y:${from.id}` },
+              { text: 'Deny', callback_data: `acc:N:${from.id}` },
+            ],
+          ],
         },
       })
     }
-    await reply(env, senderId,
+    await reply(
+      env,
+      senderId,
       alreadyPending
         ? `Your access request is still waiting on the owner — no need to send /start again.\n\nYour Telegram ID: <code>${from.id}</code>`
         : `Welcome to AI in TA News!\n\nThis is a private bot. Your access request has been sent to the owner.\n\n` +
-          `Your Telegram ID: <code>${from.id}</code>\n\nYou'll be able to use /briefing and /subscribe once approved.`,
-      { parse_mode: 'HTML' })
+            `Your Telegram ID: <code>${from.id}</code>\n\nYou'll be able to use /briefing and /subscribe once approved.`,
+      { parse_mode: 'HTML' },
+    )
   },
 
   async help(env, message, gated) {
@@ -517,21 +613,24 @@ const COMMAND_HANDLERS = {
       await reply(env, senderId, 'You need to be approved first. Send /start to request access.')
       return
     }
-    await reply(env, senderId,
-      "This is AI in TA News — a curated digest of AI in talent acquisition.\n\n" +
-      "Here you'll find:\n" +
-      "- How recruiters are using Claude & Anthropic tools\n" +
-      "- Latest AI hiring trends, tools, and best practices\n" +
-      "- Must-read articles and resources\n\n" +
-      "Just tap /briefing anytime to get the latest edition.\n\n" +
-      "/briefing — get today's briefing (or resend it if you already have it)\n" +
-      "/newbriefing — search for more news beyond what /briefing already sent\n" +
-      "/subscribe — get the daily briefing every morning\n" +
-      "/unsubscribe — stop the daily briefing\n" +
-      "/status — check your access status\n" +
-      "/privacy — how your data is handled\n" +
-      "/mydata — see what's stored about you\n" +
-      "/forgetme — erase your data")
+    await reply(
+      env,
+      senderId,
+      'This is AI in TA News — a curated digest of AI in talent acquisition.\n\n' +
+        "Here you'll find:\n" +
+        '- How recruiters are using Claude & Anthropic tools\n' +
+        '- Latest AI hiring trends, tools, and best practices\n' +
+        '- Must-read articles and resources\n\n' +
+        'Just tap /briefing anytime to get the latest edition.\n\n' +
+        "/briefing — get today's briefing (or resend it if you already have it)\n" +
+        '/newbriefing — search for more news beyond what /briefing already sent\n' +
+        '/subscribe — get the daily briefing every morning\n' +
+        '/unsubscribe — stop the daily briefing\n' +
+        '/status — check your access status\n' +
+        '/privacy — how your data is handled\n' +
+        "/mydata — see what's stored about you\n" +
+        '/forgetme — erase your data',
+    )
   },
 
   async status(env, message, gated) {
@@ -541,9 +640,12 @@ const COMMAND_HANDLERS = {
       await reply(env, senderId, `Approved as ${name}`)
       return
     }
-    await reply(env, senderId,
+    await reply(
+      env,
+      senderId,
       `You don't have access yet.\n\nSend /start to request access. Your Telegram ID: <code>${senderId}</code>`,
-      { parse_mode: 'HTML' })
+      { parse_mode: 'HTML' },
+    )
   },
 
   async subscribe(env, message, gated) {
@@ -553,10 +655,14 @@ const COMMAND_HANDLERS = {
       return
     }
     const { already } = await stub.subscribe(senderId)
-    await reply(env, senderId, already
-      ? "You're already subscribed to the daily AI recruitment briefing. You'll receive it every morning at 9:00 AM UTC."
-      : "You're subscribed! You'll receive the daily AI recruitment briefing every morning at 9:00 AM UTC.\n\n" +
-        "By subscribing you consent to the bot storing your Telegram ID to deliver it. See /privacy for details. Send /unsubscribe to stop, or /forgetme to erase your data.")
+    await reply(
+      env,
+      senderId,
+      already
+        ? "You're already subscribed to the daily AI recruitment briefing. You'll receive it every morning at 9:00 AM UTC."
+        : "You're subscribed! You'll receive the daily AI recruitment briefing every morning at 9:00 AM UTC.\n\n" +
+            'By subscribing you consent to the bot storing your Telegram ID to deliver it. See /privacy for details. Send /unsubscribe to stop, or /forgetme to erase your data.',
+    )
   },
 
   async unsubscribe(env, message, gated) {
@@ -567,9 +673,13 @@ const COMMAND_HANDLERS = {
       return
     }
     const { wasSubscribed } = await stub.unsubscribe(senderId)
-    await reply(env, senderId, wasSubscribed
-      ? "You've been unsubscribed. Send /subscribe any time to start receiving the briefing again."
-      : "You're not currently subscribed.")
+    await reply(
+      env,
+      senderId,
+      wasSubscribed
+        ? "You've been unsubscribed. Send /subscribe any time to start receiving the briefing again."
+        : "You're not currently subscribed.",
+    )
   },
 
   // Available to anyone, approved or not — a privacy notice you can't read
@@ -586,19 +696,18 @@ const COMMAND_HANDLERS = {
     const subs = await stub.getSubscribers()
     const stats = await getJSON(env, 'usage_stats', DEFAULT_USAGE)
     const pending = access.pending[senderId]
-    const lines = [
-      '<b>Your data on file</b>\n',
-      `Telegram ID: <code>${senderId}</code>`,
-    ]
+    const lines = ['<b>Your data on file</b>\n', `Telegram ID: <code>${senderId}</code>`]
     if (pending) {
       lines.push(`Name on file: ${escapeHtml(pending.displayName || '—')}`)
       lines.push(`Username on file: ${escapeHtml(pending.username || '—')}`)
-      lines.push(`Access requested: ${pending.createdAt ? new Date(pending.createdAt).toISOString().slice(0, 10) : '—'}`)
+      lines.push(
+        `Access requested: ${pending.createdAt ? new Date(pending.createdAt).toISOString().slice(0, 10) : '—'}`,
+      )
     }
     lines.push(`Allowlisted: ${access.allowFrom.includes(senderId) ? 'yes' : 'no'}`)
     lines.push(`Subscribed to daily briefing: ${subs.subscribers.includes(senderId) ? 'yes' : 'no'}`)
     lines.push(`Last active: ${stats.last_seen?.[senderId] ?? '—'}`)
-    lines.push('\nTo erase all of this, send /forgetme. See /privacy for how it\'s used.')
+    lines.push("\nTo erase all of this, send /forgetme. See /privacy for how it's used.")
     await reply(env, senderId, lines.join('\n'), { parse_mode: 'HTML', link_preview_options: { is_disabled: true } })
   },
 
@@ -613,9 +722,13 @@ const COMMAND_HANDLERS = {
     const r = await stub.forgetUser(senderId)
     const purged = await stub.purgeUsageStats(senderId)
     const hadData = r.wasAllowed || r.wasSubscribed || r.wasPending || purged
-    await reply(env, senderId, hadData
-      ? "Done — everything the bot stored about you has been erased: allowlist access, subscription, any pending request, and your activity log. Send /start if you ever want to come back."
-      : "There's nothing on file to erase. Send /start if you'd like to request access.")
+    await reply(
+      env,
+      senderId,
+      hadData
+        ? 'Done — everything the bot stored about you has been erased: allowlist access, subscription, any pending request, and your activity log. Send /start if you ever want to come back.'
+        : "There's nothing on file to erase. Send /start if you'd like to request access.",
+    )
   },
 
   async briefing(env, message, gated) {
@@ -632,7 +745,12 @@ const COMMAND_HANDLERS = {
       const md = await env.BOT_STATE.get('today_briefing_md')
       if (md) {
         const ok = await sendHtml(env, senderId, mdToHtml(md))
-        if (!ok) await reply(env, senderId, "Something went wrong sending today's briefing — please try /briefing again in a moment.")
+        if (!ok)
+          await reply(
+            env,
+            senderId,
+            "Something went wrong sending today's briefing — please try /briefing again in a moment.",
+          )
         return
       }
     }
@@ -657,26 +775,29 @@ const COMMAND_HANDLERS = {
     const subs = await stub.getSubscribers()
     const stats = await getJSON(env, 'usage_stats', DEFAULT_USAGE)
     const c = stats.command_counts
-    await reply(env, senderId,
+    await reply(
+      env,
+      senderId,
       `Bot Admin Panel\n\n` +
-      `Users\n` +
-      `- Allowlisted: ${access.allowFrom.length}\n` +
-      `- Subscribed: ${subs.subscribers.length}\n` +
-      `- Pending pairings: ${Object.keys(access.pending).length}\n\n` +
-      `Briefings\n` +
-      `- Total sent: ${stats.briefings_sent}\n` +
-      `- Last sent: ${stats.last_briefing_at ?? 'never'}\n\n` +
-      `Command usage\n` +
-      `- /briefing: ${c.briefing ?? 0}\n` +
-      `- /newbriefing: ${c.newbriefing ?? 0}\n` +
-      `- /subscribe: ${c.subscribe ?? 0}\n` +
-      `- /unsubscribe: ${c.unsubscribe ?? 0}\n` +
-      `- /broadcast: ${c.broadcast ?? 0}\n` +
-      `- /adduser: ${c.adduser ?? 0}\n` +
-      `- /removeuser: ${c.removeuser ?? 0}\n` +
-      `- /listusers: ${c.listusers ?? 0}\n` +
-      `- /pending: ${c.pending ?? 0}\n\n` +
-      `Use /listusers, /pending, /adduser <id>, /removeuser <id>, /broadcast <msg>`)
+        `Users\n` +
+        `- Allowlisted: ${access.allowFrom.length}\n` +
+        `- Subscribed: ${subs.subscribers.length}\n` +
+        `- Pending pairings: ${Object.keys(access.pending).length}\n\n` +
+        `Briefings\n` +
+        `- Total sent: ${stats.briefings_sent}\n` +
+        `- Last sent: ${stats.last_briefing_at ?? 'never'}\n\n` +
+        `Command usage\n` +
+        `- /briefing: ${c.briefing ?? 0}\n` +
+        `- /newbriefing: ${c.newbriefing ?? 0}\n` +
+        `- /subscribe: ${c.subscribe ?? 0}\n` +
+        `- /unsubscribe: ${c.unsubscribe ?? 0}\n` +
+        `- /broadcast: ${c.broadcast ?? 0}\n` +
+        `- /adduser: ${c.adduser ?? 0}\n` +
+        `- /removeuser: ${c.removeuser ?? 0}\n` +
+        `- /listusers: ${c.listusers ?? 0}\n` +
+        `- /pending: ${c.pending ?? 0}\n\n` +
+        `Use /listusers, /pending, /adduser <id>, /removeuser <id>, /broadcast <msg>`,
+    )
   },
 
   async listusers(env, message, gated) {
@@ -686,15 +807,18 @@ const COMMAND_HANDLERS = {
       return
     }
     const subs = await stub.getSubscribers()
-    const lines = access.allowFrom.map(id => {
+    const lines = access.allowFrom.map((id) => {
       const tags = []
       if (id === access.ownerChatId) tags.push('[owner]')
       if (subs.subscribers.includes(id)) tags.push('[subscribed]')
       if (tags.length === 0) tags.push('[allowed]')
       return `${id} — ${tags.join('')}`
     })
-    await reply(env, senderId,
-      `Users (${access.allowFrom.length})\n\n${lines.join('\n')}\n\n/adduser <id> to add · /removeuser <id> to remove`)
+    await reply(
+      env,
+      senderId,
+      `Users (${access.allowFrom.length})\n\n${lines.join('\n')}\n\n/adduser <id> to add · /removeuser <id> to remove`,
+    )
   },
 
   async adduser(env, message, gated, args) {
@@ -709,23 +833,43 @@ const COMMAND_HANDLERS = {
       return
     }
     if (!/^-?\d+$/.test(id)) {
-      await reply(env, senderId, `"${id}" doesn't look like a Telegram chat id (should be numeric). Usage: /adduser <chat_id>`)
+      await reply(
+        env,
+        senderId,
+        `"${id}" doesn't look like a Telegram chat id (should be numeric). Usage: /adduser <chat_id>`,
+      )
       return
     }
     if (args.length > 1) {
-      await reply(env, senderId, `/adduser takes one chat id at a time — ignoring extra argument(s): ${args.slice(1).join(' ')}`)
+      await reply(
+        env,
+        senderId,
+        `/adduser takes one chat id at a time — ignoring extra argument(s): ${args.slice(1).join(' ')}`,
+      )
       return
     }
     const { added, atCapacity } = await stub.addAllowedUser(id)
     if (atCapacity) {
-      await reply(env, senderId, `Can't add <code>${escapeHtml(id)}</code> — the bot is at capacity (${MAX_USERS} users). Remove someone with /removeuser first, or raise the limit.`, { parse_mode: 'HTML' })
+      await reply(
+        env,
+        senderId,
+        `Can't add <code>${escapeHtml(id)}</code> — the bot is at capacity (${MAX_USERS} users). Remove someone with /removeuser first, or raise the limit.`,
+        { parse_mode: 'HTML' },
+      )
       return
     }
     if (!added) {
-      await reply(env, senderId, `User <code>${escapeHtml(id)}</code> is already on the allowlist.`, { parse_mode: 'HTML' })
+      await reply(env, senderId, `User <code>${escapeHtml(id)}</code> is already on the allowlist.`, {
+        parse_mode: 'HTML',
+      })
       return
     }
-    await reply(env, senderId, `User <code>${escapeHtml(id)}</code> added to the allowlist. They can now use the bot. They'll need to /subscribe for daily briefings.`, { parse_mode: 'HTML' })
+    await reply(
+      env,
+      senderId,
+      `User <code>${escapeHtml(id)}</code> added to the allowlist. They can now use the bot. They'll need to /subscribe for daily briefings.`,
+      { parse_mode: 'HTML' },
+    )
   },
 
   async removeuser(env, message, gated, args) {
@@ -740,7 +884,11 @@ const COMMAND_HANDLERS = {
       return
     }
     if (args.length > 1) {
-      await reply(env, senderId, `/removeuser takes one chat id at a time — ignoring extra argument(s): ${args.slice(1).join(' ')}`)
+      await reply(
+        env,
+        senderId,
+        `/removeuser takes one chat id at a time — ignoring extra argument(s): ${args.slice(1).join(' ')}`,
+      )
       return
     }
     if (id === access.ownerChatId) {
@@ -753,7 +901,12 @@ const COMMAND_HANDLERS = {
       await reply(env, senderId, `User <code>${escapeHtml(id)}</code> not found.`, { parse_mode: 'HTML' })
       return
     }
-    await reply(env, senderId, `User <code>${escapeHtml(id)}</code> removed and all their data erased (allowlist, subscription, pending request, activity log).`, { parse_mode: 'HTML' })
+    await reply(
+      env,
+      senderId,
+      `User <code>${escapeHtml(id)}</code> removed and all their data erased (allowlist, subscription, pending request, activity log).`,
+      { parse_mode: 'HTML' },
+    )
   },
 
   async broadcast(env, message, gated, args, rawText) {
@@ -780,9 +933,13 @@ const COMMAND_HANDLERS = {
     // silently dropped recipients past ~45 (BUG-4). We dispatch the message and
     // the owner gets an async delivery report from the runner.
     const dispatched = await dispatchEvent(env, 'broadcast', { message: msg, owner: senderId })
-    await reply(env, senderId, dispatched
-      ? `Broadcasting to ${subs.subscribers.length} subscriber(s) — I'll send you a delivery report when it finishes.`
-      : "Couldn't start the broadcast right now — please try again shortly, or check the Worker logs if this keeps happening.")
+    await reply(
+      env,
+      senderId,
+      dispatched
+        ? `Broadcasting to ${subs.subscribers.length} subscriber(s) — I'll send you a delivery report when it finishes.`
+        : "Couldn't start the broadcast right now — please try again shortly, or check the Worker logs if this keeps happening.",
+    )
   },
 
   async pending(env, message, gated) {
@@ -796,9 +953,15 @@ const COMMAND_HANDLERS = {
       await reply(env, senderId, 'No pending pairing requests.')
       return
     }
-    const lines = entries.map(([id, p]) =>
-      `${id} — ${p.displayName || 'unknown'} (${p.username || 'no username'}), requested ${p.createdAt ? new Date(p.createdAt).toISOString() : ''}`)
-    await reply(env, senderId, `Pending pairings (${entries.length})\n\n${lines.join('\n')}\n\nUse /adduser <id> to approve or ignore to deny.`)
+    const lines = entries.map(
+      ([id, p]) =>
+        `${id} — ${p.displayName || 'unknown'} (${p.username || 'no username'}), requested ${p.createdAt ? new Date(p.createdAt).toISOString() : ''}`,
+    )
+    await reply(
+      env,
+      senderId,
+      `Pending pairings (${entries.length})\n\n${lines.join('\n')}\n\nUse /adduser <id> to approve or ignore to deny.`,
+    )
   },
 }
 
@@ -822,24 +985,44 @@ async function handleCallbackQuery(env, stub, callbackQuery) {
     // or removed since this card was sent), don't silently re-add them (BUG-6).
     if (!access.pending[targetId]) {
       await tg(env, 'answerCallbackQuery', { callback_query_id: callbackQuery.id, text: 'No longer pending' })
-      if (msg?.text) await tg(env, 'editMessageText', { chat_id: msg.chat.id, message_id: msg.message_id, text: `${msg.text}\n\nNo longer pending — ignored.` })
+      if (msg?.text)
+        await tg(env, 'editMessageText', {
+          chat_id: msg.chat.id,
+          message_id: msg.message_id,
+          text: `${msg.text}\n\nNo longer pending — ignored.`,
+        })
       return
     }
     const { atCapacity } = await stub.addAllowedUser(targetId)
     if (atCapacity) {
       // Leave them pending so the owner can approve once a slot frees up.
       await tg(env, 'answerCallbackQuery', { callback_query_id: callbackQuery.id, text: `At capacity (${MAX_USERS})` })
-      if (msg?.text) await tg(env, 'editMessageText', { chat_id: msg.chat.id, message_id: msg.message_id, text: `${msg.text}\n\nNot approved — bot at capacity (${MAX_USERS}). Remove a user, then approve again.` })
+      if (msg?.text)
+        await tg(env, 'editMessageText', {
+          chat_id: msg.chat.id,
+          message_id: msg.message_id,
+          text: `${msg.text}\n\nNot approved — bot at capacity (${MAX_USERS}). Remove a user, then approve again.`,
+        })
       return
     }
     await stub.removePending(targetId)
     await tg(env, 'answerCallbackQuery', { callback_query_id: callbackQuery.id, text: 'Approved' })
-    if (msg?.text) await tg(env, 'editMessageText', { chat_id: msg.chat.id, message_id: msg.message_id, text: `${msg.text}\n\nApproved` })
+    if (msg?.text)
+      await tg(env, 'editMessageText', {
+        chat_id: msg.chat.id,
+        message_id: msg.message_id,
+        text: `${msg.text}\n\nApproved`,
+      })
     await reply(env, targetId, "You're approved! Send /briefing or /subscribe to get started.")
   } else {
     await stub.removePending(targetId)
     await tg(env, 'answerCallbackQuery', { callback_query_id: callbackQuery.id, text: 'Denied' })
-    if (msg?.text) await tg(env, 'editMessageText', { chat_id: msg.chat.id, message_id: msg.message_id, text: `${msg.text}\n\nDenied` })
+    if (msg?.text)
+      await tg(env, 'editMessageText', {
+        chat_id: msg.chat.id,
+        message_id: msg.message_id,
+        text: `${msg.text}\n\nDenied`,
+      })
     // Close the loop for the applicant instead of leaving them waiting in
     // silence. Neutral wording — doesn't invite argument or re-requests.
     await reply(env, targetId, "Your access request wasn't approved at this time.")
@@ -866,9 +1049,13 @@ async function handleMessage(env, stub, message) {
   // silence instead of the nudge.
   const handler = cmd && Object.hasOwn(COMMAND_HANDLERS, cmd) ? COMMAND_HANDLERS[cmd] : null
   if (!handler) {
-    await reply(env, gated.senderId, gated.isAllowed
-      ? "I only understand commands. Tap /briefing for today's digest, or /help to see everything I can do."
-      : "I only understand commands. Send /start to request access.")
+    await reply(
+      env,
+      gated.senderId,
+      gated.isAllowed
+        ? "I only understand commands. Tap /briefing for today's digest, or /help to see everything I can do."
+        : 'I only understand commands. Send /start to request access.',
+    )
     return
   }
 
@@ -908,5 +1095,9 @@ export default {
     }
 
     return new Response('ok')
+  },
+
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(triggerDailyBriefing(env))
   },
 }

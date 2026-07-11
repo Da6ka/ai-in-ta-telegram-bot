@@ -20,6 +20,12 @@ class_name = "BotState"
 tag = "v1"
 new_sqlite_classes = ["BotState"]
 
+# Fires the daily briefing directly via the Actions API (scheduled() in
+# src/index.js) instead of relying on GitHub's own `schedule:` trigger, which
+# is documented as best-effort and has run ~2.5h late repeatedly (issue #17).
+[triggers]
+crons = ["0 9 * * *"]
+
 [vars]
 GITHUB_REPO = "Da6ka/ai-in-ta-telegram-bot"
 
