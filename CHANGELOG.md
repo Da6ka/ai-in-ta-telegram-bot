@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-07-11
+
 ### Re-tuned the daily briefing search fan-out after Phase 16 re-benchmark FAIL
 
 The 5-run Phase 16 editorial re-benchmark (issue #15) came back FAIL: 2 of 5
