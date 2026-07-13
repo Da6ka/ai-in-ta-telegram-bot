@@ -1,6 +1,15 @@
-# Daily AI Recruitment Briefing — 12 July 2026
+I have three solid, date-verified items across distinct beats (Apple v OpenAI talent-poaching, 10 July; Josh Bersin TA research, 7 July; HBR hiring-bar research, 8 July). No fresh, non-duplicate Claude/Anthropic-in-TA story qualified (UST, PwC, CI&T were all either already covered or dated to May–June), so I'm omitting that section rather than padding it.
+
+# Daily AI Recruitment Briefing — 13 July 2026
 
 ## AI in Recruitment — What's New
 - HR Path, the Paris-based HR consulting, technology-implementation and outsourcing group, closed a roughly $1 billion funding deal led by Ardian to fund international expansion, an active acquisition strategy, and a UK push — a sign that capital is now flowing to HR-services roll-ups, not just point-solution AI startups. TA leaders relying on outsourced RPO or implementation partners should expect more consolidation (and vendor churn) in that layer of their stack. ([BusinessCloud](https://businesscloud.co.uk/news/hr-path-targets-uk-acquisitions-with-1-billion-funding-deal/)) (8 July 2026)
 
-**Bottom line:** Thin news day — the one verifiable new story is money, not product: watch consolidation among HR-services and implementation partners, because who owns your delivery layer shapes which AI hiring tools you can actually deploy.
+- New research from The Josh Bersin Company (with AMS) finds talent acquisition has moved from AI experimentation to execution at scale, with leaders replacing isolated pilots with enterprise-wide "talent architectures" that connect sourcing, hiring, internal mobility, and workforce planning — and buyers now demanding proof of business outcomes, not just innovation, from vendors. TA leaders should pressure-test whether their stack is an integrated system or a pile of point tools. ([Josh Bersin Company Research Shows Talent Acquisition Moving Beyond AI Experimentation](https://www.prnewswire.com/news-releases/josh-bersin-company-research-shows-talent-acquisition-moving-beyond-ai-experimentation-302819410.html)) (7 July 2026)
+- Apple sued OpenAI in federal court alleging trade-secret theft tied to 400+ former Apple employees, claiming candidates were coached to bring "actual parts" to OpenAI interviews and to evade Apple's exit-security processes. It's a stark reminder that competitive hiring turns interviews into an IP-risk surface — tighten confidentiality protocols and onboarding/offboarding safeguards when recruiting from or losing talent to rivals. ([Apple sues OpenAI over alleged trade secret theft](https://techcrunch.com/2026/07/10/apple-sues-openai-over-alleged-trade-secret-theft/)) (10 July 2026)
+
+## Worth Reading
+
+- New HBR research argues generative AI is raising the bar for knowledge workers rather than replacing them, reshaping what three major MBA-recruiting sectors now expect from entry-level hires. A useful frame for rewriting reqs and assessments around demonstrated AI-augmented judgment instead of task execution alone. ([Research: AI Is Changing What Employers Want from New Hires](https://hbr.org/2026/07/research-ai-is-changing-what-employers-want-from-new-hires)) (8 July 2026)
+
+**Bottom line:** AI is simultaneously raising the bar on what a strong hire looks like and forcing TA to re-architect as an integrated system — so prioritize skills-based evaluation, outcome-driven vendor scrutiny, and tighter interview/IP safeguards as competitive AI-talent poaching intensifies.
