@@ -273,6 +273,20 @@ export class BotState extends DurableObject {
     await this.env.BOT_STATE.put('subscribers', JSON.stringify(subs))
   }
 
+  // Rewrite the KV mirror from the DO source of truth, with no membership
+  // change. Called by the daily `scheduled` handler so the list the send
+  // pipeline reads (scripts/send-briefing.mjs, scripts/broadcast.mjs) can't
+  // stay drifted from the DO (#49): mirrorSubscribers otherwise only fires on
+  // a subscribe/unsubscribe, so if KV is ever reset/re-pointed/left stale by a
+  // failed put, a still-subscribed user is silently dropped from delivery --
+  // no error, no `Failed to send` line -- until someone happens to toggle a
+  // subscription. Re-mirroring before every daily send makes that self-heal.
+  async remirrorSubscribers() {
+    const subs = await this.getSubscribers()
+    await this.mirrorSubscribers(subs)
+    return subs.subscribers.length
+  }
+
   // Rate limiting for briefing generation. Check + record happen in one
   // method so two concurrent requests can't both pass the check and
   // double-dispatch.
@@ -1041,7 +1055,20 @@ export default {
   // daily-briefing.yml's last_briefing_at idempotency check makes this safe
   // to race with (or duplicate) GitHub's own schedule/watchdog firing.
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(dispatchEvent(env, 'daily-briefing-trigger', {}))
+    // Refresh the KV subscriber mirror from the DO source of truth before the
+    // pipeline reads it (#49), so a KV list that has drifted from the DO can't
+    // silently drop a still-subscribed user from the daily send. Best-effort:
+    // a mirror failure is logged but must never block the dispatch (the send
+    // then just uses whatever KV already holds, exactly as it does today).
+    ctx.waitUntil((async () => {
+      const stub = env.BOT_DO.get(env.BOT_DO.idFromName('singleton'))
+      try {
+        await stub.remirrorSubscribers()
+      } catch (err) {
+        console.error('scheduled: subscriber re-mirror failed', err)
+      }
+      await dispatchEvent(env, 'daily-briefing-trigger', {})
+    })())
   },
 
   async fetch(request, env) {
