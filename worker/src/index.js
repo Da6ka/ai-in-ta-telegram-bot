@@ -21,10 +21,11 @@
 //     written directly by the GitHub Actions pipeline (scripts/sync-kv.mjs),
 //     which can't be made to go through the Durable Object -- that
 //     Worker-vs-CI race on the KV blob is a known, accepted limitation
-//     (slightly-off admin stats at worst). But bumpCommandCount/touchLastSeen/
-//     purgeUsageStats are now DO methods (below), so the Worker-vs-Worker
-//     race is closed: a real erasure (/forgetme, /removeuser) can no longer
-//     be silently undone by a concurrent command's touchLastSeen write.
+//     (slightly-off admin stats at worst). bumpCommandCount/touchLastSeen/
+//     purgeUsageStats are DO methods (below) serialized via an explicit
+//     in-memory mutex (withUsageLock), so the Worker-vs-Worker race is closed:
+//     a real erasure (/forgetme, /removeuser) can no longer be silently
+//     undone by a concurrent command's touchLastSeen write.
 //   - `today_briefing_md` / `today_briefing_date` stay in KV: only the CI
 //     pipeline ever writes them, so there's no concurrent-writer race.
 
@@ -94,6 +95,30 @@ export class BotState extends DurableObject {
   constructor(ctx, env) {
     super(ctx, env)
     this.env = env
+    this._usageLock = Promise.resolve()
+  }
+
+  // In-memory mutex for the usage_stats KV read-modify-write methods below.
+  // ctx.storage calls are automatically serialized per-instance by Cloudflare's
+  // input/output gating, but KV access via fetch() is not -- without this, two
+  // overlapping calls (e.g. /forgetme's purgeUsageStats racing a concurrent
+  // command's touchLastSeen) could interleave their get/put and silently
+  // un-erase a just-purged entry. Safe as plain in-memory state because a DO's
+  // JS execution is single-threaded/cooperative: concurrent calls only
+  // interleave at await points, which is exactly what this queues through
+  // serially.
+  async withUsageLock(fn) {
+    const prev = this._usageLock
+    let release
+    this._usageLock = new Promise((resolve) => {
+      release = resolve
+    })
+    await prev
+    try {
+      return await fn()
+    } finally {
+      release()
+    }
   }
 
   async getAccess() {
@@ -287,39 +312,48 @@ export class BotState extends DurableObject {
 
   // usage_stats lives in KV (not DO storage -- see the top-of-file note: the
   // CI pipeline's scripts/sync-kv.mjs writes it directly via the REST API, so
-  // it can never be fully race-free). But routing every Worker-side writer
-  // through this singleton DO does close the Worker-vs-Worker race: a DO
-  // processes one request at a time, so bump/touch/purge calls that land
-  // concurrently (e.g. /forgetme's erasure racing a concurrent /briefing's
-  // touchLastSeen) serialize instead of read-modify-writing the same KV blob
-  // out of order and silently un-erasing a just-purged entry.
+  // it can never be fully race-free). Routing every Worker-side writer
+  // through this singleton DO closes the Worker-vs-Worker race, but only
+  // because of withUsageLock() below -- Cloudflare's automatic input/output
+  // gating serializes ctx.storage calls, not the KV access these methods make
+  // via fetch(), so without an explicit in-memory lock, bump/touch/purge calls
+  // that land concurrently (e.g. /forgetme's erasure racing a concurrent
+  // /briefing's touchLastSeen) could still interleave their get/put and
+  // silently un-erase a just-purged entry.
   async bumpCommandCount(name) {
-    const stats = await getJSON(this.env, 'usage_stats', DEFAULT_USAGE)
-    const prev = Object.hasOwn(stats.command_counts, name) ? stats.command_counts[name] : 0
-    stats.command_counts[name] = prev + 1
-    await putJSON(this.env, 'usage_stats', stats)
+    return this.withUsageLock(async () => {
+      const stats = await getJSON(this.env, 'usage_stats', DEFAULT_USAGE)
+      const prev = Object.hasOwn(stats.command_counts, name) ? stats.command_counts[name] : 0
+      stats.command_counts[name] = prev + 1
+      await putJSON(this.env, 'usage_stats', stats)
+    })
   }
 
   async touchLastSeen(senderId) {
-    const stats = await getJSON(this.env, 'usage_stats', DEFAULT_USAGE)
-    stats.last_seen[senderId] = todayUTC()
-    const cutoff = new Date(Date.now() - RETENTION_DAYS * 86400000).toISOString().slice(0, 10)
-    for (const [id, date] of Object.entries(stats.last_seen)) {
-      if (typeof date === 'string' && date < cutoff) delete stats.last_seen[id]
-    }
-    await putJSON(this.env, 'usage_stats', stats)
+    return this.withUsageLock(async () => {
+      const stats = await getJSON(this.env, 'usage_stats', DEFAULT_USAGE)
+      stats.last_seen[senderId] = todayUTC()
+      const cutoff = new Date(Date.now() - RETENTION_DAYS * 86400000).toISOString().slice(0, 10)
+      for (const [id, date] of Object.entries(stats.last_seen)) {
+        if (typeof date === 'string' && date < cutoff) delete stats.last_seen[id]
+      }
+      await putJSON(this.env, 'usage_stats', stats)
+    })
   }
 
   // Right-to-erasure counterpart to touchLastSeen/bumpCommandCount above --
-  // must go through this same DO for the serialization to actually protect it.
+  // must go through this same DO and withUsageLock() for the serialization
+  // to actually protect it.
   async purgeUsageStats(id) {
-    const stats = await getJSON(this.env, 'usage_stats', DEFAULT_USAGE)
-    if (stats.last_seen && id in stats.last_seen) {
-      delete stats.last_seen[id]
-      await putJSON(this.env, 'usage_stats', stats)
-      return true
-    }
-    return false
+    return this.withUsageLock(async () => {
+      const stats = await getJSON(this.env, 'usage_stats', DEFAULT_USAGE)
+      if (stats.last_seen && id in stats.last_seen) {
+        delete stats.last_seen[id]
+        await putJSON(this.env, 'usage_stats', stats)
+        return true
+      }
+      return false
+    })
   }
 }
 
