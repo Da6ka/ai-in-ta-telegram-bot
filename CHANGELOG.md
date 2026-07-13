@@ -2,6 +2,35 @@
 
 ## [Unreleased]
 
+### Refactored the command layer (code review follow-up)
+
+Maintainability cleanup of `worker/src/index.js`, no behavioural change to any
+existing command (all 123 unit tests pass unchanged):
+
+- **Declarative role gate.** The owner/admin authorization check was a 4-line
+  `if (!isOwnerOrAdmin(...))` block copy-pasted into eight handlers. Replaced
+  with a `COMMAND_ROLES` map (`'admin'` / `'owner'`) checked once in
+  `handleMessage` before dispatch. The refusal messages are unchanged; the
+  point is that a newly-added privileged command can no longer ship *ungated*
+  by forgetting to paste the block -- authorization is now data, not a
+  per-handler code path. The check runs before usage is recorded, so refused
+  attempts no longer count toward command stats.
+- **Merged the two usage-stats writers.** `touchLastSeen` and
+  `bumpCommandCount` each did a full locked read-modify-write of the same
+  `usage_stats` KV blob on every command (4 KV round-trips). Combined into one
+  `recordCommand` doing a single read-modify-write (2 round-trips), which also
+  removes the window where a bump and a touch could interleave.
+- **Fixed misleading "extra argument" copy.** `/adduser 5 6` (and
+  `/removeuser`, `/addadmin`, `/removeadmin`) aborts without acting, but the
+  reply read as though it had proceeded with the first id. Reworded to state
+  plainly that nothing was changed.
+- **Normalized `access` on read.** `getAccess` now spreads over
+  `DEFAULT_ACCESS`, so `adminIds`/`allowFrom`/`pending` are always present and
+  the ~7 scattered `adminIds ?? []` / `if (!adminIds)` guards are gone.
+- Admin panel command-usage list is derived from `COMMAND_HANDLERS` keys
+  instead of a hand-maintained list (can't drift); `reserveBriefingDispatch`
+  reuses `todayUTC()`; dropped now-unused `access` destructures.
+
 ### Fixed corrupted YAML in `daily-briefing.yml`
 
 Two manual edits (`af1c8d0`, `ae65632`) had dropped the newline between three
