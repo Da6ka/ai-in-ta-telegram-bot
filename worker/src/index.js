@@ -21,11 +21,11 @@
 //     written directly by the GitHub Actions pipeline (scripts/sync-kv.mjs),
 //     which can't be made to go through the Durable Object -- that
 //     Worker-vs-CI race on the KV blob is a known, accepted limitation
-//     (slightly-off admin stats at worst). bumpCommandCount/touchLastSeen/
-//     purgeUsageStats are DO methods (below) serialized via an explicit
-//     in-memory mutex (withUsageLock), so the Worker-vs-Worker race is closed:
-//     a real erasure (/forgetme, /removeuser) can no longer be silently
-//     undone by a concurrent command's touchLastSeen write.
+//     (slightly-off admin stats at worst). recordCommand/purgeUsageStats are
+//     DO methods (below) serialized via an explicit in-memory mutex
+//     (withUsageLock), so the Worker-vs-Worker race is closed: a real erasure
+//     (/forgetme, /removeuser) can no longer be silently undone by a
+//     concurrent command's recordCommand write.
 //   - `today_briefing_md` / `today_briefing_date` stay in KV: only the CI
 //     pipeline ever writes them, so there's no concurrent-writer race.
 
@@ -112,7 +112,7 @@ export class BotState extends DurableObject {
   // ctx.storage calls are automatically serialized per-instance by Cloudflare's
   // input/output gating, but KV access via fetch() is not -- without this, two
   // overlapping calls (e.g. /forgetme's purgeUsageStats racing a concurrent
-  // command's touchLastSeen) could interleave their get/put and silently
+  // command's recordCommand) could interleave their get/put and silently
   // un-erase a just-purged entry. Safe as plain in-memory state because a DO's
   // JS execution is single-threaded/cooperative: concurrent calls only
   // interleave at await points, which is exactly what this queues through
@@ -139,7 +139,11 @@ export class BotState extends DurableObject {
       access = (await this.env.BOT_STATE.get('access', 'json')) ?? DEFAULT_ACCESS
       await this.ctx.storage.put('access', access)
     }
-    return access
+    // Normalize every return over DEFAULT_ACCESS so `adminIds`, `allowFrom`,
+    // and `pending` are always present — records written before a field
+    // existed (e.g. adminIds) would otherwise force `?? []` / `if (!...)`
+    // defensive-init at every call site.
+    return { ...DEFAULT_ACCESS, ...access }
   }
 
   async getSubscribers() {
@@ -176,7 +180,6 @@ export class BotState extends DurableObject {
   // user, not a shortcut around /adduser).
   async addAdmin(id) {
     const access = await this.getAccess()
-    if (!access.adminIds) access.adminIds = []
     if (id === access.ownerChatId) return { access, ok: false, reason: 'already_owner' }
     if (!access.allowFrom.includes(id)) return { access, ok: false, reason: 'not_allowed' }
     if (access.adminIds.includes(id)) return { access, ok: false, reason: 'already_admin' }
@@ -187,7 +190,6 @@ export class BotState extends DurableObject {
 
   async removeAdmin(id) {
     const access = await this.getAccess()
-    if (!access.adminIds) access.adminIds = []
     if (!access.adminIds.includes(id)) return { access, ok: false }
     access.adminIds = access.adminIds.filter(x => x !== id)
     await this.ctx.storage.put('access', access)
@@ -201,9 +203,9 @@ export class BotState extends DurableObject {
     const access = await this.getAccess()
     const wasAllowed = access.allowFrom.includes(id)
     const wasPending = Boolean(access.pending[id])
-    const wasAdmin = Boolean(access.adminIds && access.adminIds.includes(id))
+    const wasAdmin = access.adminIds.includes(id)
     access.allowFrom = access.allowFrom.filter(x => x !== id)
-    if (access.adminIds) access.adminIds = access.adminIds.filter(x => x !== id)
+    access.adminIds = access.adminIds.filter(x => x !== id)
     delete access.pending[id]
     const subs = await this.getSubscribers()
     const wasSubscribed = subs.subscribers.includes(id)
@@ -292,7 +294,7 @@ export class BotState extends DurableObject {
   // double-dispatch.
   async reserveBriefingDispatch(senderId) {
     const now = Date.now()
-    const today = new Date(now).toISOString().slice(0, 10)
+    const today = todayUTC()
     const rl = (await this.ctx.storage.get('briefing_rate')) ?? { lastDispatchAt: 0, date: today, counts: {} }
     if (rl.date !== today) {
       rl.date = today
@@ -345,22 +347,20 @@ export class BotState extends DurableObject {
   // through this singleton DO closes the Worker-vs-Worker race, but only
   // because of withUsageLock() below -- Cloudflare's automatic input/output
   // gating serializes ctx.storage calls, not the KV access these methods make
-  // via fetch(), so without an explicit in-memory lock, bump/touch/purge calls
+  // via fetch(), so without an explicit in-memory lock, record/purge calls
   // that land concurrently (e.g. /forgetme's erasure racing a concurrent
-  // /briefing's touchLastSeen) could still interleave their get/put and
+  // /briefing's recordCommand) could still interleave their get/put and
   // silently un-erase a just-purged entry.
-  async bumpCommandCount(name) {
+  //
+  // One command touches two fields of the same blob (command_counts and
+  // last_seen), so both updates share a single read-modify-write here rather
+  // than two — halving the per-command KV round-trips and removing the window
+  // where a bump and a touch could interleave against each other.
+  async recordCommand(senderId, name) {
     return this.withUsageLock(async () => {
       const stats = await getJSON(this.env, 'usage_stats', DEFAULT_USAGE)
       const prev = Object.hasOwn(stats.command_counts, name) ? stats.command_counts[name] : 0
       stats.command_counts[name] = prev + 1
-      await putJSON(this.env, 'usage_stats', stats)
-    })
-  }
-
-  async touchLastSeen(senderId) {
-    return this.withUsageLock(async () => {
-      const stats = await getJSON(this.env, 'usage_stats', DEFAULT_USAGE)
       stats.last_seen[senderId] = todayUTC()
       const cutoff = new Date(Date.now() - RETENTION_DAYS * 86400000).toISOString().slice(0, 10)
       for (const [id, date] of Object.entries(stats.last_seen)) {
@@ -370,9 +370,9 @@ export class BotState extends DurableObject {
     })
   }
 
-  // Right-to-erasure counterpart to touchLastSeen/bumpCommandCount above --
-  // must go through this same DO and withUsageLock() for the serialization
-  // to actually protect it.
+  // Right-to-erasure counterpart to recordCommand above -- must go through
+  // this same DO and withUsageLock() for the serialization to actually
+  // protect it.
   async purgeUsageStats(id) {
     return this.withUsageLock(async () => {
       const stats = await getJSON(this.env, 'usage_stats', DEFAULT_USAGE)
@@ -469,12 +469,12 @@ function todayUTC() {
 // tied specifically to the singleton owner (can't be removed, can't
 // unsubscribe/erase themselves) -- those stay keyed to ownerChatId alone.
 function isOwnerOrAdmin(access, id) {
-  return id === access.ownerChatId || Boolean(access.adminIds && access.adminIds.includes(id))
+  return id === access.ownerChatId || access.adminIds.includes(id)
 }
 
-// bumpCommandCount/touchLastSeen/purgeUsageStats now live as BotState DO
-// methods above, so all three usage_stats writers serialize through the
-// singleton stub instead of racing each other's KV read-modify-write.
+// recordCommand/purgeUsageStats now live as BotState DO methods above, so
+// both usage_stats writers serialize through the singleton stub instead of
+// racing each other's KV read-modify-write.
 
 // Like the old dmCommandGate(): DM only, dmPolicy check. No pairing-code
 // machinery here — /start's approve/deny buttons are the only approval path
@@ -591,6 +591,24 @@ async function requestGeneration(env, stub, senderId, generatingMsg) {
     if (await serveStaleBriefing(env, senderId)) return
     await reply(env, senderId, "Couldn't start briefing generation right now — please try again shortly, or contact the bot owner if this keeps happening.")
   }
+}
+
+// Access role required to run each command, checked once in handleMessage
+// before dispatch (see the note there). 'owner' = the singleton owner only
+// (delegating admin can't itself be delegated); 'admin' = owner or a
+// delegated admin. Any command not listed is reachable by any gated sender
+// (those handlers still do their own isAllowed check where relevant). Keeping
+// this as data — rather than a copy-pasted gate block in each handler — means
+// a newly-added privileged command can't accidentally ship ungated.
+const COMMAND_ROLES = {
+  admin: 'admin',
+  listusers: 'admin',
+  adduser: 'admin',
+  removeuser: 'admin',
+  broadcast: 'admin',
+  pending: 'admin',
+  addadmin: 'owner',
+  removeadmin: 'owner',
 }
 
 const COMMAND_HANDLERS = {
@@ -784,10 +802,6 @@ const COMMAND_HANDLERS = {
 
   async admin(env, message, gated) {
     const { access, senderId, stub } = gated
-    if (!isOwnerOrAdmin(access, senderId)) {
-      await reply(env, senderId, 'This command is only available to the bot owner or a delegated admin.')
-      return
-    }
     const subs = await stub.getSubscribers()
     const stats = await getJSON(env, 'usage_stats', DEFAULT_USAGE)
     const c = stats.command_counts
@@ -796,36 +810,26 @@ const COMMAND_HANDLERS = {
       `Users\n` +
       `- Allowlisted: ${access.allowFrom.length}\n` +
       `- Subscribed: ${subs.subscribers.length}\n` +
-      `- Admins: ${(access.adminIds ?? []).length}\n` +
+      `- Admins: ${access.adminIds.length}\n` +
       `- Pending pairings: ${Object.keys(access.pending).length}\n\n` +
       `Briefings\n` +
       `- Total sent: ${stats.briefings_sent}\n` +
       `- Last sent: ${stats.last_briefing_at ?? 'never'}\n\n` +
       `Command usage\n` +
-      `- /briefing: ${c.briefing ?? 0}\n` +
-      `- /newbriefing: ${c.newbriefing ?? 0}\n` +
-      `- /subscribe: ${c.subscribe ?? 0}\n` +
-      `- /unsubscribe: ${c.unsubscribe ?? 0}\n` +
-      `- /broadcast: ${c.broadcast ?? 0}\n` +
-      `- /adduser: ${c.adduser ?? 0}\n` +
-      `- /removeuser: ${c.removeuser ?? 0}\n` +
-      `- /listusers: ${c.listusers ?? 0}\n` +
-      `- /pending: ${c.pending ?? 0}\n\n` +
+      // Derived from the handler map so a newly-added command is counted here
+      // automatically instead of silently missing from a hand-maintained list.
+      Object.keys(COMMAND_HANDLERS).sort().map(name => `- /${name}: ${c[name] ?? 0}`).join('\n') + `\n\n` +
       `Use /listusers, /pending, /adduser <id>, /removeuser <id>, /broadcast <msg>\n` +
       `Owner only: /addadmin <id>, /removeadmin <id>`)
   },
 
   async listusers(env, message, gated) {
     const { access, senderId, stub } = gated
-    if (!isOwnerOrAdmin(access, senderId)) {
-      await reply(env, senderId, 'This command is only available to the bot owner or a delegated admin.')
-      return
-    }
     const subs = await stub.getSubscribers()
     const lines = access.allowFrom.map(id => {
       const tags = []
       if (id === access.ownerChatId) tags.push('[owner]')
-      if ((access.adminIds ?? []).includes(id)) tags.push('[admin]')
+      if (access.adminIds.includes(id)) tags.push('[admin]')
       if (subs.subscribers.includes(id)) tags.push('[subscribed]')
       if (tags.length === 0) tags.push('[allowed]')
       return `${id} — ${tags.join('')}`
@@ -835,11 +839,7 @@ const COMMAND_HANDLERS = {
   },
 
   async adduser(env, message, gated, args) {
-    const { access, senderId, stub } = gated
-    if (!isOwnerOrAdmin(access, senderId)) {
-      await reply(env, senderId, 'This command is only available to the bot owner or a delegated admin.')
-      return
-    }
+    const { senderId, stub } = gated
     const id = args[0]
     if (!id) {
       await reply(env, senderId, 'Usage: /adduser <chat_id>')
@@ -850,7 +850,7 @@ const COMMAND_HANDLERS = {
       return
     }
     if (args.length > 1) {
-      await reply(env, senderId, `/adduser takes one chat id at a time — ignoring extra argument(s): ${args.slice(1).join(' ')}`)
+      await reply(env, senderId, `/adduser takes exactly one chat id — I didn't add anyone (ignoring extra argument(s): ${args.slice(1).join(' ')}). Send: /adduser <chat_id>`)
       return
     }
     const { added, atCapacity } = await stub.addAllowedUser(id)
@@ -867,17 +867,13 @@ const COMMAND_HANDLERS = {
 
   async removeuser(env, message, gated, args) {
     const { access, senderId, stub } = gated
-    if (!isOwnerOrAdmin(access, senderId)) {
-      await reply(env, senderId, 'This command is only available to the bot owner or a delegated admin.')
-      return
-    }
     const id = args[0]
     if (!id) {
       await reply(env, senderId, 'Usage: /removeuser <chat_id>')
       return
     }
     if (args.length > 1) {
-      await reply(env, senderId, `/removeuser takes one chat id at a time — ignoring extra argument(s): ${args.slice(1).join(' ')}`)
+      await reply(env, senderId, `/removeuser takes exactly one chat id — I didn't remove anyone (ignoring extra argument(s): ${args.slice(1).join(' ')}). Send: /removeuser <chat_id>`)
       return
     }
     if (id === access.ownerChatId) {
@@ -901,18 +897,14 @@ const COMMAND_HANDLERS = {
   // first) so admin status is a promotion, not a backdoor around the
   // allowlist.
   async addadmin(env, message, gated, args) {
-    const { access, senderId, stub } = gated
-    if (senderId !== access.ownerChatId) {
-      await reply(env, senderId, 'This command is only available to the bot owner.')
-      return
-    }
+    const { senderId, stub } = gated
     const id = args[0]
     if (!id) {
       await reply(env, senderId, 'Usage: /addadmin <chat_id>')
       return
     }
     if (args.length > 1) {
-      await reply(env, senderId, `/addadmin takes one chat id at a time — ignoring extra argument(s): ${args.slice(1).join(' ')}`)
+      await reply(env, senderId, `/addadmin takes exactly one chat id — no change made (ignoring extra argument(s): ${args.slice(1).join(' ')}). Send: /addadmin <chat_id>`)
       return
     }
     const { ok, reason } = await stub.addAdmin(id)
@@ -929,18 +921,14 @@ const COMMAND_HANDLERS = {
   },
 
   async removeadmin(env, message, gated, args) {
-    const { access, senderId, stub } = gated
-    if (senderId !== access.ownerChatId) {
-      await reply(env, senderId, 'This command is only available to the bot owner.')
-      return
-    }
+    const { senderId, stub } = gated
     const id = args[0]
     if (!id) {
       await reply(env, senderId, 'Usage: /removeadmin <chat_id>')
       return
     }
     if (args.length > 1) {
-      await reply(env, senderId, `/removeadmin takes one chat id at a time — ignoring extra argument(s): ${args.slice(1).join(' ')}`)
+      await reply(env, senderId, `/removeadmin takes exactly one chat id — no change made (ignoring extra argument(s): ${args.slice(1).join(' ')}). Send: /removeadmin <chat_id>`)
       return
     }
     const { ok } = await stub.removeAdmin(id)
@@ -950,11 +938,7 @@ const COMMAND_HANDLERS = {
   },
 
   async broadcast(env, message, gated, args, rawText) {
-    const { access, senderId, stub } = gated
-    if (!isOwnerOrAdmin(access, senderId)) {
-      await reply(env, senderId, 'This command is only available to the bot owner or a delegated admin.')
-      return
-    }
+    const { senderId, stub } = gated
     // Strip on the trimmed text: the command regex matched on trimmed input, so
     // "  /broadcast hi" would otherwise fail the ^-anchored strip and ship the
     // literal command prefix out to every subscriber (BUG-5).
@@ -980,10 +964,6 @@ const COMMAND_HANDLERS = {
 
   async pending(env, message, gated) {
     const { access, senderId } = gated
-    if (!isOwnerOrAdmin(access, senderId)) {
-      await reply(env, senderId, 'This command is only available to the bot owner or a delegated admin.')
-      return
-    }
     const entries = Object.entries(access.pending)
     if (entries.length === 0) {
       await reply(env, senderId, 'No pending pairing requests.')
@@ -1065,9 +1045,25 @@ async function handleMessage(env, stub, message) {
     return
   }
 
+  // Role gate lives here (data, not a per-handler code block) so a new
+  // privileged command can't accidentally ship ungated: adding it to
+  // COMMAND_ROLES is the single place that grants/withholds access. Checked
+  // before recordCommand so a refused attempt isn't counted as usage.
+  const role = COMMAND_ROLES[cmd]
+  if (role) {
+    const ok = role === 'owner'
+      ? gated.senderId === gated.access.ownerChatId
+      : isOwnerOrAdmin(gated.access, gated.senderId)
+    if (!ok) {
+      await reply(env, gated.senderId, role === 'owner'
+        ? 'This command is only available to the bot owner.'
+        : 'This command is only available to the bot owner or a delegated admin.')
+      return
+    }
+  }
+
   const argStr = m[2]
-  await stub.touchLastSeen(gated.senderId)
-  await stub.bumpCommandCount(cmd)
+  await stub.recordCommand(gated.senderId, cmd)
 
   const args = (argStr ?? '').split(/\s+/).filter(Boolean)
   await handler(env, message, gated, args, text)
