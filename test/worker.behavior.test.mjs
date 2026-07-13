@@ -83,10 +83,10 @@ env.BOT_DO = { idFromName: n => n, get: () => serializedDo }
 
 // ---------- helpers ----------
 const OWNER = '111'
-function resetState({ allowFrom = [OWNER], subscribers = [OWNER], pending = {} } = {}) {
+function resetState({ allowFrom = [OWNER], subscribers = [OWNER], pending = {}, adminIds = [] } = {}) {
   doStorage.map.clear()
   kv.map.clear()
-  doStorage.map.set('access', { dmPolicy: 'allowlist', allowFrom: [...allowFrom], ownerChatId: OWNER, pending: structuredClone(pending) })
+  doStorage.map.set('access', { dmPolicy: 'allowlist', allowFrom: [...allowFrom], ownerChatId: OWNER, adminIds: [...adminIds], pending: structuredClone(pending) })
   doStorage.map.set('subscribers', { subscribers: [...subscribers], owner: OWNER })
   fetchLog = []
   fetchOverride = null
@@ -490,6 +490,100 @@ test('admin commands', async (t) => {
     fetchLog = []
     await send(upd(OWNER, '/pending'))
     assert.ok(sends()[0].body.text.includes('888'))
+  })
+})
+
+// =============== delegated admin roles ===============
+test('delegated admin roles', async (t) => {
+  resetState({ allowFrom: [OWNER, '222', '333'] })
+
+  await t.test('/addadmin owner-only: non-owner refused, non-numeric refused, missing arg refused', async () => {
+    fetchLog = []
+    await send(upd('222', '/addadmin 333'))
+    assert.ok(sends()[0].body.text.includes('only available to the bot owner'))
+    assert.ok(!doStorage.map.get('access').adminIds.includes('333'))
+    fetchLog = []
+    await send(upd(OWNER, '/addadmin'))
+    assert.ok(sends()[0].body.text.includes('Usage'))
+  })
+
+  await t.test('/addadmin requires the target to already be allowlisted', async () => {
+    fetchLog = []
+    await send(upd(OWNER, '/addadmin 999'))
+    assert.ok(sends()[0].body.text.includes("isn't on the allowlist"))
+    assert.ok(!doStorage.map.get('access').adminIds.includes('999'))
+  })
+
+  await t.test("/addadmin refuses to admin the owner (owner already has full access)", async () => {
+    fetchLog = []
+    await send(upd(OWNER, '/addadmin ' + OWNER))
+    assert.ok(sends()[0].body.text.includes("doesn't need admin status"))
+  })
+
+  await t.test('/addadmin promotes an allowlisted user; duplicate promotion reported', async () => {
+    fetchLog = []
+    await send(upd(OWNER, '/addadmin 222'))
+    assert.ok(sends()[0].body.text.includes('now a delegated admin'))
+    assert.ok(doStorage.map.get('access').adminIds.includes('222'))
+    fetchLog = []
+    await send(upd(OWNER, '/addadmin 222'))
+    assert.ok(sends()[0].body.text.includes('already an admin'))
+  })
+
+  await t.test('a delegated admin gets every owner-gated command except /addadmin and /removeadmin', async () => {
+    for (const cmd of ['/admin', '/listusers', '/pending', '/adduser 444', '/removeuser 444', '/broadcast hi']) {
+      fetchLog = []
+      await send(upd('222', cmd))
+      assert.ok(!sends()[0].body.text.includes('only available to the bot owner'), cmd + ' should be admin-accessible')
+    }
+    fetchLog = []
+    await send(upd('222', '/addadmin 333'))
+    assert.ok(sends()[0].body.text.includes('only available to the bot owner') && !sends()[0].body.text.includes('delegated admin'), '/addadmin stays owner-only')
+    fetchLog = []
+    await send(upd('222', '/removeadmin 222'))
+    assert.ok(sends()[0].body.text.includes('only available to the bot owner') && !sends()[0].body.text.includes('delegated admin'), '/removeadmin stays owner-only')
+  })
+
+  await t.test('/listusers and /admin panel surface admin status', async () => {
+    fetchLog = []
+    await send(upd(OWNER, '/listusers'))
+    assert.ok(sends()[0].body.text.includes('222 — [admin]'))
+    fetchLog = []
+    await send(upd(OWNER, '/admin'))
+    assert.ok(sends()[0].body.text.includes('Admins: 1'))
+  })
+
+  await t.test('an admin can approve pending access requests via the callback path', async () => {
+    await send(upd('777', '/start'))
+    fetchLog = []
+    await send(cb('222', 'acc:Y:777'))
+    assert.ok(doStorage.map.get('access').allowFrom.includes('777'), 'admin approval works like owner approval')
+  })
+
+  await t.test('/removeadmin revokes admin status but keeps allowlist access', async () => {
+    fetchLog = []
+    await send(upd(OWNER, '/removeadmin 222'))
+    assert.ok(sends()[0].body.text.includes('no longer an admin'))
+    assert.ok(!doStorage.map.get('access').adminIds.includes('222'))
+    assert.ok(doStorage.map.get('access').allowFrom.includes('222'), 'still allowlisted')
+    fetchLog = []
+    await send(upd('222', '/listusers'))
+    assert.ok(sends()[0].body.text.includes('only available to the bot owner'), 'demoted admin loses owner-gated access')
+  })
+
+  await t.test("/removeadmin on a non-admin reports it wasn't an admin", async () => {
+    fetchLog = []
+    await send(upd(OWNER, '/removeadmin 333'))
+    assert.ok(sends()[0].body.text.includes("wasn't an admin"))
+  })
+
+  await t.test('/removeuser on an admin also revokes their admin status', async () => {
+    await send(upd(OWNER, '/addadmin 222'))
+    fetchLog = []
+    await send(upd(OWNER, '/removeuser 222'))
+    assert.ok(sends()[0].body.text.includes('delegated admin'), 'mentions admin status was revoked too')
+    assert.ok(!doStorage.map.get('access').adminIds.includes('222'))
+    assert.ok(!doStorage.map.get('access').allowFrom.includes('222'))
   })
 })
 

@@ -1,5 +1,7 @@
 # Phase 16 Re-benchmark — Editorial Consistency (5 consecutive daily runs)
 
+> **Historical record.** This was the original run of this mechanism (2026-07-03/07-11). For any future prompt change, use the generalized, reusable version instead: [`rebench-template.md`](rebench-template.md) (`REBENCH` variable, not `PHASE16_BENCH`). Kept here unchanged since past docs/CHANGELOG entries link to it.
+
 **Trigger:** run this before any growth push (raising `MAX_USERS`, public enrollment). Supersedes the single-dry-run Phase 16 in `2026-07-03-final-release-audit.md`, which measured ceiling, not consistency.
 
 **Why 5 runs, not 1:** AUD-1 was a consistency defect — the same prompt produced a 7.5/10 dry-run and a 1-story prod edition the same evening. A subscriber judges the product by its worst day, so the benchmark scores the *floor*, not the best sample. One good run proves nothing.

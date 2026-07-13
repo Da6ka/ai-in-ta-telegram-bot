@@ -2,6 +2,32 @@
 
 ## [Unreleased]
 
+### Addressed four open items from the design doc's limitations section
+
+- **Delegated admin roles.** `/addadmin <id>` / `/removeadmin <id>` (owner-only,
+  target must already be allowlisted) let the owner grant/revoke admin
+  status. Admins get every owner-gated command (`/admin`, `/listusers`,
+  `/adduser`, `/removeuser`, `/broadcast`, `/pending`, approve/deny
+  callbacks) except managing admins themselves. Removing a user via
+  `/removeuser` also revokes their admin status if they had it.
+- **Corrected a doc inaccuracy, not a code gap.** The design doc claimed the
+  30-user cap (`MAX_USERS`) wasn't enforced in code. On inspection it already
+  was -- atomically in `BotState.addAllowedUser`, plus independently in
+  `/start` and the callback-approval path -- and already covered by a test
+  ("capacity cap holds"). No code change; corrected the doc.
+- **Added `actionlint` to CI** (`.github/workflows/ci.yml`) to catch
+  YAML/schema errors and shellcheck-level issues in workflow `run:` blocks,
+  closing part of the "no automated coverage for the GitHub Actions
+  workflows" gap. Execution-path testing of a full workflow run stays
+  manual -- not worth chasing at this scale.
+- **Generalized the Phase 16 re-benchmark mechanism** into a reusable one:
+  `docs/qa/rebench-template.md` (was hardcoded to a single past change, named
+  `PHASE16_BENCH`/"Phase 16 re-benchmark"). Renamed the trigger variable to
+  `REBENCH` and the tracking issue to "Prompt re-benchmark — 5-run log" so it
+  can be run after any future prompt change, not just growth pushes. The
+  original `docs/qa/phase16-rebench-template.md` is kept as a historical
+  record and now points to the new one.
+
 ### Added a system design doc
 
 `docs/design.md` documents the deployed architecture as a reference for

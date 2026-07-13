@@ -73,7 +73,7 @@ Every item is sourced (clickable, dated, no bare URLs), never repeats a domain, 
 | `/mydata` | See everything stored about you |
 | `/forgetme` | Erase all your data from the bot |
 
-**Owner-only**
+**Owner and delegated admins**
 
 | Command | What it does |
 | --- | --- |
@@ -82,6 +82,13 @@ Every item is sourced (clickable, dated, no bare URLs), never repeats a domain, 
 | `/adduser` · `/removeuser` | Add or remove someone directly |
 | `/listusers` | List everyone the bot knows |
 | `/broadcast` | Send a one-off message to every subscriber |
+
+**Owner-only**
+
+| Command | What it does |
+| --- | --- |
+| `/addadmin <id>` | Delegate admin (target must already be allowlisted) |
+| `/removeadmin <id>` | Revoke a user's admin status (keeps their allowlist access) |
 
 > Free-form chat with Claude and group chats are **not** supported — this bot is briefing delivery only.
 

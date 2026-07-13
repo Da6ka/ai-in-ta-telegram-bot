@@ -75,7 +75,7 @@ const PRIVACY_TEXT =
   "- /forgetme — erase all your data from the bot\n\n" +
   "Questions? Contact the bot owner."
 
-const DEFAULT_ACCESS = { dmPolicy: 'allowlist', allowFrom: [], ownerChatId: '', pending: {} }
+const DEFAULT_ACCESS = { dmPolicy: 'allowlist', allowFrom: [], ownerChatId: '', adminIds: [], pending: {} }
 const DEFAULT_SUBSCRIBERS = { subscribers: [], owner: '' }
 const DEFAULT_USAGE = {
   briefings_sent: 0,
@@ -133,6 +133,32 @@ export class BotState extends DurableObject {
     return { access, added: true, atCapacity: false }
   }
 
+  // Delegated admin roles: an adminId gets the same command permissions as
+  // the owner (see isOwnerOrAdmin below), except managing admins themselves
+  // -- only the true owner can promote/revoke, so an admin can't grant
+  // themselves further privilege or lock the owner out. Promotion requires
+  // the id to already be on the allowlist (an admin is a trusted existing
+  // user, not a shortcut around /adduser).
+  async addAdmin(id) {
+    const access = await this.getAccess()
+    if (!access.adminIds) access.adminIds = []
+    if (id === access.ownerChatId) return { access, ok: false, reason: 'already_owner' }
+    if (!access.allowFrom.includes(id)) return { access, ok: false, reason: 'not_allowed' }
+    if (access.adminIds.includes(id)) return { access, ok: false, reason: 'already_admin' }
+    access.adminIds.push(id)
+    await this.ctx.storage.put('access', access)
+    return { access, ok: true }
+  }
+
+  async removeAdmin(id) {
+    const access = await this.getAccess()
+    if (!access.adminIds) access.adminIds = []
+    if (!access.adminIds.includes(id)) return { access, ok: false }
+    access.adminIds = access.adminIds.filter(x => x !== id)
+    await this.ctx.storage.put('access', access)
+    return { access, ok: true }
+  }
+
   // Full erasure of one user's identifying state (right to be forgotten):
   // allowlist entry, subscription, and any pending request. The per-user
   // last_seen log lives in KV, so the Worker purges that separately.
@@ -140,7 +166,9 @@ export class BotState extends DurableObject {
     const access = await this.getAccess()
     const wasAllowed = access.allowFrom.includes(id)
     const wasPending = Boolean(access.pending[id])
+    const wasAdmin = Boolean(access.adminIds && access.adminIds.includes(id))
     access.allowFrom = access.allowFrom.filter(x => x !== id)
+    if (access.adminIds) access.adminIds = access.adminIds.filter(x => x !== id)
     delete access.pending[id]
     const subs = await this.getSubscribers()
     const wasSubscribed = subs.subscribers.includes(id)
@@ -154,7 +182,7 @@ export class BotState extends DurableObject {
     await this.mirrorSubscribers(subs)
     await this.ctx.storage.put('access', access)
     await this.ctx.storage.put('subscribers', subs)
-    return { wasAllowed, wasPending, wasSubscribed }
+    return { wasAllowed, wasPending, wasSubscribed, wasAdmin }
   }
 
   async addPending(id, info) {
@@ -371,6 +399,14 @@ async function sendHtml(env, chatId, html) {
 
 function todayUTC() {
   return new Date().toISOString().slice(0, 10)
+}
+
+// Delegated admin roles: an admin gets every owner-gated command except
+// managing admins (addadmin/removeadmin) and the handful of protections
+// tied specifically to the singleton owner (can't be removed, can't
+// unsubscribe/erase themselves) -- those stay keyed to ownerChatId alone.
+function isOwnerOrAdmin(access, id) {
+  return id === access.ownerChatId || Boolean(access.adminIds && access.adminIds.includes(id))
 }
 
 // bumpCommandCount/touchLastSeen/purgeUsageStats now live as BotState DO
@@ -650,8 +686,8 @@ const COMMAND_HANDLERS = {
 
   async admin(env, message, gated) {
     const { access, senderId, stub } = gated
-    if (senderId !== access.ownerChatId) {
-      await reply(env, senderId, 'This command is only available to the bot owner.')
+    if (!isOwnerOrAdmin(access, senderId)) {
+      await reply(env, senderId, 'This command is only available to the bot owner or a delegated admin.')
       return
     }
     const subs = await stub.getSubscribers()
@@ -662,6 +698,7 @@ const COMMAND_HANDLERS = {
       `Users\n` +
       `- Allowlisted: ${access.allowFrom.length}\n` +
       `- Subscribed: ${subs.subscribers.length}\n` +
+      `- Admins: ${(access.adminIds ?? []).length}\n` +
       `- Pending pairings: ${Object.keys(access.pending).length}\n\n` +
       `Briefings\n` +
       `- Total sent: ${stats.briefings_sent}\n` +
@@ -676,19 +713,21 @@ const COMMAND_HANDLERS = {
       `- /removeuser: ${c.removeuser ?? 0}\n` +
       `- /listusers: ${c.listusers ?? 0}\n` +
       `- /pending: ${c.pending ?? 0}\n\n` +
-      `Use /listusers, /pending, /adduser <id>, /removeuser <id>, /broadcast <msg>`)
+      `Use /listusers, /pending, /adduser <id>, /removeuser <id>, /broadcast <msg>\n` +
+      `Owner only: /addadmin <id>, /removeadmin <id>`)
   },
 
   async listusers(env, message, gated) {
     const { access, senderId, stub } = gated
-    if (senderId !== access.ownerChatId) {
-      await reply(env, senderId, 'This command is only available to the bot owner.')
+    if (!isOwnerOrAdmin(access, senderId)) {
+      await reply(env, senderId, 'This command is only available to the bot owner or a delegated admin.')
       return
     }
     const subs = await stub.getSubscribers()
     const lines = access.allowFrom.map(id => {
       const tags = []
       if (id === access.ownerChatId) tags.push('[owner]')
+      if ((access.adminIds ?? []).includes(id)) tags.push('[admin]')
       if (subs.subscribers.includes(id)) tags.push('[subscribed]')
       if (tags.length === 0) tags.push('[allowed]')
       return `${id} — ${tags.join('')}`
@@ -699,8 +738,8 @@ const COMMAND_HANDLERS = {
 
   async adduser(env, message, gated, args) {
     const { access, senderId, stub } = gated
-    if (senderId !== access.ownerChatId) {
-      await reply(env, senderId, 'This command is only available to the bot owner.')
+    if (!isOwnerOrAdmin(access, senderId)) {
+      await reply(env, senderId, 'This command is only available to the bot owner or a delegated admin.')
       return
     }
     const id = args[0]
@@ -730,8 +769,8 @@ const COMMAND_HANDLERS = {
 
   async removeuser(env, message, gated, args) {
     const { access, senderId, stub } = gated
-    if (senderId !== access.ownerChatId) {
-      await reply(env, senderId, 'This command is only available to the bot owner.')
+    if (!isOwnerOrAdmin(access, senderId)) {
+      await reply(env, senderId, 'This command is only available to the bot owner or a delegated admin.')
       return
     }
     const id = args[0]
@@ -753,13 +792,69 @@ const COMMAND_HANDLERS = {
       await reply(env, senderId, `User <code>${escapeHtml(id)}</code> not found.`, { parse_mode: 'HTML' })
       return
     }
-    await reply(env, senderId, `User <code>${escapeHtml(id)}</code> removed and all their data erased (allowlist, subscription, pending request, activity log).`, { parse_mode: 'HTML' })
+    const adminNote = r.wasAdmin ? ' They were also a delegated admin — that status is revoked too.' : ''
+    await reply(env, senderId, `User <code>${escapeHtml(id)}</code> removed and all their data erased (allowlist, subscription, pending request, activity log).${adminNote}`, { parse_mode: 'HTML' })
+  },
+
+  // Delegating admin is owner-only (not admin-gated like the other admin
+  // commands) -- an admin promoting peers or demoting the owner's other
+  // admins would erode the point of keeping this one decision with the
+  // owner. Requires the target to already be an approved user (/adduser
+  // first) so admin status is a promotion, not a backdoor around the
+  // allowlist.
+  async addadmin(env, message, gated, args) {
+    const { access, senderId, stub } = gated
+    if (senderId !== access.ownerChatId) {
+      await reply(env, senderId, 'This command is only available to the bot owner.')
+      return
+    }
+    const id = args[0]
+    if (!id) {
+      await reply(env, senderId, 'Usage: /addadmin <chat_id>')
+      return
+    }
+    if (args.length > 1) {
+      await reply(env, senderId, `/addadmin takes one chat id at a time — ignoring extra argument(s): ${args.slice(1).join(' ')}`)
+      return
+    }
+    const { ok, reason } = await stub.addAdmin(id)
+    if (!ok) {
+      const msg = {
+        already_owner: "The owner doesn't need admin status — already has full access.",
+        not_allowed: `User <code>${escapeHtml(id)}</code> isn't on the allowlist yet — /adduser them first.`,
+        already_admin: `User <code>${escapeHtml(id)}</code> is already an admin.`,
+      }[reason] ?? `Couldn't add <code>${escapeHtml(id)}</code> as admin.`
+      await reply(env, senderId, msg, { parse_mode: 'HTML' })
+      return
+    }
+    await reply(env, senderId, `User <code>${escapeHtml(id)}</code> is now a delegated admin — they can use every owner-gated command except /addadmin and /removeadmin.`, { parse_mode: 'HTML' })
+  },
+
+  async removeadmin(env, message, gated, args) {
+    const { access, senderId, stub } = gated
+    if (senderId !== access.ownerChatId) {
+      await reply(env, senderId, 'This command is only available to the bot owner.')
+      return
+    }
+    const id = args[0]
+    if (!id) {
+      await reply(env, senderId, 'Usage: /removeadmin <chat_id>')
+      return
+    }
+    if (args.length > 1) {
+      await reply(env, senderId, `/removeadmin takes one chat id at a time — ignoring extra argument(s): ${args.slice(1).join(' ')}`)
+      return
+    }
+    const { ok } = await stub.removeAdmin(id)
+    await reply(env, senderId, ok
+      ? `User <code>${escapeHtml(id)}</code> is no longer an admin. They keep regular allowlist access.`
+      : `User <code>${escapeHtml(id)}</code> wasn't an admin.`, { parse_mode: 'HTML' })
   },
 
   async broadcast(env, message, gated, args, rawText) {
     const { access, senderId, stub } = gated
-    if (senderId !== access.ownerChatId) {
-      await reply(env, senderId, 'This command is only available to the bot owner.')
+    if (!isOwnerOrAdmin(access, senderId)) {
+      await reply(env, senderId, 'This command is only available to the bot owner or a delegated admin.')
       return
     }
     // Strip on the trimmed text: the command regex matched on trimmed input, so
@@ -787,8 +882,8 @@ const COMMAND_HANDLERS = {
 
   async pending(env, message, gated) {
     const { access, senderId } = gated
-    if (senderId !== access.ownerChatId) {
-      await reply(env, senderId, 'This command is only available to the bot owner.')
+    if (!isOwnerOrAdmin(access, senderId)) {
+      await reply(env, senderId, 'This command is only available to the bot owner or a delegated admin.')
       return
     }
     const entries = Object.entries(access.pending)
@@ -811,7 +906,7 @@ async function handleCallbackQuery(env, stub, callbackQuery) {
   }
   const access = await stub.getAccess()
   const senderId = String(callbackQuery.from.id)
-  if (!access.ownerChatId || senderId !== access.ownerChatId) {
+  if (!isOwnerOrAdmin(access, senderId)) {
     await tg(env, 'answerCallbackQuery', { callback_query_id: callbackQuery.id, text: 'Not authorized.' })
     return
   }

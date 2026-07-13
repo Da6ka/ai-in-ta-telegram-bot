@@ -185,12 +185,17 @@ Command reference
 | `/subscribe`, `/unsubscribe`                                  | Worker               | Mutates `subscribers` in the DO                   |
 | `/status`, `/help`                                            | Worker               | Read-only                                         |
 | `/privacy`, `/mydata`, `/forgetme`                            | Worker               | Data-subject rights over DO-held data             |
-| `/admin`, `/pending`, `/adduser`, `/removeuser`, `/listusers` | Worker (owner-gated) | Reads/mutates the DO's allowlist                  |
-| `/broadcast`                                                  | Worker → Actions     | Owner-gated; see Broadcast flow above             |
+| `/admin`, `/pending`, `/adduser`, `/removeuser`, `/listusers` | Worker (owner or admin) | Reads/mutates the DO's allowlist               |
+| `/broadcast`                                                  | Worker → Actions        | Owner or admin; see Broadcast flow above       |
+| `/addadmin`, `/removeadmin`                                   | Worker (owner-only)     | Delegates/revokes admin; target must already be allowlisted |
 
-Owner-only commands are gated by comparing the sender's Telegram id against
-the single hardcoded/DO-stored owner id — there is no role system beyond
-owner vs. everyone-else.
+Owner-gated commands are gated by `isOwnerOrAdmin()`: the sender's Telegram
+id matches `access.ownerChatId`, or is in `access.adminIds`. Managing admins
+themselves (`/addadmin`/`/removeadmin`) stays keyed to `ownerChatId` alone —
+an admin can't grant themselves further privilege or demote another admin.
+Protections tied specifically to the singleton owner (can't be removed via
+`/removeuser`, can't unsubscribe or erase their own data) are unaffected —
+those still check `ownerChatId` directly, not admin status.
 
 ---
 
@@ -275,21 +280,44 @@ Reliability
 Current limitations / open items
 ---
 
-- Single operator, single owner id — no delegated admin roles.
-- 30-user cap is a design assumption, not an enforced limit anywhere
-  specific to check if it's still just a comment vs. code-enforced.
+- ~~Single operator, single owner id — no delegated admin roles.~~ Resolved:
+  the owner can now delegate via `/addadmin <id>` / `/removeadmin <id>`
+  (owner-only, requires the target already be allowlisted). Delegated admins
+  get every owner-gated command (`/admin`, `/listusers`, `/adduser`,
+  `/removeuser`, `/broadcast`, `/pending`, approve/deny callbacks) except
+  managing admins themselves — that stays owner-only so an admin can't grant
+  themselves further privilege. Removing a user via `/removeuser` (or their
+  own `/forgetme`) also revokes admin status.
+- ~~30-user cap is a design assumption, not an enforced limit.~~ Corrected on
+  investigation: it **is** code-enforced (`MAX_USERS` in
+  `worker/src/index.js`), checked atomically in `BotState.addAllowedUser` (so
+  two concurrent approvals can't both slip past it), and independently in the
+  `/start` and callback-approval paths so a full bot never queues a request
+  it can't fulfil. Covered by a dedicated test
+  (`test/worker.behavior.test.mjs`, "capacity cap holds"). The earlier
+  "not enforced anywhere" claim in this doc was wrong — filed here as a
+  correction, not a re-opened item.
 - Real user base is now 12 allowlisted accounts (4 subscribed) — past the
   single-user testing phase this bot started in, and approaching the 30-user
   cap closely enough that the cap and the admin tooling (`/pending`,
   `/adduser`, `/listusers`) are worth actually exercising rather than treating
   as speculative.
-- No automated test coverage for the GitHub Actions workflows themselves
-  (only `worker/` and `shared/` have `test/`), so workflow YAML changes are
-  currently manually verified.
+- ~~No automated test coverage for the GitHub Actions workflows.~~ Partially
+  resolved: CI now runs `actionlint` against every workflow file
+  (`.github/workflows/ci.yml`), which catches YAML/schema errors, unknown
+  context references, and shellcheck-level issues in `run:` blocks. What it
+  doesn't cover — actual execution-path testing of a workflow run — remains
+  manually verified; that gap is inherent to GitHub Actions and not worth
+  chasing at this scale (the meaningful logic already lives in `.mjs` scripts
+  with their own unit tests).
 - Briefing quality/editorial rules live in prose (`briefing-prompt.md`,
-  `briefing-prompt-ondemand.md`) rather than structured config — changing
-  tone or source rules means editing prompt text and re-validating by eye
-  (see `docs/qa/` for the process used through phases 9–16).
+  `briefing-prompt-ondemand.md`) rather than structured config — that's
+  inherent to steering an LLM, not a gap to close. What *was* a gap: the
+  re-validation process was named and wired for one specific past change
+  ("Phase 16"). Generalized into a reusable mechanism
+  (`docs/qa/rebench-template.md`, `REBENCH` repo variable) — run it after any
+  future prompt change, not just growth pushes. The original Phase 16 file
+  is kept as a historical record and points to the new one.
 
 ---
 
