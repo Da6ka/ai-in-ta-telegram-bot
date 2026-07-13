@@ -1,9 +1,19 @@
 name: Daily AI-in-TA Briefing
 
 on:
+  # Primary trigger is the Cloudflare Worker's Cron Trigger (worker/wrangler.toml
+  # + worker/src/index.js's `scheduled` handler), which fires a
+  # 'daily-briefing-trigger' repository_dispatch at 09:05 UTC. GitHub's own
+  # `schedule` trigger below is kept as a redundant backup -- it has proven to
+  # fire 1-4h late or not at all for this workflow (issue #17), which is why
+  # it can no longer be relied on alone. The idempotency check right below
+  # makes it safe for both (plus the watchdog's fallback dispatch) to fire on
+  # the same day.
   schedule:
     # 09:00 UTC == 12:00 MSK, matching the local launchd job it replaces
     - cron: "0 9 * * *"
+  repository_dispatch:
+    types: [daily-briefing-trigger]
   workflow_dispatch: {}
 
 permissions:

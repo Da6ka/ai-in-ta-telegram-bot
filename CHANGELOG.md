@@ -2,6 +2,29 @@
 
 ## [Unreleased]
 
+### Added a Cloudflare Cron Trigger as the primary daily-briefing trigger (issue #17)
+
+GitHub Actions' `schedule` trigger for `daily-briefing.yml` (09:00 UTC) has
+proven unreliable in practice: measured across every scheduled run from
+2026-07-02 through 2026-07-13, actual fire time was 1h15m-3h49m late every
+single time it fired at all, and it silently skipped firing entirely on
+2026-07-08, 07-09, and 07-10. The watchdog (`daily-briefing-watchdog.yml`,
+added after #17) has the identical failure mode -- also late 1-3.6h and also
+silently skipped several of the same days -- since it relies on the same
+`schedule` event. This matches GitHub's documented behavior: `schedule`
+events are best-effort and specifically degrade under load at the top of
+the hour.
+
+The Worker already had a proven `repository_dispatch` path (`dispatchEvent`,
+used by `/newbriefing` and `/broadcast`), so it gets a `scheduled` handler
+that fires a `daily-briefing-trigger` dispatch, driven by a new Cloudflare
+Cron Trigger (`worker/wrangler.toml`, 09:05 UTC -- Cloudflare's cron isn't
+subject to GitHub's congestion). `daily-briefing.yml` now also listens for
+`repository_dispatch: types: [daily-briefing-trigger]`. GitHub's own
+`schedule` trigger and the watchdog's fallback dispatch stay in place as
+redundant backups; the workflow's existing `last_briefing_at` idempotency
+check makes it safe for more than one of the three to fire on the same day.
+
 ### Pinned briefing generation to Sonnet, then reverted back to Opus same day
 
 `claude -p` calls in `daily-briefing.yml` and `on-demand-briefing.yml` never
