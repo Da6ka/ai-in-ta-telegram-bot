@@ -2,6 +2,29 @@
 
 ## [Unreleased]
 
+### Fixed corrupted YAML in `daily-briefing.yml`
+
+Two manual edits (`af1c8d0`, `ae65632`) had dropped the newline between three
+steps' `if:` line and the following `env:`/`run:` key, merging them onto one
+physical line (e.g. `if: ... == 'true'        env:`). That's invalid YAML --
+every trigger of this workflow (cron, `daily-briefing-trigger` dispatch,
+manual) failed before a single step could run, and CI's `actionlint` step
+caught it on every subsequent push/PR. Restored the newlines/indentation only;
+the conditions themselves (including the `steps.send.outcome == 'success'`
+guard on "Record covered stories") are unchanged. Verified with `actionlint`
+and a plain YAML parse.
+
+### Capped `access.pending` independent of `MAX_USERS` (PR #48)
+
+`MAX_USERS` only refuses new `/start` requests once the allowlist itself is
+full -- it does nothing while `allowFrom` is nowhere near capacity. Since the
+bot is publicly discoverable on Telegram, a flood of `/start` from distinct
+senders could grow `access.pending` in the `BotState` DO without bound and
+send the owner one "New access request" notification per sender, with no rate
+limit. Added `MAX_PENDING` (50), enforced atomically inside `addPending` (same
+check-then-write-in-one-DO-call pattern as `addAllowedUser`), so a flood past
+the cap is refused before it's added to `pending` or notifies the owner.
+
 ### Added a technical specification doc (`docs/technical-spec.md`)
 
 An interface/requirements-level companion to `docs/design.md`: scope and
