@@ -8,15 +8,12 @@ A Telegram bot that sends a **daily briefing on AI in recruitment** — the late
 Subscribers tap `/subscribe` and get the briefing every morning at **09:00 UTC / 12:00 MSK**. No app to install, no laptop to keep awake — everything runs on GitHub Actions and a Cloudflare Worker.
 
 <p align="center">
-  <a href="https://claude.ai/code/artifact/3b2509f2-62c4-4f40-9cd9-ebc0daa5b20c">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="docs/assets/spec-preview-dark.png">
-      <img alt="Technical specification — visual overview: architecture, command contract, limits, reliability" src="docs/assets/spec-preview-light.png" width="820">
-    </picture>
+  <a href="https://github.com/Da6ka/ai-in-ta-telegram-bot/blob/main/docs/AI-in-TA-Technical-Specification.pdf">
+    <img src="https://github.com/Da6ka/ai-in-ta-telegram-bot/raw/main/docs/assets/spec-preview-light.png" alt="Technical specification cover — architecture, command contract, limits, reliability" width="820">
   </a>
 </p>
 
-> 📡 **[Technical specification (visual overview)](https://claude.ai/code/artifact/3b2509f2-62c4-4f40-9cd9-ebc0daa5b20c)** (no public access) — architecture, command contract, limits, and reliability at a glance. Full docs: [`docs/technical-spec.md`](docs/technical-spec.md) and [`docs/design.md`](docs/design.md).
+> 📡 **[Full Technical Specification PDF](https://github.com/Da6ka/ai-in-ta-telegram-bot/blob/main/docs/AI-in-TA-Technical-Specification.pdf)** — architecture, command contract, limits, and reliability at a glance. Also available as Markdown: [`docs/technical-spec.md`](docs/technical-spec.md) and [`docs/design.md`](docs/design.md).
 
 ---
 
