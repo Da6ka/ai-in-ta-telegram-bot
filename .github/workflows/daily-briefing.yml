@@ -169,7 +169,8 @@ jobs:
       # last_briefing_at, or the idempotency check would mark the day as
       # done and block every retry while subscribers got nothing.
       - name: Update usage stats
-if: steps.idempotency.outputs.should_run == 'true' && steps.freshness.outputs.ok == 'true'        env:
+        if: steps.idempotency.outputs.should_run == 'true' && steps.freshness.outputs.ok == 'true'
+        env:
           RECIPIENT_COUNT: ${{ steps.send.outputs.recipient_count }}
         run: node scripts/update-usage-stats.mjs
 
@@ -179,10 +180,12 @@ if: steps.idempotency.outputs.should_run == 'true' && steps.freshness.outputs.ok
       # RECENT_STORIES_WINDOW_DAYS). Gated the same as usage stats: only a
       # sent, content-passing edition should count as "covered".
       - name: Record covered stories
-if: steps.idempotency.outputs.should_run == 'true' && steps.freshness.outputs.ok == 'true' && steps.send.outcome == 'success'        run: node scripts/update-recent-stories.mjs
+        if: steps.idempotency.outputs.should_run == 'true' && steps.freshness.outputs.ok == 'true' && steps.send.outcome == 'success'
+        run: node scripts/update-recent-stories.mjs
 
       - name: Sync to Cloudflare KV
-if: steps.idempotency.outputs.should_run == 'true' && steps.freshness.outputs.ok == 'true'        env:
+        if: steps.idempotency.outputs.should_run == 'true' && steps.freshness.outputs.ok == 'true'
+        env:
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           CF_KV_NAMESPACE_ID: ${{ secrets.CF_KV_NAMESPACE_ID }}
