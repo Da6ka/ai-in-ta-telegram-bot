@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### Added a technical specification doc (`docs/technical-spec.md`)
+
+An interface/requirements-level companion to `docs/design.md`: scope and
+non-goals, the full command contract with authorization invariants, the
+`BotState` DO / KV / git-`state` data model, hard limits (`MAX_USERS`,
+dispatch cooldown/cap, per-run LLM budget), NFRs, the three-layer daily
+trigger, secrets/config, environments, and the test strategy. Where
+`design.md` explains *why* the system is shaped the way it is, this specifies
+*what* it must do so an implementation can be checked against it. Grounded in
+the current code (v1.4.0); the two docs cross-link at the top.
+
 ### Pinned actionlint to a checksum-verified release in CI (PR #46)
 
 The lint step in `.github/workflows/ci.yml` fetched the actionlint installer
