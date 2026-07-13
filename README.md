@@ -28,7 +28,7 @@ Subscribers tap `/subscribe` and get the briefing every morning at **09:00 UTC /
 - 📰 **Daily briefing** — every morning, Claude searches the web for what's new in AI-for-recruitment, writes a concise briefing, and sends it to every subscriber.
 - 🤖 **On-demand** — subscribers can pull a fresh or cached briefing any time with a command, no waiting for the morning run.
 - 📣 **Owner tools** — broadcast a message to everyone, manage the subscriber list, check who's on it.
-- 🔒 **Runs itself** — GitHub Actions handles the schedule and the heavy lifting; a Cloudflare Worker handles live commands. Nothing depends on a personal machine being online.
+- 🔒 **Runs itself** — a Cloudflare Worker kicks off the daily run (Cron Trigger) and handles live commands; GitHub Actions does the heavy lifting (research, generation, delivery) and doubles as a scheduling backup. Nothing depends on a personal machine being online.
 
 This is a **private, allowlist-gated bot** (single operator, capped at 30 users). New people tap `/start` to request access; the owner approves them. There's **no hand-maintained recipient list** — once in, whoever taps `/subscribe` gets the daily briefing and `/unsubscribe` stops it. The subscriber list lives in Durable Object storage, mirrored to Cloudflare KV and read fresh at send time.
 
@@ -88,24 +88,26 @@ Every item is sourced (clickable, dated, no bare URLs), never repeats a domain, 
 ## How it works
 
 ```
-GitHub Actions (schedule)          Cloudflare Worker (webhook)
-   │                                   │
-   │ 1. claude -p reads                │ receives Telegram commands
-   │    briefing-prompt.md,            │ 24/7, independent of any
-   │    searches web, writes           │ local machine
-   │    state/today_briefing.md        │
-   │                                   │ /newbriefing, /broadcast →
-   │ 2. send-briefing.mjs sends        │ dispatches back to Actions
-   │    to every subscriber            │
-   │                                   │ /briefing → serves cached
-   │ 3. commits state/ back to repo    │ copy straight from KV
-   ▼                                   ▼
-        Telegram subscribers  ◀────────
+Cloudflare Worker                            GitHub Actions
+   │                                             │
+   │ Cron Trigger (09:05 UTC) ───dispatch───────▶│ 1. claude -p reads
+   │                                             │    briefing-prompt.md,
+   │ webhook: receives Telegram commands         │    searches web, writes
+   │ 24/7, independent of any local machine      │    state/today_briefing.md
+   │                                             │
+   │ /newbriefing, /broadcast ───dispatch───────▶│ 2. send-briefing.mjs sends
+   │                                             │    to every subscriber
+   │ /briefing → serves cached                   │
+   │   copy straight from KV                     │ 3. commits state/ back to repo
+   ▼                                             ▼
+        Telegram subscribers  ◀──────────────────
 ```
 
 **The daily run:**
 
-1. `briefing-prompt.md` is handed to `claude -p`, which searches the web, composes the briefing, and writes it to `state/today_briefing.md` (plus `state/usage_stats.json` for an idempotency check, in case the workflow is also triggered manually the same day).
+`daily-briefing.yml` has three independent triggers, so no single point of failure decides whether the day's briefing goes out: the Cloudflare Worker's Cron Trigger (09:05 UTC — `worker/wrangler.toml` + the `scheduled` handler in `worker/src/index.js`) fires a `repository_dispatch`; GitHub Actions' own `schedule` trigger (09:00 UTC) fires independently as a backup — on its own it has proven to run 1-4h late or skip a day entirely; and `daily-briefing-watchdog.yml` kicks off a fallback run if neither has advanced `state/usage_stats.json`'s `last_briefing_at` by 10:30 UTC. All three are safe to land on the same day — the workflow's own idempotency check means only the first one to actually run does the work.
+
+1. `briefing-prompt.md` is handed to `claude -p`, which searches the web, composes the briefing, and writes it to `state/today_briefing.md` (plus `state/usage_stats.json` for the idempotency check above).
 2. `scripts/send-briefing.mjs` sends the result to every subscriber in the bot's live list (the `subscribers` KV key).
 3. The workflow commits the updated `state/` files back to the repo.
 
