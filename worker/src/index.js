@@ -881,6 +881,15 @@ async function handleMessage(env, stub, message) {
 }
 
 export default {
+  // Cloudflare Cron Trigger (see wrangler.toml's [triggers]) — a reliable
+  // replacement for GitHub Actions' own `schedule` trigger, which has proven
+  // to fire 1-4h late or not at all for daily-briefing.yml (issue #17).
+  // daily-briefing.yml's last_briefing_at idempotency check makes this safe
+  // to race with (or duplicate) GitHub's own schedule/watchdog firing.
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(dispatchEvent(env, 'daily-briefing-trigger', {}))
+  },
+
   async fetch(request, env) {
     if (request.method !== 'POST') return new Response('ok')
     const secret = request.headers.get('X-Telegram-Bot-Api-Secret-Token')

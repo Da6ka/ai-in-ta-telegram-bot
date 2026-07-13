@@ -744,3 +744,18 @@ test('Telegram API failure injection', async (t) => {
     }
   })
 })
+
+// =============== Cloudflare Cron Trigger ===============
+test('scheduled cron trigger', async (t) => {
+  resetState()
+  await t.test('fires a daily-briefing-trigger repository_dispatch', async () => {
+    fetchLog = []
+    const waited = []
+    const ctx = { waitUntil: (p) => waited.push(p) }
+    await worker.default.scheduled({}, env, ctx)
+    await Promise.all(waited)
+    const d = ghDispatches()
+    assert.equal(d.length, 1, 'one dispatch fired')
+    assert.equal(d[0].body.event_type, 'daily-briefing-trigger')
+  })
+})

@@ -23,6 +23,15 @@ new_sqlite_classes = ["BotState"]
 [vars]
 GITHUB_REPO = "Da6ka/ai-in-ta-telegram-bot"
 
+# Fires the Worker's `scheduled` handler, which dispatches a
+# 'daily-briefing-trigger' repository_dispatch to kick off daily-briefing.yml.
+# Primary trigger for that workflow — see worker/src/index.js and issue #17
+# (GitHub Actions' own `schedule` trigger runs 1-4h late or not at all).
+# Minute offset (not :00) avoids GitHub's documented top-of-hour congestion
+# for the schedule trigger that still runs alongside this as a backup.
+[triggers]
+crons = ["5 9 * * *"]
+
 # --- Staging deployment -------------------------------------------------------
 # A separate Worker + separate bot for dry-running command changes before they
 # touch the live webhook. Deploy with:  npx wrangler deploy --env staging
