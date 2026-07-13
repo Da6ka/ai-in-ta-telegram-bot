@@ -7,6 +7,8 @@ A Telegram bot that sends a **daily briefing on AI in recruitment** — the late
 
 Subscribers tap `/subscribe` and get the briefing every morning at **09:00 UTC / 12:00 MSK**. No app to install, no laptop to keep awake — everything runs on GitHub Actions and a Cloudflare Worker.
 
+> 📡 **[Technical specification (visual overview)](https://claude.ai/code/artifact/3b2509f2-62c4-4f40-9cd9-ebc0daa5b20c)** — architecture, command contract, limits, and reliability at a glance. Full docs: [`docs/technical-spec.md`](docs/technical-spec.md) and [`docs/design.md`](docs/design.md).
+
 ---
 
 ## Contents
