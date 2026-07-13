@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+### External briefing heartbeat (Cloudflare-side)
+
+Added a second Worker cron (12:00 UTC) that alerts the owner via Telegram if a
+day's briefing never landed. Every prior guard runs *inside* GitHub Actions --
+the workflow's own retries and the 10:30 UTC watchdog -- so all are blind to the
+failure mode that took the briefing down Jul 8-10 2026: an account-wide Actions
+block (billing hold / outage) makes every run `startup_failure` before a step
+executes, watchdog included. `briefingHeartbeat` runs on Cloudflare, independent
+of GitHub, reads `today_briefing_date` from KV (written only by a successful
+generation), and pings the owner if it isn't today's. Requires `wrangler deploy`
+to register the new cron. Covered by 3 unit tests.
+
 ### Strip model preamble before the briefing title
 
 `briefing-prompt.md` forbids preamble ("Output ONLY the composed briefing

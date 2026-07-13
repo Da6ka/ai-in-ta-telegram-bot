@@ -51,6 +51,12 @@ const DAILY_DISPATCH_CAP = 3
 // 09:00 daily), nothing is generating — say so instead of claiming it is.
 const GENERATION_IN_FLIGHT_MIN = 10
 
+// The Worker's second cron trigger (worker/wrangler.toml) is an external
+// heartbeat, fired ~3h after the 09:05 daily dispatch -- long past generation
+// (~10 min) and the 10:30 GitHub watchdog -- so a healthy day has always synced
+// today_briefing_date to KV by the time it runs. See briefingHeartbeat.
+const HEARTBEAT_CRON = '0 12 * * *'
+
 // Capacity cap for the current private, single-operator deployment. The daily
 // send stays comfortably under Telegram's rate limit at this size, and (on the
 // Workers free plan) /broadcast is subrequest-capped around here too. The
@@ -598,6 +604,31 @@ async function requestGeneration(env, stub, senderId, generatingMsg, isOwner = f
   }
 }
 
+// External heartbeat: alert the owner when a whole day's briefing never lands.
+// Every in-Actions guard (the workflow's own retries, the 10:30 UTC watchdog) is
+// useless when GitHub Actions is blocked account-wide -- a billing hold or
+// outage makes those runs `startup_failure`, so they never execute (seen live
+// Jul 8-10 2026). This runs on Cloudflare, independent of GitHub, and reads
+// today_briefing_date -- written to KV only by a successful generation's
+// sync-kv.mjs -- so a value that isn't today means nothing was delivered.
+async function briefingHeartbeat(env) {
+  const today = todayUTC()
+  const date = await env.BOT_STATE.get('today_briefing_date')
+  if (date === today) return // healthy: today's edition synced to KV
+  const stub = env.BOT_DO.get(env.BOT_DO.idFromName('singleton'))
+  const owner = (await stub.getAccess()).ownerChatId
+  if (!owner) return
+  const repo = env.GITHUB_REPO || 'Da6ka/ai-in-ta-telegram-bot'
+  await reply(
+    env,
+    owner,
+    `[ai-in-ta] Today's briefing (${today}) hasn't landed by 12:00 UTC — nothing was delivered. ` +
+      `This heartbeat runs on Cloudflare, so it fires even when GitHub Actions is blocked account-wide ` +
+      `(billing hold / outage) — the failure mode the in-Actions watchdog can't catch. ` +
+      `Last saved edition: ${date || 'none'}. Check https://github.com/${repo}/actions`,
+  )
+}
+
 // Access role required to run each command, checked once in handleMessage
 // before dispatch (see the note there). 'owner' = the singleton owner only
 // (delegating admin can't itself be delegated); 'admin' = owner or a
@@ -1081,6 +1112,13 @@ export default {
   // daily-briefing.yml's last_briefing_at idempotency check makes this safe
   // to race with (or duplicate) GitHub's own schedule/watchdog firing.
   async scheduled(event, env, ctx) {
+    // Two crons (worker/wrangler.toml): the 12:00 UTC one is an external
+    // heartbeat (briefingHeartbeat); the 09:05 UTC one dispatches the daily
+    // briefing. event.cron distinguishes them.
+    if (event.cron === HEARTBEAT_CRON) {
+      ctx.waitUntil(briefingHeartbeat(env))
+      return
+    }
     // Refresh the KV subscriber mirror from the DO source of truth before the
     // pipeline reads it (#49), so a KV list that has drifted from the DO can't
     // silently drop a still-subscribed user from the daily send. Best-effort:

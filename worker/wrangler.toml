@@ -30,7 +30,11 @@ GITHUB_REPO = "Da6ka/ai-in-ta-telegram-bot"
 # Minute offset (not :00) avoids GitHub's documented top-of-hour congestion
 # for the schedule trigger that still runs alongside this as a backup.
 [triggers]
-crons = ["5 9 * * *"]
+# Two crons: 09:05 UTC dispatches the daily briefing; 12:00 UTC is an external
+# heartbeat that alerts the owner (from the Worker, independent of GitHub
+# Actions) if a day's briefing never landed -- the account-wide Actions-block
+# failure mode that in-Actions guards (workflow retries, watchdog) cannot catch.
+crons = ["5 9 * * *", "0 12 * * *"]
 
 # --- Staging deployment -------------------------------------------------------
 # A separate Worker + separate bot for dry-running command changes before they

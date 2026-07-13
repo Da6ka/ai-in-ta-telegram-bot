@@ -918,3 +918,39 @@ test('scheduled cron trigger', async (t) => {
     assert.equal(ghDispatches().length, 1, 'dispatch fires even when the re-mirror throws')
   })
 })
+
+test('briefing heartbeat cron', async (t) => {
+  const HEARTBEAT = '0 12 * * *'
+  await t.test("alerts the owner when today's briefing has not landed", async () => {
+    resetState()
+    kv.map.set('today_briefing_date', '2020-01-01') // stale: nothing delivered today
+    fetchLog = []
+    const waited = []
+    await worker.default.scheduled({ cron: HEARTBEAT }, env, { waitUntil: (p) => waited.push(p) })
+    await Promise.all(waited)
+    assert.equal(ghDispatches().length, 0, 'heartbeat must not dispatch the daily briefing')
+    const s = sends()
+    assert.equal(s.length, 1, 'exactly one alert sent')
+    assert.equal(String(s[0].body.chat_id), OWNER, 'alert goes to the owner')
+    assert.match(s[0].body.text, /hasn't landed/)
+  })
+  await t.test("stays silent when today's briefing has already landed", async () => {
+    resetState()
+    kv.map.set('today_briefing_date', todayUTC())
+    fetchLog = []
+    const waited = []
+    await worker.default.scheduled({ cron: HEARTBEAT }, env, { waitUntil: (p) => waited.push(p) })
+    await Promise.all(waited)
+    assert.equal(sends().length, 0, 'no alert when the edition is fresh for today')
+    assert.equal(ghDispatches().length, 0, 'and no daily dispatch on the heartbeat cron')
+  })
+  await t.test('the daily dispatch cron is unaffected (non-heartbeat event)', async () => {
+    resetState()
+    fetchLog = []
+    const waited = []
+    await worker.default.scheduled({ cron: '5 9 * * *' }, env, { waitUntil: (p) => waited.push(p) })
+    await Promise.all(waited)
+    assert.equal(ghDispatches().length, 1, 'the 09:05 cron still dispatches the daily briefing')
+    assert.equal(sends().length, 0, 'and sends no heartbeat alert')
+  })
+})
