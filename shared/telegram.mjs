@@ -42,6 +42,31 @@ export function countBriefingItems(md) {
   return extractBriefingBullets(md).length
 }
 
+// The generation prompt forbids preamble (briefing-prompt.md: "Output ONLY the
+// composed briefing markdown ... no commentary before or after it"), but the
+// model occasionally ignores it and emits reasoning before the title anyway
+// (seen live 2026-07-13: an edition opened with "I have three solid,
+// date-verified items ..." above the "# Daily AI Recruitment Briefing" line).
+// Nothing downstream strips it, so that commentary would render at the top of
+// every subscriber's briefing. normalizeBriefing deterministically drops
+// anything before the first title line, then forces the title's date to
+// `today` (the date is load-bearing -- the freshness gates grep for it). With
+// no title line at all it returns the content unchanged: an untitled/undated
+// edition is rejected by the freshness gate rather than guessed at here.
+export const BRIEFING_TITLE_PREFIX = '# Daily AI Recruitment Briefing — '
+const BRIEFING_TITLE_RE = /^# Daily AI Recruitment Briefing — .*$/m
+
+export function normalizeBriefing(content, today) {
+  const src = String(content ?? '')
+  const match = src.match(BRIEFING_TITLE_RE)
+  if (!match) return { content: src, preambleStripped: false, dateChanged: false }
+  const titleIndex = src.indexOf(match[0])
+  const preambleStripped = src.slice(0, titleIndex).trim().length > 0
+  const forcedTitle = `${BRIEFING_TITLE_PREFIX}${today}`
+  const dateChanged = match[0] !== forcedTitle
+  return { content: forcedTitle + src.slice(titleIndex + match[0].length), preambleStripped, dateChanged }
+}
+
 // Same-day merges (update-recent-stories.mjs) must dedupe by the underlying
 // story, not the bullet's exact wording -- the LLM can phrase a re-run of the
 // same story differently, or cite it from a second source domain, and an

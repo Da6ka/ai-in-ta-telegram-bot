@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+### Strip model preamble before the briefing title
+
+`briefing-prompt.md` forbids preamble ("Output ONLY the composed briefing
+markdown ... no commentary before or after it"), but the model occasionally
+ignores it and opens with reasoning before the `# Daily AI Recruitment
+Briefing` title (seen live 2026-07-13: an edition led with "I have three solid,
+date-verified items ..."). Nothing downstream stripped it, so on those days the
+commentary rendered at the top of every subscriber's briefing. Added
+`normalizeBriefing` (shared/telegram.mjs) — a deterministic transform that drops
+anything before the first title line, then forces the title date — and rewired
+`scripts/force-briefing-date.mjs` (run right after generation, before the
+freshness gate) to use it. Covered by 5 unit tests; a missing title still
+returns unchanged so the freshness gate rejects it rather than guessing.
+
 ### Shorter briefing-generation cooldown for the owner
 
 The 60-minute global dispatch cooldown blocked the owner from refreshing

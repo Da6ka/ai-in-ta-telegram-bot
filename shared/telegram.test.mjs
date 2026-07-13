@@ -2,7 +2,7 @@
 // fetch is mocked; paceMs/baseDelayMs are set to 0 so the suite stays fast.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { tgRequest, sendHtml, sendHtmlToMany, sendTextToMany, isValidBriefing, countBriefingItems, MIN_BRIEFING_ITEMS, extractBriefingBullets, pruneRecentStories, RECENT_STORIES_WINDOW_DAYS, recentStoryBullets, MAX_RECENT_STORY_BULLETS, bulletUrlKey, dedupeBullets } from './telegram.mjs'
+import { tgRequest, sendHtml, sendHtmlToMany, sendTextToMany, isValidBriefing, countBriefingItems, MIN_BRIEFING_ITEMS, extractBriefingBullets, pruneRecentStories, RECENT_STORIES_WINDOW_DAYS, recentStoryBullets, MAX_RECENT_STORY_BULLETS, bulletUrlKey, dedupeBullets, normalizeBriefing } from './telegram.mjs'
 
 const realFetch = globalThis.fetch
 function mockFetch(handler) {
@@ -227,4 +227,54 @@ test('sendHtmlToMany paces all recipients and counts failures', async () => {
     assert.deepEqual(errs, ['2'])
     assert.equal(calls.length, 3, 'all three attempted despite the middle failure')
   } finally { globalThis.fetch = realFetch }
+})
+
+
+test('normalizeBriefing strips model preamble before the title', () => {
+  const md = [
+    "I have three solid, date-verified items across distinct beats, so I'm omitting the Claude section.",
+    '',
+    '# Daily AI Recruitment Briefing — 13 July 2026',
+    '',
+    "## AI in Recruitment — What's New",
+    '- [Story](https://ex.com/a) something',
+  ].join('\n')
+  const { content, preambleStripped, dateChanged } = normalizeBriefing(md, '13 July 2026')
+  assert.ok(content.startsWith('# Daily AI Recruitment Briefing — 13 July 2026'), 'title is first line')
+  assert.ok(!content.includes('date-verified items'), 'preamble removed')
+  assert.equal(preambleStripped, true)
+  assert.equal(dateChanged, false)
+})
+
+test('normalizeBriefing forces a wrong title date to today', () => {
+  const md = '# Daily AI Recruitment Briefing — 1 July 2026\n\n- [S](https://e.com/x) y'
+  const { content, dateChanged, preambleStripped } = normalizeBriefing(md, '13 July 2026')
+  assert.ok(content.startsWith('# Daily AI Recruitment Briefing — 13 July 2026'))
+  assert.equal(dateChanged, true)
+  assert.equal(preambleStripped, false)
+})
+
+test('normalizeBriefing strips preamble AND forces date together', () => {
+  const md = 'here is your briefing:\n\n# Daily AI Recruitment Briefing — 12 July 2026\n\n- [S](https://e.com/x) y'
+  const { content, preambleStripped, dateChanged } = normalizeBriefing(md, '13 July 2026')
+  assert.ok(content.startsWith('# Daily AI Recruitment Briefing — 13 July 2026'))
+  assert.ok(!content.includes('here is your briefing'))
+  assert.equal(preambleStripped, true)
+  assert.equal(dateChanged, true)
+})
+
+test('normalizeBriefing leaves a clean, correctly-dated briefing untouched', () => {
+  const md = '# Daily AI Recruitment Briefing — 13 July 2026\n\n- [S](https://e.com/x) y\n'
+  const { content, preambleStripped, dateChanged } = normalizeBriefing(md, '13 July 2026')
+  assert.equal(content, md)
+  assert.equal(preambleStripped, false)
+  assert.equal(dateChanged, false)
+})
+
+test('normalizeBriefing returns untitled content unchanged (freshness gate rejects it)', () => {
+  const md = 'Sorry, all three searches failed today.'
+  const { content, preambleStripped, dateChanged } = normalizeBriefing(md, '13 July 2026')
+  assert.equal(content, md)
+  assert.equal(preambleStripped, false)
+  assert.equal(dateChanged, false)
 })
