@@ -107,7 +107,7 @@ jobs:
           # regression, not noise. Reverting this on-demand path too rather
           # than running the two workflows on different models.
           for attempt in 1 2; do
-            if claude -p "$(cat briefing-prompt-ondemand.md)"$'\n\n'"$NOTE" --model claude-opus-4-8 --allowedTools "WebSearch" --max-budget-usd 2 > state/today_briefing.md 2> state/briefing_stderr.log; then
+            if claude -p "$(cat briefing-prompt-ondemand.md)"$'\n\n'"$NOTE" --model claude-opus-4-8 --allowedTools "WebSearch" --max-budget-usd 4 > state/today_briefing.md 2> state/briefing_stderr.log; then
               break
             fi
             echo "Generation attempt $attempt failed. claude's stdout/stderr follow so the actual cause (rate limit, budget, auth, etc.) is visible in the log instead of silently landing in a file nobody prints on failure:"
@@ -115,6 +115,15 @@ jobs:
             cat state/today_briefing.md
             echo "--- stderr ---"
             cat state/briefing_stderr.log
+            # A budget-exceedance is deterministic -- a retry can't come in
+            # cheaper under the same cap, it just burns another ~$4 and runs
+            # the step into its 10-minute timeout. Fail fast instead. The
+            # budget error lands on stdout (redirected into today_briefing.md),
+            # so grep both captures.
+            if grep -qi "Exceeded USD budget" state/today_briefing.md state/briefing_stderr.log; then
+              echo "::error::Generation exceeded the --max-budget-usd ceiling -- not retrying (deterministic)."
+              exit 1
+            fi
             if [ "$attempt" -eq 2 ]; then exit 1; fi
             sleep 5
           done
