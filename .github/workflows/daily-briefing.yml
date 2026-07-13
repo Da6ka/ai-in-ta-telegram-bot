@@ -261,6 +261,10 @@ jobs:
             exit 0
           fi
           N=$((ROWS + 1))
+          # The backticks below are a literal markdown code fence in the printf
+          # format string, not an attempted command substitution; values are
+          # interpolated via the %s args, so this must stay single-quoted.
+          # shellcheck disable=SC2016
           BODY=$(printf '### %s — daily edition %s/5 (sent=%s, scorer exit=%s)\n\nWorkflow run: %s\n\n```\n%s\n```\n\n_G6 (source tiering) and G8 (silent fallback) are manual; add the five editorial 1-10 scores here._' \
             "$TODAY" "$N" "${SENT:-false}" "$CODE" \
             "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
