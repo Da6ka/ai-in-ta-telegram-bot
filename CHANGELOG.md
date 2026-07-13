@@ -1,6 +1,27 @@
 # Changelog
 
-## [Unreleased]
+## [1.4.0] - 2026-07-13
+
+### Serialized usage_stats DO methods with an explicit in-memory mutex (PR #44)
+
+`bumpCommandCount`/`touchLastSeen`/`purgeUsageStats` read-modify-write the
+`usage_stats` KV blob via `env.BOT_STATE` (`fetch()`), which Cloudflare's
+automatic input/output gating does not serialize -- that gating only covers
+`ctx.storage` calls. Two overlapping calls (e.g. `/forgetme`'s purge racing a
+concurrent command's `touchLastSeen`) could interleave their get/put and
+silently un-erase a just-purged entry. `withUsageLock` (a plain in-memory
+promise chain, safe because a DO's JS execution is single-threaded) closes
+that gap.
+
+### Repo tooling
+
+- Excluded markdown, then JS/MJS, from Prettier (`.prettierignore`) -- neither
+  was ever prettier-clean, and Prettier's emphasis-style rewrites were
+  churning docs. Added `.prettierrc` so the local formatting config is
+  shared, and shared the project's Claude Code Stop hook (`npm test` gate)
+  via `.claude/settings.json`.
+- Silenced a shellcheck SC2016 false positive in `daily-briefing.yml` (#45).
+- Committed the Worker Cron Trigger validation log (`docs/qa/`, PR #41).
 
 ### Addressed four open items from the design doc's limitations section
 
