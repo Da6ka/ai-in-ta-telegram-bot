@@ -768,6 +768,24 @@ test('subscription logic under stress', async (t) => {
     assert.ok(!doStorage.map.get('access').allowFrom.includes('4002'))
     assert.equal(doStorage.map.get('access').allowFrom.length, 30, 'still exactly at cap')
   })
+  await t.test('MAX_PENDING cap holds: distinct-sender /start flood is refused once pending is full, independent of MAX_USERS', async () => {
+    // MAX_PENDING = 50 in the Worker. Fill pending to the cap with 50 distinct
+    // unapproved requesters while allowFrom stays tiny -- this cap must bite
+    // even when the allowlist is nowhere near MAX_USERS, since that's exactly
+    // the flood scenario it exists to stop.
+    const filledPending = Object.fromEntries(
+      Array.from({ length: 50 }, (_, i) => [String(5000 + i), { displayName: `P${i}`, username: '@p', createdAt: 1 }])
+    )
+    resetState({ allowFrom: [OWNER], subscribers: [OWNER], pending: filledPending })
+    assert.equal(Object.keys(doStorage.map.get('access').pending).length, 50, 'pending at capacity')
+    fetchLog = []
+    await send(upd('6001', '/start', { from: { id: 6001, first_name: 'Flood' } }))
+    const s = sends()
+    assert.ok(s.some(c => String(c.body.chat_id) === '6001' && c.body.text.includes('pending requests')), 'requester told, not silently dropped')
+    assert.ok(!doStorage.map.get('access').pending['6001'], 'not added to pending')
+    assert.equal(Object.keys(doStorage.map.get('access').pending).length, 50, 'pending count unchanged')
+    assert.equal(s.filter(c => String(c.body.chat_id) === OWNER).length, 0, 'owner not notified for a refused request')
+  })
 })
 
 // =============== Telegram API failure injection ===============

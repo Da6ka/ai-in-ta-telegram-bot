@@ -54,6 +54,16 @@ const GENERATION_IN_FLIGHT_MIN = 10
 // queued. Raise this once broadcast delivery moves to the Actions runner.
 const MAX_USERS = 30
 
+// Independent cap on unapproved /start requests. MAX_USERS alone only turns
+// people away once the allowlist itself is full -- it does nothing while
+// allowFrom is nowhere near capacity, so a flood of /start from distinct
+// senders (the bot is publicly discoverable on Telegram) could otherwise grow
+// `access.pending` without bound and send the owner one new-request
+// notification per sender with no rate limit. Set comfortably above
+// MAX_USERS so normal approval churn (a backlog of legitimate requests
+// waiting on the owner) never trips it.
+const MAX_PENDING = 50
+
 // Storage-limitation retention: the per-user last_seen activity log is pruned
 // to entries from the last RETENTION_DAYS. Access/subscription state is kept
 // as long as the user is a user (erased on /forgetme or owner /removeuser).
@@ -210,14 +220,19 @@ export class BotState extends DurableObject {
     return { wasAllowed, wasPending, wasSubscribed, wasAdmin }
   }
 
+  // Capacity check + write happen in one atomic DO operation (same pattern as
+  // addAllowedUser above) so two near-simultaneous /start calls can't both
+  // slip past a handler-side length check and overshoot MAX_PENDING.
   async addPending(id, info) {
     const access = await this.getAccess()
     const alreadyPending = Boolean(access.pending[id])
-    if (!alreadyPending) {
-      access.pending[id] = info
-      await this.ctx.storage.put('access', access)
+    if (alreadyPending) return { access, alreadyPending: true, atCapacity: false }
+    if (Object.keys(access.pending).length >= MAX_PENDING) {
+      return { access, alreadyPending: false, atCapacity: true }
     }
-    return { access, alreadyPending }
+    access.pending[id] = info
+    await this.ctx.storage.put('access', access)
+    return { access, alreadyPending: false, atCapacity: false }
   }
 
   async removePending(id) {
@@ -560,7 +575,17 @@ const COMMAND_HANDLERS = {
     }
     const displayName = [from.first_name, from.last_name].filter(Boolean).join(' ')
     const username = from.username ? `@${from.username}` : 'no username'
-    const { alreadyPending } = await stub.addPending(senderId, { displayName, username, createdAt: Date.now() })
+    const { alreadyPending, atCapacity } = await stub.addPending(senderId, { displayName, username, createdAt: Date.now() })
+    // Distinct-sender flood guard: MAX_USERS above only bites once the
+    // allowlist is full, so without this a flood of /start from many
+    // different accounts could grow access.pending without bound and send
+    // the owner one new-request notification per sender. Not added to
+    // pending, so no owner notification and no state growth for this one.
+    if (atCapacity) {
+      await reply(env, senderId,
+        'Thanks for your interest in AI in TA News! There are a lot of pending requests right now, so new ones are paused briefly. Please try again later.')
+      return
+    }
     if (!alreadyPending && access.ownerChatId) {
       await tg(env, 'sendMessage', {
         chat_id: access.ownerChatId,
