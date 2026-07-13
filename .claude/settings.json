@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npm test > /tmp/claude-stop-tests.log 2>&1; code=$?; if [ $code -ne 0 ]; then jq -n --rawfile out /tmp/claude-stop-tests.log '{decision:\"block\", reason: (\"Unit tests failed:\\n\" + ($out[-3000:]))}'; fi",
+            "timeout": 120
+          }
+        ]
+      }
+    ]
+  }
+}
