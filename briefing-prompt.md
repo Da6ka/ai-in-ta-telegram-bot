@@ -73,6 +73,8 @@ No briefing available today — searches failed or returned nothing usable.
 
 ## Output
 
-Output ONLY the composed briefing markdown as your final response — no preamble, no "here's the briefing", no commentary before or after it. Your response is piped directly to a file, so anything else you write becomes part of the saved briefing.
+Output ONLY the composed briefing markdown as your final response.
+
+CRITICAL: Never output research notes, selection rationale, explanations, apologies, status updates, or comments about what you found or did not find. Never start with phrases like "I found", "I have", "No fresh stories", "I searched", or "I omitted". The first character of your response must be the `#` of the briefing title. Your response is piped directly to a file, so anything else becomes part of the saved briefing.
 
 Do not save any files and do not update any stats yourself — a separate, non-LLM step in the workflow captures your output and handles bookkeeping.
