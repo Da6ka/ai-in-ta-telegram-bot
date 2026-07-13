@@ -870,4 +870,36 @@ test('scheduled cron trigger', async (t) => {
     assert.equal(d.length, 1, 'one dispatch fired')
     assert.equal(d[0].body.event_type, 'daily-briefing-trigger')
   })
+  await t.test('re-mirrors the DO subscriber list into KV before dispatch (#49)', async () => {
+    // Drift: the DO holds the real list, the KV mirror the send pipeline reads
+    // is stale (here: missing). resetState populates the DO subscribers but
+    // leaves the KV `subscribers` key empty -- exactly the drift that silently
+    // dropped a still-subscribed user from delivery.
+    resetState({ subscribers: [OWNER, '8699637707'] })
+    assert.equal(kv.map.get('subscribers'), undefined, 'KV mirror starts drifted (empty)')
+    fetchLog = []
+    const waited = []
+    const ctx = { waitUntil: (p) => waited.push(p) }
+    await worker.default.scheduled({}, env, ctx)
+    await Promise.all(waited)
+    const mirrored = JSON.parse(kv.map.get('subscribers'))
+    assert.deepEqual(mirrored.subscribers, [OWNER, '8699637707'], 'KV mirror rebuilt from the DO before the send reads it')
+    assert.equal(ghDispatches().length, 1, 'dispatch still fires after the re-mirror')
+  })
+  await t.test('a re-mirror failure does not block the daily dispatch', async () => {
+    resetState({ subscribers: [OWNER] })
+    fetchLog = []
+    // Make the KV mirror write throw; the dispatch must still go out.
+    const origPut = kv.put.bind(kv)
+    kv.put = async () => { throw new Error('KV unavailable') }
+    const waited = []
+    const ctx = { waitUntil: (p) => waited.push(p) }
+    try {
+      await worker.default.scheduled({}, env, ctx)
+      await Promise.all(waited)
+    } finally {
+      kv.put = origPut
+    }
+    assert.equal(ghDispatches().length, 1, 'dispatch fires even when the re-mirror throws')
+  })
 })
