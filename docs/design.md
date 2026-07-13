@@ -38,19 +38,23 @@ Architecture overview
 Two independent runtimes own different halves of the system:
 
 ```
-GitHub Actions (scheduled + dispatched)       Cloudflare Worker (webhook, 24/7)
+GitHub Actions (scheduled + dispatched)       Cloudflare Worker (webhook + cron, 24/7)
    │                                              │
-   │ daily-briefing.yml (09:00 UTC cron)          │ receives every Telegram
-   │  1. claude -p + briefing-prompt.md            │ update via webhook
-   │     → state/today_briefing.md                │
-   │  2. send-briefing.mjs → all subscribers       │ /briefing        → serve
-   │  3. commit state/ back to repo                │                    cached copy from KV
-   │                                                │ /newbriefing,
-   │ daily-briefing-watchdog.yml (10:30 UTC cron)   │ /broadcast       → repository_dispatch
-   │  checks state/usage_stats.json;                │                    to Actions
+   │ daily-briefing.yml, triggered by:            │ scheduled() @ 09:05 UTC (PRIMARY)
+   │  - Worker's Cron Trigger (primary, 09:05)     │  → repository_dispatch
+   │  - GitHub schedule (backup, 09:00, often      │    'daily-briefing-trigger'
+   │    late/skipped — issue #17)                 │
+   │  - watchdog fallback (backup, 10:30)          │ fetch() — Telegram webhook
+   │  1. claude -p + briefing-prompt.md            │  /briefing        → serve
+   │     → state/today_briefing.md                │                      cached copy from KV
+   │  2. send-briefing.mjs → all subscribers       │  /newbriefing,
+   │  3. commit state/ back to repo                │  /broadcast       → repository_dispatch
+   │                                                │                      to Actions
+   │ daily-briefing-watchdog.yml (10:30 UTC cron)   │  everything else  → read/write
+   │  checks state/usage_stats.json;                │                      BotState DO
    │  re-dispatches daily-briefing.yml if missed    │
-   │                                                │ everything else  → read/write
-   │ on-demand-briefing.yml, broadcast.yml           │                    BotState DO
+   │                                                │
+   │ on-demand-briefing.yml, broadcast.yml           │
    │  (repository_dispatch targets)                 │
    ▼                                                ▼
         state/ (committed to git)          BOT_STATE KV  ◀──sync-kv.mjs── Actions
@@ -95,15 +99,21 @@ reads without going through the DO on every request.
 
 **GitHub Actions workflows** (`.github/workflows/`)
 
-- `daily-briefing.yml` — 09:00 UTC cron. Runs `claude -p` against
-  `briefing-prompt.md`, writes `state/today_briefing.md`, sends via
-  `scripts/send-briefing.mjs`, commits `state/` back to the repo.
+- `daily-briefing.yml` — has three ways to fire: the Worker's Cron Trigger
+  (primary, via `repository_dispatch` at 09:05 UTC — added 2026-07-13, PR #43),
+  GitHub's own `schedule` (backup, 09:00 UTC, kept despite being unreliable —
+  see below), and the watchdog (backup, see next item). An idempotency check
+  (below) makes it safe for more than one of these to fire the same day. Once
+  running: `claude -p` against `briefing-prompt.md`, writes
+  `state/today_briefing.md`, sends via `scripts/send-briefing.mjs`, commits
+  `state/` back to the repo.
 - `daily-briefing-watchdog.yml` — 10:30 UTC cron. Checks whether
   `last_briefing_at` in `state/usage_stats.json` matches today; if not,
   re-dispatches `daily-briefing.yml` and alerts the owner via
-  `scripts/send-alert.mjs`. Exists because GitHub's `schedule` trigger is
-  documented best-effort and has fired ~2.5h late on at least two occasions
-  (issue #17).
+  `scripts/send-alert.mjs`. Exists — and is still kept as a third layer even
+  after the Cron Trigger fix — because GitHub's `schedule` trigger is
+  documented best-effort and had fired 1–4h late or been silently skipped
+  entirely (issue #17).
 - `on-demand-briefing.yml` — `repository_dispatch` target for `/newbriefing`;
   generates, then `scripts/sync-kv.mjs` writes the result into KV so the
   Worker can serve it without re-generating.
@@ -132,15 +142,18 @@ Data flow
 
 **Daily scheduled send**
 
-1. Cron fires `daily-briefing.yml` at 09:00 UTC.
+1. The Worker's Cron Trigger fires `scheduled()` at 09:05 UTC, which
+   dispatches `daily-briefing-trigger` to `daily-briefing.yml` (primary path).
+   GitHub's own 09:00 UTC `schedule` trigger on the same workflow is a backup
+   that may fire independently (often late or not at all — issue #17).
 2. `claude -p briefing-prompt.md` searches the web (news from the past 48h)
    and writes `state/today_briefing.md` + updates `state/usage_stats.json`
-   (idempotency marker, in case of a manual re-trigger same day).
+   (idempotency marker, so a duplicate trigger the same day is a no-op).
 3. `send-briefing.mjs` reads the live subscriber list from KV and sends to
    each.
 4. Workflow commits updated `state/` back to `main`.
-5. Watchdog checks 90 minutes later; re-dispatches + alerts owner if step 1
-   never happened.
+5. Watchdog checks 90 minutes later (10:30 UTC); re-dispatches + alerts owner
+   if step 1 never happened via any of its three triggers.
 
 **On-demand command** (e.g. `/briefing`, `/subscribe`)
 
@@ -236,9 +249,15 @@ Reliability
   (manual trigger + watchdog fallback racing, for example).
 - **Concurrency control**: a shared `briefing-generation` concurrency group
   means a losing racer no-ops instead of double-sending.
-- **Watchdog**: catches GitHub's best-effort `schedule` trigger firing late
-  or not at all (observed ~2.5h late twice — issue #17) and both alerts the
-  owner and triggers a fallback run.
+- **Three-layer daily trigger**: after GitHub's `schedule` trigger proved
+  unreliable for `daily-briefing.yml` (1–4h late or silently skipped — issue
+  #17), a Cloudflare Worker Cron Trigger was added (2026-07-13, PR #43) as the
+  primary trigger, with GitHub's schedule and the watchdog kept as redundant
+  backups rather than removed. The idempotency check makes it safe for two or
+  three of these to fire the same day.
+- **Watchdog**: the last-resort layer — re-dispatches `daily-briefing.yml` and
+  alerts the owner if neither the Cron Trigger nor GitHub's schedule produced
+  a briefing by 10:30 UTC.
 - **Broadcast fan-out cap**: moved from Worker to Actions runner after
   silent drops past ~45 recipients from the Worker's per-invocation
   subrequest limit — not currently a risk at the 30-user cap, but the fix is
