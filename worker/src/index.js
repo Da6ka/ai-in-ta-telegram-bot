@@ -530,6 +530,25 @@ function dispatchBriefing(env, chatId) {
   return dispatchEvent(env, 'newbriefing', { chat_id: String(chatId) })
 }
 
+// Last-resort fallback for /briefing and /newbriefing: when a *fresh*
+// (today's) briefing can't be produced or served right now -- cooldown with
+// nothing generating, daily cap reached, or a failed dispatch -- send the
+// most recent saved edition with a dated note instead of leaving the user
+// with nothing. today_briefing_md holds the last successfully-synced
+// briefing and today_briefing_date the day it was for. Returns true iff a
+// stale edition was sent -- false when the cache is empty, or is already
+// today's (that case is served by the caller's fresh path, not here).
+async function serveStaleBriefing(env, senderId) {
+  const date = await env.BOT_STATE.get('today_briefing_date')
+  if (date === todayUTC()) return false
+  const md = await env.BOT_STATE.get('today_briefing_md')
+  if (!md) return false
+  await reply(env, senderId, `Couldn't get a fresh briefing just now, so here's the last saved edition${date ? ` (from ${date})` : ''}:`)
+  const ok = await sendHtml(env, senderId, mdToHtml(md))
+  if (!ok) await reply(env, senderId, 'Something went wrong sending the saved briefing — please try /briefing again in a moment.')
+  return true
+}
+
 // Shared by /newbriefing and /briefing's stale-cache path: rate-limit check,
 // then dispatch generation, rolling back the reservation if dispatch fails.
 // During the cooldown the user still gets something — the cached briefing if
@@ -539,6 +558,7 @@ async function requestGeneration(env, stub, senderId, generatingMsg) {
   const r = await stub.reserveBriefingDispatch(senderId)
   if (!r.allowed) {
     if (r.reason === 'daily_cap') {
+      if (await serveStaleBriefing(env, senderId)) return
       await reply(env, senderId, "You've reached today's limit for fresh briefings — /briefing will still get you the latest one.")
       return
     }
@@ -552,18 +572,23 @@ async function requestGeneration(env, stub, senderId, generatingMsg) {
       }
     }
     // Cooldown active with no fresh cache. If the last dispatch was recent, a
-    // run is plausibly still generating; if it was a while ago (e.g. a cooldown
-    // carried over from last night, before today's daily), nothing is running —
-    // don't claim it is.
-    await reply(env, senderId, r.sinceLastMin <= GENERATION_IN_FLIGHT_MIN
-      ? 'A briefing is being generated right now — send /briefing in a couple of minutes to get it.'
-      : `Couldn't refresh the briefing just now — a fresh one can be generated in ~${r.retryInMin} min. You'll also get today's automatically with the daily update.`)
+    // run is plausibly still generating -- say so and let it arrive. Otherwise
+    // nothing is running (a cooldown carried over from last night, or a
+    // generation that already failed), so fall back to the last saved edition
+    // rather than leaving the user with nothing.
+    if (r.sinceLastMin <= GENERATION_IN_FLIGHT_MIN) {
+      await reply(env, senderId, 'A briefing is being generated right now — send /briefing in a couple of minutes to get it.')
+      return
+    }
+    if (await serveStaleBriefing(env, senderId)) return
+    await reply(env, senderId, `Couldn't refresh the briefing just now — a fresh one can be generated in ~${r.retryInMin} min. You'll also get today's automatically with the daily update.`)
     return
   }
   await reply(env, senderId, generatingMsg)
   const dispatched = await dispatchBriefing(env, senderId)
   if (!dispatched) {
     await stub.rollbackBriefingDispatch(senderId, r.prevLastDispatchAt)
+    if (await serveStaleBriefing(env, senderId)) return
     await reply(env, senderId, "Couldn't start briefing generation right now — please try again shortly, or contact the bot owner if this keeps happening.")
   }
 }

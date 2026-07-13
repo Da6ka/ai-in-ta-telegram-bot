@@ -404,6 +404,21 @@ test('briefing and rate limiting', async (t) => {
     assert.ok(sends()[0].body.text.includes("Couldn't refresh"), 'stale cooldown -> honest "not generating" wording')
     assert.ok(!sends()[0].body.text.includes('being generated right now'), 'must not falsely claim a run is in flight')
   })
+  await t.test('F13c stale cooldown + a previous-day cached edition -> serves it with a dated note, not a dead end', async () => {
+    // The cache holds a real briefing, but from an earlier day, and a fresh
+    // one can't be produced (stale cooldown, nothing generating). The user
+    // should get the last saved edition rather than a bare failure note.
+    kv.map.set('today_briefing_date', '2026-07-11')
+    kv.map.set('today_briefing_md', '# Daily AI Recruitment Briefing — 11 July 2026\n\n- [Story](https://ex.com) news')
+    doStorage.map.set('briefing_rate', { lastDispatchAt: Date.now() - 40 * 60000, date: todayUTC(), counts: {} })
+    fetchLog = []
+    await send(upd('222', '/briefing'))
+    assert.equal(ghDispatches().length, 0, 'no dispatch during cooldown')
+    const s = sends()
+    assert.ok(s.some(c => c.body.text?.includes('last saved edition') && c.body.text.includes('2026-07-11')), 'dated fallback note sent')
+    assert.ok(s.some(c => c.body.parse_mode === 'HTML'), 'the saved briefing itself is sent as HTML')
+    assert.ok(!s.some(c => c.body.text?.includes("Couldn't refresh")), 'no dead-end message when a saved edition exists')
+  })
 })
 
 // =============== admin commands ===============
