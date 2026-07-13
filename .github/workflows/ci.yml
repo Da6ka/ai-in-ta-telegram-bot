@@ -21,8 +21,19 @@ jobs:
             node --check "$f"
           done
       - name: Lint GitHub Actions workflow files
+        # Pinned to a specific actionlint release and checksum-verified rather
+        # than `curl | bash`-ing the installer from the upstream `main` branch:
+        # that fetched-and-executed an unpinned script on every CI run, so a
+        # tampered upstream would run arbitrary code in this repo's CI.
+        env:
+          ACTIONLINT_VERSION: 1.7.12
+          ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
         run: |
-          bash <(curl -s https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+          tarball="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          curl -sSfL -o "$tarball" \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/${tarball}"
+          echo "${ACTIONLINT_SHA256}  ${tarball}" | sha256sum -c -
+          tar -xzf "$tarball" actionlint
           ./actionlint -color
       - name: Run unit tests
         run: npm test
