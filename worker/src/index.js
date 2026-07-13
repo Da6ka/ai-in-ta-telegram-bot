@@ -37,6 +37,10 @@ import { mdToHtml, chunk, escapeHtml } from '../../shared/telegram-markdown.mjs'
 // global, with a per-user daily cap as a backstop against one user hammering
 // /newbriefing every hour all day.
 const DISPATCH_COOLDOWN_MS = 60 * 60 * 1000
+// The owner gets a much shorter cooldown so on-demand refreshes aren't blocked
+// for an hour. The per-user daily cap (below) still applies to the owner as a
+// cost backstop, since every run is a paid generation.
+const OWNER_DISPATCH_COOLDOWN_MS = 5 * 60 * 1000
 const DAILY_DISPATCH_CAP = 3
 
 // A generation run (install + claude -p web search + send + KV sync) finishes
@@ -292,7 +296,7 @@ export class BotState extends DurableObject {
   // Rate limiting for briefing generation. Check + record happen in one
   // method so two concurrent requests can't both pass the check and
   // double-dispatch.
-  async reserveBriefingDispatch(senderId) {
+  async reserveBriefingDispatch(senderId, isOwner = false) {
     const now = Date.now()
     const today = todayUTC()
     const rl = (await this.ctx.storage.get('briefing_rate')) ?? { lastDispatchAt: 0, date: today, counts: {} }
@@ -303,12 +307,13 @@ export class BotState extends DurableObject {
     if ((rl.counts[senderId] ?? 0) >= DAILY_DISPATCH_CAP) {
       return { allowed: false, reason: 'daily_cap' }
     }
+    const cooldownMs = isOwner ? OWNER_DISPATCH_COOLDOWN_MS : DISPATCH_COOLDOWN_MS
     const elapsed = now - rl.lastDispatchAt
-    if (elapsed < DISPATCH_COOLDOWN_MS) {
+    if (elapsed < cooldownMs) {
       return {
         allowed: false,
         reason: 'cooldown',
-        retryInMin: Math.ceil((DISPATCH_COOLDOWN_MS - elapsed) / 60000),
+        retryInMin: Math.ceil((cooldownMs - elapsed) / 60000),
         sinceLastMin: Math.floor(elapsed / 60000),
       }
     }
@@ -554,8 +559,8 @@ async function serveStaleBriefing(env, senderId) {
 // During the cooldown the user still gets something — the cached briefing if
 // today's exists, otherwise a "being generated" note (a run is likely in
 // flight, since the cooldown started less than an hour ago).
-async function requestGeneration(env, stub, senderId, generatingMsg) {
-  const r = await stub.reserveBriefingDispatch(senderId)
+async function requestGeneration(env, stub, senderId, generatingMsg, isOwner = false) {
+  const r = await stub.reserveBriefingDispatch(senderId, isOwner)
   if (!r.allowed) {
     if (r.reason === 'daily_cap') {
       if (await serveStaleBriefing(env, senderId)) return
@@ -771,7 +776,7 @@ const COMMAND_HANDLERS = {
   },
 
   async briefing(env, message, gated) {
-    const { senderId, isAllowed, stub } = gated
+    const { senderId, isAllowed, stub, access } = gated
     if (!isAllowed) {
       await reply(env, senderId, 'You need to be approved first — send /start to request access.')
       return
@@ -788,16 +793,16 @@ const COMMAND_HANDLERS = {
         return
       }
     }
-    await requestGeneration(env, stub, senderId, "Generating today's briefing, one moment...")
+    await requestGeneration(env, stub, senderId, "Generating today's briefing, one moment...", senderId === access.ownerChatId)
   },
 
   async newbriefing(env, message, gated) {
-    const { senderId, isAllowed, stub } = gated
+    const { senderId, isAllowed, stub, access } = gated
     if (!isAllowed) {
       await reply(env, senderId, 'You need to be approved first — send /start to request access.')
       return
     }
-    await requestGeneration(env, stub, senderId, 'Generating a fresh briefing, this will take a minute...')
+    await requestGeneration(env, stub, senderId, 'Generating a fresh briefing, this will take a minute...', senderId === access.ownerChatId)
   },
 
   async admin(env, message, gated) {

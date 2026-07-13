@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### Shorter briefing-generation cooldown for the owner
+
+The 60-minute global dispatch cooldown blocked the owner from refreshing
+on demand (`/newbriefing` fell back to the last saved edition with a "a fresh
+one can be generated in ~X min" note). The owner now gets a **5-minute**
+cooldown instead of 60; the per-user daily cap of 3 still applies to the owner
+as a cost backstop, since every generation is a paid GitHub Actions + Claude
+run. `reserveBriefingDispatch` takes an `isOwner` flag threaded from the
+`/briefing` and `/newbriefing` handlers via `requestGeneration`; non-owner
+behaviour is unchanged. All 123 unit tests pass.
+
 ### Refactored the command layer (code review follow-up)
 
 Maintainability cleanup of `worker/src/index.js`, no behavioural change to any
