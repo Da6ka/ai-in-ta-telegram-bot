@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Added a system design doc
+
+`docs/design.md` documents the deployed architecture as a reference for
+future changes: the Worker/Actions split, the `BotState` Durable Object + KV
+state model, command reference, secrets scoping, staging setup, and the
+three-layer daily-trigger reliability mechanism (Cron Trigger primary,
+GitHub schedule + watchdog as backups).
+
 ### Added a Cloudflare Cron Trigger as the primary daily-briefing trigger (issue #17)
 
 GitHub Actions' `schedule` trigger for `daily-briefing.yml` (09:00 UTC) has
