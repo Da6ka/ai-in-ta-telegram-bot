@@ -1,5 +1,19 @@
 # Changelog
 
+## [Unreleased]
+
+### Pinned actionlint to a checksum-verified release in CI (PR #46)
+
+The lint step in `.github/workflows/ci.yml` fetched the actionlint installer
+from the upstream `main` branch and piped it straight into `bash` on every push
+and PR -- unpinned and unverified, so a tampered or MITM'd upstream would run
+arbitrary code in CI (highest blast radius on push to `main`, where the job
+runs with the repo token in context). Replaced with a pinned release
+(`v1.7.12`) downloaded from its tagged release URL and checked against the
+published SHA256 (`sha256sum -c -`) before execution, so a swapped binary
+aborts the job. Version bumps are now explicit edits to `ACTIONLINT_VERSION` +
+`ACTIONLINT_SHA256`.
+
 ## [1.4.0] - 2026-07-13
 
 ### Serialized usage_stats DO methods with an explicit in-memory mutex (PR #44)
