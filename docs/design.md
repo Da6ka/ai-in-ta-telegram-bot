@@ -216,9 +216,16 @@ specifically to review changes to this bot's AI/agent-facing code against
 OWASP-style risks.
 
 Privacy posture: allowlist-gated (no public access), data-subject commands
-(`/privacy`, `/mydata`, `/forgetme`) are first-class, and as of last check the
-subscriber list contained only Dasha's own two Telegram accounts — i.e.
-currently no third-party personal data is actually held.
+(`/privacy`, `/mydata`, `/forgetme`) are first-class. As of 2026-07-13 the
+allowlist holds 12 users (owner + 11 others), 4 of them subscribed to the
+daily send — i.e. the bot now holds third-party personal data (Telegram
+user id + access/subscription state) for real external users, not just
+Dasha's own accounts. This is a meaningful change from the bot's original
+single-user testing phase: `/forgetme`/`/mydata` being first-class from the
+start means the data-subject-rights path is already exercised, but it's
+worth treating the allowlist as live user data from here on (e.g. any future
+export/debug tooling should not dump raw user ids without thinking about
+who's on the list).
 
 ---
 
@@ -271,8 +278,11 @@ Current limitations / open items
 - Single operator, single owner id — no delegated admin roles.
 - 30-user cap is a design assumption, not an enforced limit anywhere
   specific to check if it's still just a comment vs. code-enforced.
-- Real subscriber base is currently just Dasha's two accounts; the
-  allowlist/admin tooling is built for a population that doesn't exist yet.
+- Real user base is now 12 allowlisted accounts (4 subscribed) — past the
+  single-user testing phase this bot started in, and approaching the 30-user
+  cap closely enough that the cap and the admin tooling (`/pending`,
+  `/adduser`, `/listusers`) are worth actually exercising rather than treating
+  as speculative.
 - No automated test coverage for the GitHub Actions workflows themselves
   (only `worker/` and `shared/` have `test/`), so workflow YAML changes are
   currently manually verified.
