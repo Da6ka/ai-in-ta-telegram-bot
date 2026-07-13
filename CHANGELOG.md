@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Hardened briefing prompt against model reasoning leakage
+
+`briefing-prompt.md` already required markdown-only output, but the model still occasionally returned internal selection rationale before the briefing title. A live 2026-07-13 edition started with:
+
+> "I have three solid, date-verified items across distinct beats..."
+
+instead of the actual briefing, exposing research notes and editorial decisions to subscribers. Strengthened the prompt with explicit output guards: the response must start with `# Daily AI Recruitment Briefing`, and research notes, selection rationale, status updates, apologies, and phrases such as "I found", "I have", "I searched", or "I omitted" are forbidden. The briefing generator output is now constrained to the saved Markdown artifact only.
+
 ### External briefing heartbeat (Cloudflare-side)
 
 Added a second Worker cron (12:00 UTC) that alerts the owner via Telegram if a
