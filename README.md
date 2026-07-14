@@ -13,7 +13,7 @@ Subscribers tap `/subscribe` and get the briefing every morning at **09:00 UTC /
   </a>
 </p>
 
-> 📡 **[Live Technical Specification](https://ai-in-ta-bot-spec.vercel.app/)** — an interactive one-pager: architecture, command contract, limits, and reliability at a glance. Also available as a [PDF](https://github.com/Da6ka/ai-in-ta-telegram-bot/blob/main/docs/AI-in-TA-Technical-Specification.pdf) and Markdown ([`docs/technical-spec.md`](docs/technical-spec.md), [`docs/design.md`](docs/design.md)).
+> 📡 **[Live Technical Specification](https://ai-in-ta-bot-spec.vercel.app/)** — an interactive one-pager: architecture, command contract, limits, and reliability at a glance. Also available as Markdown ([`docs/technical-spec.md`](docs/technical-spec.md), [`docs/design.md`](docs/design.md)).
 
 ---
 
