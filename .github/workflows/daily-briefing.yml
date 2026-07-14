@@ -158,6 +158,16 @@ jobs:
             echo "ok=true" >> "$GITHUB_OUTPUT"
           else
             echo "Briefing rejected: dated-today grep or item minimum failed (items=$ITEMS, min=$MIN)."
+            # Generation exited 0 but the content/freshness gate rejected it.
+            # The generate step only dumps stdout/stderr on a NON-zero exit, so
+            # a clean-but-empty run (the "no content" fallback, or an undated /
+            # malformed title) otherwise leaves no trace. Dump both so the next
+            # occurrence is attributable (empty fallback vs. truncation vs. bad
+            # title vs. a WebSearch/upstream error captured on stderr).
+            echo "--- state/today_briefing.md (first 40 lines) ---"
+            head -40 state/today_briefing.md
+            echo "--- state/briefing_stderr.log ---"
+            cat state/briefing_stderr.log 2>/dev/null || true
             echo "ok=false" >> "$GITHUB_OUTPUT"
           fi
 
