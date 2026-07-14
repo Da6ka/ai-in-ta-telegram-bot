@@ -1,3 +1,12 @@
 # Daily AI Recruitment Briefing — 14 July 2026
 
-No briefing available today — searches failed or returned nothing usable.
+## Claude & Anthropic in TA
+
+- **India-based digital engineering firm LTM struck a partnership with Anthropic to deploy Claude, Claude Code, and Claude Cowork across its enterprise delivery, and will scale its "AI1000" initiative to train thousands of Claude-certified architects and forward-deployed engineers.** Coming days after the UST deal, it confirms a pattern: services giants are standardizing delivery workforces on Claude, so expect "Claude-certified" to keep surfacing as a demanded skill in engineering and consulting reqs. ([BusinessToday](https://www.businesstoday.in/technology/artificial-intelligence/story/ltm-deepens-enterprise-ai-play-partners-with-anthropic-to-deploy-claude-at-scale-542497-2026-07-13)) (13 July)
+
+## AI in Recruitment — What's New
+
+- **AI talent marketplace Mercor is in talks to double its valuation to $20B just nine months after its last round, and bought AI-agent-training startup Deeptune — a deal CEO Brendan Foody had personally angel-invested in three months earlier, "with a purchase already in mind."** The valuation signals how much capital is flowing into AI-driven talent/labeling platforms, but the self-dealing disclosure is a governance red flag; scrutinize conflicts and data provenance before routing sourcing or evaluation through fast-scaling AI hiring vendors. ([TechCrunch](https://techcrunch.com/2026/07/09/mercor-is-in-talks-for-a-20b-valuation/)) (9 July)
+- **PsyMetrics launched "AI Test Architect," a chat tool that turns an uploaded job description into a role-specific pre-employment assessment, pitched as anchoring generative test-building in established psychometric science and compliance.** As AI-generated assessments proliferate, this is the direction of travel — but validate that any auto-built test is job-related and defensible before it gates candidates, rather than trusting the "compliance-supportive" label. ([GlobeNewswire](https://www.globenewswire.com/news-release/2026/07/13/3326119/0/en/The-Antidote-to-Hiring-Bias-PsyMetrics-Launches-AI-Test-Architect-to-Anchor-Generative-Assessment-Building-in-30-Years-of-Psychometric-Science.html)) (13 July)
+
+**Bottom line:** Capital and product launches are accelerating around AI hiring tools, but this week's headlines — a conflicted acquisition and an auto-generated assessment builder — both point the same way: the burden is now on TA leaders to verify governance, conflicts, and job-relatedness before scaling any of it.
