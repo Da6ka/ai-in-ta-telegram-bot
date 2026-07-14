@@ -118,16 +118,21 @@ jobs:
           # showed Sonnet returning 1 story vs Opus's 6 across all three
           # sections -- a real coverage regression, not noise.
           #
-          # --bare skips this repo's .claude/settings.json Stop hook (runs
-          # `npm test` and blocks completion on failure) along with LSP/plugin
-          # loading. That hook exists to guard interactive coding sessions,
-          # but it has no business gating a headless content-generation call,
-          # and on 2026-07-14 its `npm test` failed inside the CI checkout
-          # (glob mismatch on shared/**/*.test.mjs) -- pinning the model into
-          # a Stop-block retry loop that silently ate three separate runs'
-          # worth of output/time/budget without ever emitting a real error.
+          # --setting-sources user (excluding "project") skips this repo's
+          # .claude/settings.json Stop hook (runs `npm test` and blocks
+          # completion on failure). That hook exists to guard interactive
+          # coding sessions, but it has no business gating a headless
+          # content-generation call, and on 2026-07-14 its `npm test` failed
+          # inside the CI checkout (glob mismatch on shared/**/*.test.mjs) --
+          # pinning the model into a Stop-block retry loop that silently ate
+          # three separate runs' worth of output/time/budget without ever
+          # emitting a real error. --bare was tried first and also skips
+          # hooks, but it disables tool search along with them, which broke
+          # WebSearch itself (the model fell back to raw curl/wget via Bash,
+          # all denied, then gave up) -- --setting-sources is the narrower
+          # fix that drops only the hook-bearing settings source.
           for attempt in 1 2; do
-            if claude -p "$(cat briefing-prompt.md)"$'\n\n'"$NOTE" --model claude-opus-4-8 --allowedTools "WebSearch" --max-budget-usd 4 --debug-file state/briefing_debug.log --bare > state/today_briefing.md 2> state/briefing_stderr.log; then
+            if claude -p "$(cat briefing-prompt.md)"$'\n\n'"$NOTE" --model claude-opus-4-8 --allowedTools "WebSearch" --max-budget-usd 4 --debug-file state/briefing_debug.log --setting-sources user > state/today_briefing.md 2> state/briefing_stderr.log; then
               break
             fi
             echo "Generation attempt $attempt failed. claude's stdout/stderr follow so the actual cause (rate limit, budget, auth, etc.) is visible in the log instead of silently landing in a file nobody prints on failure:"
