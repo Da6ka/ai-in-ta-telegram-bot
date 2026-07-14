@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### Fixed the same Stop-hook outage on the /newbriefing path
+
+The 1.5.1 fix applied `--setting-sources user` and `--debug-file` to
+`daily-briefing.yml`'s `claude -p` call only. The identical call in
+`on-demand-briefing.yml` (the `/newbriefing` command) was missed, leaving it
+exposed to the same silent-empty-output failure mode the outage was caused
+by. Mirrored both flags there, plus the debug-log dump on a rejected
+generation.
+
 ## [1.5.1] - 2026-07-14
 
 ### Fixed the project's Stop hook silently blocking headless briefing generation
