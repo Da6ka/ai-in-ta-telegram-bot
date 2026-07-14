@@ -118,7 +118,7 @@ jobs:
           # showed Sonnet returning 1 story vs Opus's 6 across all three
           # sections -- a real coverage regression, not noise.
           for attempt in 1 2; do
-            if claude -p "$(cat briefing-prompt.md)"$'\n\n'"$NOTE" --model claude-opus-4-8 --allowedTools "WebSearch" --max-budget-usd 4 > state/today_briefing.md 2> state/briefing_stderr.log; then
+            if claude -p "$(cat briefing-prompt.md)"$'\n\n'"$NOTE" --model claude-opus-4-8 --allowedTools "WebSearch" --max-budget-usd 4 --debug-file state/briefing_debug.log > state/today_briefing.md 2> state/briefing_stderr.log; then
               break
             fi
             echo "Generation attempt $attempt failed. claude's stdout/stderr follow so the actual cause (rate limit, budget, auth, etc.) is visible in the log instead of silently landing in a file nobody prints on failure:"
@@ -168,6 +168,8 @@ jobs:
             head -40 state/today_briefing.md
             echo "--- state/briefing_stderr.log ---"
             cat state/briefing_stderr.log 2>/dev/null || true
+            echo "--- state/briefing_debug.log (last 200 lines) ---"
+            tail -200 state/briefing_debug.log 2>/dev/null || true
             echo "ok=false" >> "$GITHUB_OUTPUT"
           fi
 

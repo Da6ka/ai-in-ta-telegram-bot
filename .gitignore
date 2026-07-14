@@ -3,3 +3,4 @@ node_modules/
 .dev.vars
 .DS_Store
 state/briefing_stderr.log
+state/briefing_debug.log
