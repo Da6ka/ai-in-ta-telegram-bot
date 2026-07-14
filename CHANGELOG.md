@@ -11,6 +11,13 @@ exposed to the same silent-empty-output failure mode the outage was caused
 by. Mirrored both flags there, plus the debug-log dump on a rejected
 generation.
 
+### Aligned Claude Code CLI pin across workflows
+
+`on-demand-briefing.yml` was still pinned to `2.1.201` while `daily-briefing.yml`
+had moved to `2.1.209`. Both run the same generation logic, so left on
+different versions they risked silently drifting into "works in one
+workflow, not the other" bugs. Both now pin `2.1.209`.
+
 ## [1.5.1] - 2026-07-14
 
 ### Fixed the project's Stop hook silently blocking headless briefing generation
