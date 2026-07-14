@@ -49,7 +49,7 @@ jobs:
 
       - name: Install Claude Code
         if: steps.dispatch_guard.outputs.duplicate != 'true'
-        run: npm install -g @anthropic-ai/claude-code@2.1.201
+        run: npm install -g @anthropic-ai/claude-code@2.1.209
 
       # Same precheck as daily-briefing.yml: catch a drained ANTHROPIC_API_KEY
       # with the cheapest possible real request before burning the requester's
