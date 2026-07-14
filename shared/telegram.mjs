@@ -16,9 +16,20 @@ export const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 // — an LLM refusal, a preamble-only response, or a malformed title — lacks it.
 // Used to gate the KV cache write so one bad on-demand /newbriefing can't
 // overwrite the shared today_briefing_md that every user's /briefing serves.
+//
+// Tolerates the title separator being an em dash (—, what the prompt
+// specifies), an en dash (–), or a plain hyphen (-). A model that drifts onto
+// a visually-similar character still produces a perfectly usable briefing,
+// but the old exact-em-dash regex rejected it identically to a genuinely
+// missing/malformed title — indistinguishable in the logs from a real
+// generation failure, and it silently froze the KV cache on 2026-07-13 (the
+// title had a reasoning preamble in front of it that day, a related but
+// distinct failure mode; this hardens the same regex against a second one).
+const TITLE_DASH = '[\\u2014\\u2013-]' // em dash, en dash, hyphen
+const BRIEFING_TITLE_LINE_RE = new RegExp(`^# Daily AI Recruitment Briefing ${TITLE_DASH} .+`)
 export function isValidBriefing(md) {
   const firstLine = (md ?? '').trimStart().split('\n', 1)[0]
-  return /^# Daily AI Recruitment Briefing — .+/.test(firstLine)
+  return BRIEFING_TITLE_LINE_RE.test(firstLine)
 }
 
 // A qualifying story is a top-level bullet carrying a Markdown link — the
@@ -35,7 +46,9 @@ export const MIN_BRIEFING_ITEMS = 2
 // global-regex match() here would cut each result off right after the
 // "https://" it matched on, since the pattern has no end anchor).
 export function extractBriefingBullets(md) {
-  return String(md ?? '').split('\n').filter((line) => /^- .*\]\(https?:\/\//.test(line))
+  return String(md ?? '')
+    .split('\n')
+    .filter((line) => /^- .*\]\(https?:\/\//.test(line))
 }
 
 export function countBriefingItems(md) {
@@ -54,7 +67,7 @@ export function countBriefingItems(md) {
 // no title line at all it returns the content unchanged: an untitled/undated
 // edition is rejected by the freshness gate rather than guessed at here.
 export const BRIEFING_TITLE_PREFIX = '# Daily AI Recruitment Briefing — '
-const BRIEFING_TITLE_RE = /^# Daily AI Recruitment Briefing — .*$/m
+const BRIEFING_TITLE_RE = new RegExp(`^# Daily AI Recruitment Briefing ${TITLE_DASH} .*$`, 'm')
 
 export function normalizeBriefing(content, today) {
   const src = String(content ?? '')
@@ -166,12 +179,17 @@ export async function tgRequest(token, method, body, { retries = 3, baseDelayMs 
 export async function sendHtml(token, chatId, html, { onError, retries = 3 } = {}) {
   let allOk = true
   for (const part of chunk(html, 4000)) {
-    const res = await tgRequest(token, 'sendMessage', {
-      chat_id: chatId,
-      text: part,
-      parse_mode: 'HTML',
-      link_preview_options: { is_disabled: true },
-    }, { retries })
+    const res = await tgRequest(
+      token,
+      'sendMessage',
+      {
+        chat_id: chatId,
+        text: part,
+        parse_mode: 'HTML',
+        link_preview_options: { is_disabled: true },
+      },
+      { retries },
+    )
     if (!res.ok) {
       allOk = false
       if (onError) await onError(chatId, res)
@@ -203,11 +221,16 @@ export async function sendTextToMany(token, chatIds, text, { onError, paceMs = D
   for (let i = 0; i < chatIds.length; i++) {
     let ok = true
     for (const part of chunk(text, 4000)) {
-      const res = await tgRequest(token, 'sendMessage', {
-        chat_id: chatIds[i],
-        text: part,
-        link_preview_options: { is_disabled: true },
-      }, { retries })
+      const res = await tgRequest(
+        token,
+        'sendMessage',
+        {
+          chat_id: chatIds[i],
+          text: part,
+          link_preview_options: { is_disabled: true },
+        },
+        { retries },
+      )
       if (!res.ok) {
         ok = false
         if (onError) await onError(chatIds[i], res)
