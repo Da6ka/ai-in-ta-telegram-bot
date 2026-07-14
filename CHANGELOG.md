@@ -47,7 +47,7 @@ cooldown instead of 60; the per-user daily cap of 3 still applies to the owner
 as a cost backstop, since every generation is a paid GitHub Actions + Claude
 run. `reserveBriefingDispatch` takes an `isOwner` flag threaded from the
 `/briefing` and `/newbriefing` handlers via `requestGeneration`; non-owner
-behaviour is unchanged. All 123 unit tests pass.
+behaviour is unchanged. All 132 unit tests pass.
 
 ### Refactored the command layer (code review follow-up)
 
