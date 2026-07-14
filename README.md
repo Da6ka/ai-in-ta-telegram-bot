@@ -9,7 +9,11 @@ Subscribers tap `/subscribe` and get the briefing every morning at **09:00 UTC /
 
 <p align="center">
   <a href="https://ai-in-ta-bot-spec.vercel.app/">
-    <img src="https://github.com/Da6ka/ai-in-ta-telegram-bot/raw/main/docs/assets/spec-preview-light.png" alt="Technical specification cover — architecture, command contract, limits, reliability" width="820">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://github.com/Da6ka/ai-in-ta-telegram-bot/raw/main/docs/assets/spec-preview-dark.png">
+      <source media="(prefers-color-scheme: light)" srcset="https://github.com/Da6ka/ai-in-ta-telegram-bot/raw/main/docs/assets/spec-preview-light.png">
+      <img src="https://github.com/Da6ka/ai-in-ta-telegram-bot/raw/main/docs/assets/spec-preview-light.png" alt="Technical specification cover — architecture, command contract, limits, reliability" width="820">
+    </picture>
   </a>
 </p>
 
