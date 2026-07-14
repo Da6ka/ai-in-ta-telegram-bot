@@ -11,7 +11,7 @@ on:
   # the same day.
   schedule:
     # 09:00 UTC == 12:00 MSK, matching the local launchd job it replaces
-    - cron: "0 9 * * *"
+    - cron: '0 9 * * *'
   repository_dispatch:
     types: [daily-briefing-trigger]
   workflow_dispatch: {}
@@ -49,10 +49,10 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: '20'
 
       - name: Install Claude Code
-        run: npm install -g @anthropic-ai/claude-code@2.1.201
+        run: npm install -g @anthropic-ai/claude-code@2.1.209
 
       - name: Check idempotency
         id: idempotency
@@ -302,7 +302,7 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           CHAT_ID: ${{ vars.OWNER_CHAT_ID }}
-          ALERT_TEXT: "[ai-in-ta] Daily briefing was stale or below the story minimum — nothing sent to subscribers, stats not advanced. Re-run the workflow to retry. Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          ALERT_TEXT: '[ai-in-ta] Daily briefing was stale or below the story minimum — nothing sent to subscribers, stats not advanced. Re-run the workflow to retry. Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}'
         run: node scripts/send-alert.mjs
 
       # Any step above threw (generation, send, KV sync, commit/push): the day's
@@ -314,5 +314,5 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           CHAT_ID: ${{ vars.OWNER_CHAT_ID }}
-          ALERT_TEXT: "[ai-in-ta] Daily briefing workflow FAILED — subscribers may have gotten nothing. Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          ALERT_TEXT: '[ai-in-ta] Daily briefing workflow FAILED — subscribers may have gotten nothing. Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}'
         run: node scripts/send-alert.mjs
