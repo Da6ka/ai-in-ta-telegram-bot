@@ -2,6 +2,30 @@
 
 ## [Unreleased]
 
+### Serve the last saved edition when an on-demand briefing fails
+
+When `/briefing` or `/newbriefing` generation exited 0 but the freshness/content
+gate rejected it (the "no content" fallback, or an undated/malformed title), the
+requester was only told to run `/briefing` themselves — leaving them to issue a
+second command to get anything. The on-demand workflow's stale branch now serves
+the last saved edition directly, the same thing `/briefing` returns, via new
+`scripts/send-stale-to-chat.mjs` (reads `today_briefing_md` / `today_briefing_date`
+from Cloudflare KV, mirroring the Worker's `serveStaleBriefing`). Best-effort:
+never throws, always exits 0, and falls back to the previous alert text if KV has
+no saved edition or can't be reached, so the requester is never left in silence.
+
+### Dump generation output when the briefing freshness gate rejects
+
+Both briefing workflows have a content/freshness gate that rejects a generation
+which exits 0 but produces the "no content" fallback (zero linked stories) or an
+undated/malformed title — the requester/owner then sees "didn't come out right
+this time" with no diagnosis, because the generate step only dumps stdout/stderr
+on a *non-zero* exit. The reject path in `daily-briefing.yml` and
+`on-demand-briefing.yml` now dumps `head -40 state/today_briefing.md` and
+`state/briefing_stderr.log` to the run log, so the next occurrence is
+attributable (empty fallback vs. truncation vs. bad title vs. a WebSearch/upstream
+error captured on stderr). Diagnostics only — no behaviour change.
+
 ## [1.5.0] - 2026-07-14
 
 ### Hardened briefing prompt against model reasoning leakage
