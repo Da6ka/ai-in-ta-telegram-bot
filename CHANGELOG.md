@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-07-14
+
 ### Fixed the project's Stop hook silently blocking headless briefing generation
 
 `/briefing` served a stale 11 July edition for three straight days (2026-07-12
