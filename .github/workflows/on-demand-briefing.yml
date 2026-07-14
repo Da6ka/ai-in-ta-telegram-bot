@@ -226,14 +226,20 @@ jobs:
       # (refusal / malformed title) or zero linked stories (the "no content"
       # fallback): the gates correctly skipped the send, but the requester is
       # still waiting. failure() won't fire here (no step threw), so close the
-      # loop explicitly.
-      - name: Notify requester on stale generation
+      # loop explicitly. Rather than just telling them to run /briefing, serve
+      # the last saved edition from KV directly (mirrors the Worker's
+      # serveStaleBriefing); send-stale-to-chat.mjs falls back to ALERT_TEXT if
+      # KV has no saved edition.
+      - name: Serve last saved edition on stale generation
         if: steps.freshness.outputs.fresh == 'false' || steps.freshness.outputs.items == '0'
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           CHAT_ID: ${{ github.event.client_payload.chat_id }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CF_KV_NAMESPACE_ID: ${{ secrets.CF_KV_NAMESPACE_ID }}
           ALERT_TEXT: "Sorry — the fresh briefing didn't come out right this time. Please try /newbriefing again shortly, or /briefing for the last saved one."
-        run: node scripts/send-alert.mjs
+        run: node scripts/send-stale-to-chat.mjs
 
       # The requester already saw "Generating a fresh briefing..." from the
       # Worker; on failure, close the loop instead of leaving them in silence.
