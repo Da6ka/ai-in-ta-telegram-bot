@@ -2,6 +2,49 @@
 
 ## [Unreleased]
 
+### Fixed the project's Stop hook silently blocking headless briefing generation
+
+`/briefing` served a stale 11 July edition for three straight days (2026-07-12
+through -14) with no diagnosable failure signal: every `daily-briefing.yml` run
+exited 0 (once it instead hit the step's 10-minute timeout) while `claude -p`
+produced completely empty stdout/stderr. Root cause, found via `--debug-file`:
+this repo's `.claude/settings.json` Stop hook (added 2026-07-13 — an `npm test`
+gate meant to guard interactive coding sessions) also fires on this headless,
+content-generation-only `claude -p` call. Its `npm test` failed inside the CI
+checkout specifically (`node --test "shared/**/*.test.mjs"` matched nothing
+there, though the identical command passes locally and in the separate
+`ci.yml` workflow), so the hook blocked every completion attempt in a loop —
+the model never got to actually finish, and no real error ever reached
+stdout/stderr for the existing failure-dump steps to print.
+
+Fixed with `--setting-sources user` on the `claude -p` invocation, which
+excludes the "project" settings source (where the hook lives) without
+disabling anything else. `--bare` was tried first since it also skips hooks,
+but it disables tool search along with them, which silently broke WebSearch
+too — the model fell back to raw `curl`/`wget` via Bash (denied, since only
+`WebSearch` is allowlisted) and gave up with the prompt's own "no content
+available" fallback instead of a real briefing.
+
+Also added `--debug-file state/briefing_debug.log`, dumped (last 200 lines)
+alongside stdout/stderr on freshness-gate rejection, so a repeat of this
+failure mode is diagnosable from the Actions log instead of requiring live
+reproduction. Bumped the pinned CLI (`2.1.201` → `2.1.209`) while
+investigating — turned out not to be the actual cause, but harmless to keep.
+
+Recovered the live outage manually while diagnosing: synced a validated 14
+July edition straight to Cloudflare KV (`wrangler kv key put`) so `/briefing`
+had current content throughout the investigation, ahead of the CI fix
+landing.
+
+### Tolerate en dash/hyphen in briefing title separator
+
+`isValidBriefing()` and `BRIEFING_TITLE_RE` only matched an exact em dash (—)
+between the title and date. A model drifting onto a visually similar en dash
+or hyphen produced a perfectly usable briefing that still got rejected
+identically to a genuinely malformed one — indistinguishable in the logs from
+a real generation failure. `shared/telegram.mjs` now accepts em dash, en
+dash, or a plain hyphen via a shared `TITLE_DASH` character class.
+
 ### Serve the last saved edition when an on-demand briefing fails
 
 When `/briefing` or `/newbriefing` generation exited 0 but the freshness/content
