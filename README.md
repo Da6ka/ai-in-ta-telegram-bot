@@ -8,12 +8,12 @@ A Telegram bot that sends a **daily briefing on AI in recruitment** — the late
 Subscribers tap `/subscribe` and get the briefing every morning at **09:00 UTC / 12:00 MSK**. No app to install, no laptop to keep awake — everything runs on GitHub Actions and a Cloudflare Worker.
 
 <p align="center">
-  <a href="https://github.com/Da6ka/ai-in-ta-telegram-bot/blob/main/docs/AI-in-TA-Technical-Specification.pdf">
+  <a href="https://ai-in-ta-bot-spec.vercel.app/">
     <img src="https://github.com/Da6ka/ai-in-ta-telegram-bot/raw/main/docs/assets/spec-preview-light.png" alt="Technical specification cover — architecture, command contract, limits, reliability" width="820">
   </a>
 </p>
 
-> 📡 **[Full Technical Specification PDF](https://github.com/Da6ka/ai-in-ta-telegram-bot/blob/main/docs/AI-in-TA-Technical-Specification.pdf)** — architecture, command contract, limits, and reliability at a glance. Also available as Markdown: [`docs/technical-spec.md`](docs/technical-spec.md) and [`docs/design.md`](docs/design.md).
+> 📡 **[Live Technical Specification](https://ai-in-ta-bot-spec.vercel.app/)** — an interactive one-pager: architecture, command contract, limits, and reliability at a glance. Also available as a [PDF](https://github.com/Da6ka/ai-in-ta-telegram-bot/blob/main/docs/AI-in-TA-Technical-Specification.pdf) and Markdown ([`docs/technical-spec.md`](docs/technical-spec.md), [`docs/design.md`](docs/design.md)).
 
 ---
 
@@ -47,13 +47,13 @@ A real edition, sent via `/briefing`:
 > **Daily AI Recruitment Briefing — 3 July 2026**
 >
 > **Claude & Anthropic in TA**
-> Anthropic shipped Claude Sonnet 5, now the default model on Free and Pro plans — pitched as its "most agentic Sonnet yet" for coding and professional work. For TA teams running Claude-based sourcing, screening, or analytics workflows, this is a capability (and cost/latency) shift worth re-benchmarking your prompts against. *([Introducing Claude Sonnet 5 — Anthropic](https://www.anthropic.com/news/claude-sonnet-5))* (30 June)
+> Anthropic shipped Claude Sonnet 5, now the default model on Free and Pro plans — pitched as its "most agentic Sonnet yet" for coding and professional work. For TA teams running Claude-based sourcing, screening, or analytics workflows, this is a capability (and cost/latency) shift worth re-benchmarking your prompts against. _([Introducing Claude Sonnet 5 — Anthropic](https://www.anthropic.com/news/claude-sonnet-5))_ (30 June)
 >
 > **AI in Recruitment — What's New**
-> Colorado's landmark AI Act reached its effective date but in narrowed form: the original Act was set to take effect 30 June 2026, after Colorado signed a replacement bill in May to scale back the broader framework governing high-risk automated employment decisions. Employers using AI hiring tools with Colorado applicants should confirm which obligations (notice, human review, bias auditing) actually survived. *([National Law Review](https://natlawreview.com/article/federal-government-quietly-removed-its-ai-hiring-guidance-four-states-are-writing))* (took effect 30 June)
+> Colorado's landmark AI Act reached its effective date but in narrowed form: the original Act was set to take effect 30 June 2026, after Colorado signed a replacement bill in May to scale back the broader framework governing high-risk automated employment decisions. Employers using AI hiring tools with Colorado applicants should confirm which obligations (notice, human review, bias auditing) actually survived. _([National Law Review](https://natlawreview.com/article/federal-government-quietly-removed-its-ai-hiring-guidance-four-states-are-writing))_ (took effect 30 June)
 >
 > **Worth Reading**
-> "AI Didn't Break Hiring. It Scaled the Bias We Already Chose." — Forbes argues the problem isn't that algorithms invented bias but that they industrialize the flawed proxies organizations already encoded, making visible human oversight and audited criteria non-negotiable. *([Forbes](https://www.forbes.com/sites/aparnarae/2026/06/29/ai-didnt-break-hiring-it-scaled-the-bias-we-already-chose/))* (29 June)
+> "AI Didn't Break Hiring. It Scaled the Bias We Already Chose." — Forbes argues the problem isn't that algorithms invented bias but that they industrialize the flawed proxies organizations already encoded, making visible human oversight and audited criteria non-negotiable. _([Forbes](https://www.forbes.com/sites/aparnarae/2026/06/29/ai-didnt-break-hiring-it-scaled-the-bias-we-already-chose/))_ (29 June)
 >
 > **Bottom line:** More capable models are arriving faster than the compliance and fairness guardrails around them — pair any new AI hiring capability with documented human review and a live read on your states' shifting rules before you scale it.
 
@@ -63,39 +63,39 @@ Every item is sourced (clickable, dated, no bare URLs), never repeats a domain, 
 
 **Everyday**
 
-| Command | What it does |
-| --- | --- |
-| `/start` | Request access / see what the bot is |
-| `/briefing` | Get today's briefing (cached copy, instant) |
-| `/newbriefing` | Generate a fresh briefing right now |
-| `/subscribe` | Get the daily briefing every morning |
-| `/unsubscribe` | Stop the daily briefing |
-| `/status` | Check your access status |
-| `/help` | List available commands |
+| Command        | What it does                                |
+| -------------- | ------------------------------------------- |
+| `/start`       | Request access / see what the bot is        |
+| `/briefing`    | Get today's briefing (cached copy, instant) |
+| `/newbriefing` | Generate a fresh briefing right now         |
+| `/subscribe`   | Get the daily briefing every morning        |
+| `/unsubscribe` | Stop the daily briefing                     |
+| `/status`      | Check your access status                    |
+| `/help`        | List available commands                     |
 
 **Privacy**
 
-| Command | What it does |
-| --- | --- |
-| `/privacy` | How your data is handled |
-| `/mydata` | See everything stored about you |
+| Command     | What it does                     |
+| ----------- | -------------------------------- |
+| `/privacy`  | How your data is handled         |
+| `/mydata`   | See everything stored about you  |
 | `/forgetme` | Erase all your data from the bot |
 
 **Owner and delegated admins**
 
-| Command | What it does |
-| --- | --- |
-| `/admin` | Admin panel / usage stats |
-| `/pending` | Review and approve access requests |
-| `/adduser` · `/removeuser` | Add or remove someone directly |
-| `/listusers` | List everyone the bot knows |
-| `/broadcast` | Send a one-off message to every subscriber |
+| Command                    | What it does                               |
+| -------------------------- | ------------------------------------------ |
+| `/admin`                   | Admin panel / usage stats                  |
+| `/pending`                 | Review and approve access requests         |
+| `/adduser` · `/removeuser` | Add or remove someone directly             |
+| `/listusers`               | List everyone the bot knows                |
+| `/broadcast`               | Send a one-off message to every subscriber |
 
 **Owner-only**
 
-| Command | What it does |
-| --- | --- |
-| `/addadmin <id>` | Delegate admin (target must already be allowlisted) |
+| Command             | What it does                                                |
+| ------------------- | ----------------------------------------------------------- |
+| `/addadmin <id>`    | Delegate admin (target must already be allowlisted)         |
 | `/removeadmin <id>` | Revoke a user's admin status (keeps their allowlist access) |
 
 > Free-form chat with Claude and group chats are **not** supported — this bot is briefing delivery only.
@@ -142,18 +142,18 @@ Want the daily briefing running under your own bot? Three things to set up:
 
 ### Repo secrets
 
-| Secret | What it is |
-| --- | --- |
-| `ANTHROPIC_API_KEY` | Anthropic Console API key (pay-as-you-go, separate from any claude.ai subscription) |
-| `TELEGRAM_BOT_TOKEN` | The bot's token from @BotFather |
-| `CF_ACCOUNT_ID` | Cloudflare account id |
-| `CF_API_TOKEN` | Cloudflare token — **Workers KV Storage: Edit** only |
-| `CF_KV_NAMESPACE_ID` | The `BOT_STATE` KV namespace id |
+| Secret               | What it is                                                                          |
+| -------------------- | ----------------------------------------------------------------------------------- |
+| `ANTHROPIC_API_KEY`  | Anthropic Console API key (pay-as-you-go, separate from any claude.ai subscription) |
+| `TELEGRAM_BOT_TOKEN` | The bot's token from @BotFather                                                     |
+| `CF_ACCOUNT_ID`      | Cloudflare account id                                                               |
+| `CF_API_TOKEN`       | Cloudflare token — **Workers KV Storage: Edit** only                                |
+| `CF_KV_NAMESPACE_ID` | The `BOT_STATE` KV namespace id                                                     |
 
 Plus one repo **variable** (not a secret — it's the owner's own Telegram id, which isn't sensitive):
 
-| Variable | What it is |
-| --- | --- |
+| Variable        | What it is                                                       |
+| --------------- | ---------------------------------------------------------------- |
 | `OWNER_CHAT_ID` | Where the daily workflow sends failure / stale-generation alerts |
 
 Set them with:
@@ -164,7 +164,7 @@ gh secret set TELEGRAM_BOT_TOKEN --repo <owner>/ai-in-ta-telegram-bot
 gh variable set OWNER_CHAT_ID --repo <owner>/ai-in-ta-telegram-bot   # your numeric Telegram id
 ```
 
-> **Finding your Telegram id:** message [@userinfobot](https://t.me/userinfobot) (or [@getmyid_bot](https://t.me/getmyid_bot)) — it replies with your numeric id. Alternatively, `/start` your own bot and read the id it logs. It's just a number like `123456789`, not sensitive, which is why `OWNER_CHAT_ID` is a repo *variable* rather than a secret.
+> **Finding your Telegram id:** message [@userinfobot](https://t.me/userinfobot) (or [@getmyid_bot](https://t.me/getmyid_bot)) — it replies with your numeric id. Alternatively, `/start` your own bot and read the id it logs. It's just a number like `123456789`, not sensitive, which is why `OWNER_CHAT_ID` is a repo _variable_ rather than a secret.
 
 > See [Secrets, scopes & rotation](#secrets-scopes--rotation) for the least-privilege scope each token needs and a rotation checklist.
 
@@ -172,7 +172,7 @@ gh variable set OWNER_CHAT_ID --repo <owner>/ai-in-ta-telegram-bot   # your nume
 
 Live commands like `/newbriefing`, `/briefing`, `/admin`, and `/subscribe` are handled by a **Cloudflare Worker** (`worker/`) that receives Telegram's webhook directly — so they work 24/7, independent of any local Mac or Claude Code session.
 
-State (`access`, `subscribers`, `usage_stats`, `today_briefing_md`, `today_briefing_date`) lives in a Cloudflare KV namespace bound as `BOT_STATE`. Briefing *generation* is still delegated to GitHub Actions (`on-demand-briefing.yml`, triggered via `repository_dispatch`), which writes the result back into KV via `scripts/sync-kv.mjs` so `/briefing` can serve a cached copy without re-generating.
+State (`access`, `subscribers`, `usage_stats`, `today_briefing_md`, `today_briefing_date`) lives in a Cloudflare KV namespace bound as `BOT_STATE`. Briefing _generation_ is still delegated to GitHub Actions (`on-demand-briefing.yml`, triggered via `repository_dispatch`), which writes the result back into KV via `scripts/sync-kv.mjs` so `/briefing` can serve a cached copy without re-generating.
 
 `/broadcast` delivery is likewise delegated to Actions (`broadcast.yml`, also triggered via `repository_dispatch`): the Worker validates the owner + message and dispatches it, then `scripts/broadcast.mjs` fans the message out to every subscriber (paced + retried) and sends the owner a delivery report. Running the fan-out on the runner instead of in the Worker avoids the Worker's per-invocation subrequest cap, which silently dropped recipients past ~45.
 
@@ -196,7 +196,7 @@ State (`access`, `subscribers`, `usage_stats`, `today_briefing_md`, `today_brief
    npx wrangler secret put TELEGRAM_WEBHOOK_SECRET   # any random string you generate
    npx wrangler secret put GITHUB_TOKEN              # fine-grained PAT, see below
    ```
-   Use a **fine-grained** GitHub PAT scoped to *only* this repo with **Contents: write** — that's all `repository_dispatch` needs. Avoid a classic `repo`-scope token, which grants access to every repo you own.
+   Use a **fine-grained** GitHub PAT scoped to _only_ this repo with **Contents: write** — that's all `repository_dispatch` needs. Avoid a classic `repo`-scope token, which grants access to every repo you own.
 6. **Deploy:**
    ```bash
    npx wrangler deploy   # from worker/ — note the *.workers.dev URL it prints
@@ -207,7 +207,7 @@ State (`access`, `subscribers`, `usage_stats`, `today_briefing_md`, `today_brief
    gh secret set CF_API_TOKEN --repo <owner>/ai-in-ta-telegram-bot       # needs Workers KV Storage: Edit
    gh secret set CF_KV_NAMESPACE_ID --repo <owner>/ai-in-ta-telegram-bot # same id as step 3
    ```
-8. **Test before cutover** ⚠️ — send fake Telegram updates straight to the deployed Worker URL with curl (including the `X-Telegram-Bot-Api-Secret-Token` header) and confirm the replies and KV state look right. Do this **before** touching the live webhook — once set, Telegram stops delivering to the old long-polling `server.ts` for *all* commands, not just `/newbriefing`.
+8. **Test before cutover** ⚠️ — send fake Telegram updates straight to the deployed Worker URL with curl (including the `X-Telegram-Bot-Api-Secret-Token` header) and confirm the replies and KV state look right. Do this **before** touching the live webhook — once set, Telegram stops delivering to the old long-polling `server.ts` for _all_ commands, not just `/newbriefing`.
 9. **Cutover** (only once step 8 checks out):
    ```bash
    curl "https://api.telegram.org/bot<TOKEN>/setWebhook" \
@@ -232,15 +232,15 @@ The default `npx wrangler deploy` continues to target production and ignores the
 
 Least-privilege scope for each credential:
 
-| Credential | Where | Scope it actually needs |
-| --- | --- | --- |
-| `ANTHROPIC_API_KEY` | repo secret | a workspace/key you can cap with a monthly spend limit |
-| `TELEGRAM_BOT_TOKEN` | repo secret + Worker secret | n/a (full bot control — rotate via @BotFather if leaked) |
-| `TELEGRAM_WEBHOOK_SECRET` | Worker secret | any random string; must match the `setWebhook` `secret_token` |
-| `GITHUB_TOKEN` | Worker secret | fine-grained PAT, **this repo only**, `Contents: write` |
-| `CF_API_TOKEN` | repo secret | Cloudflare API token, **Workers KV Storage: Edit** only |
-| `CF_ACCOUNT_ID` / `CF_KV_NAMESPACE_ID` | repo secret | identifiers, not secrets — kept as secrets for convenience |
-| `OWNER_CHAT_ID` | repo **variable** | not sensitive (owner's own Telegram id) |
+| Credential                             | Where                       | Scope it actually needs                                       |
+| -------------------------------------- | --------------------------- | ------------------------------------------------------------- |
+| `ANTHROPIC_API_KEY`                    | repo secret                 | a workspace/key you can cap with a monthly spend limit        |
+| `TELEGRAM_BOT_TOKEN`                   | repo secret + Worker secret | n/a (full bot control — rotate via @BotFather if leaked)      |
+| `TELEGRAM_WEBHOOK_SECRET`              | Worker secret               | any random string; must match the `setWebhook` `secret_token` |
+| `GITHUB_TOKEN`                         | Worker secret               | fine-grained PAT, **this repo only**, `Contents: write`       |
+| `CF_API_TOKEN`                         | repo secret                 | Cloudflare API token, **Workers KV Storage: Edit** only       |
+| `CF_ACCOUNT_ID` / `CF_KV_NAMESPACE_ID` | repo secret                 | identifiers, not secrets — kept as secrets for convenience    |
+| `OWNER_CHAT_ID`                        | repo **variable**           | not sensitive (owner's own Telegram id)                       |
 
 > **Status (2026-07-03):** the `GITHUB_TOKEN` migration off a classic full-`repo`
 > PAT to a fine-grained, this-repo-only `Contents: write` token is complete — the
