@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-07-14
+
 ### Hardened briefing prompt against model reasoning leakage
 
 `briefing-prompt.md` already required markdown-only output, but the model still occasionally returned internal selection rationale before the briefing title. A live 2026-07-13 edition started with:
