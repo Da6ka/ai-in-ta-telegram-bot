@@ -748,9 +748,12 @@ const COMMAND_HANDLERS = {
   },
 
   async unsubscribe(env, message, gated) {
-    const { senderId, stub } = gated
-    const subsBefore = await stub.getSubscribers()
-    if (subsBefore.owner && senderId === subsBefore.owner) {
+    const { senderId, access, stub } = gated
+    // Guard on access.ownerChatId — the same source of truth /forgetme uses.
+    // Nothing ever writes subscribers.owner (it stays '' from
+    // DEFAULT_SUBSCRIBERS), so the old subsBefore.owner check never fired and
+    // the owner could unsubscribe from their own daily briefing.
+    if (senderId === access.ownerChatId) {
       await reply(env, senderId, "You're the bot owner — you can't unsubscribe from your own briefing.")
       return
     }
