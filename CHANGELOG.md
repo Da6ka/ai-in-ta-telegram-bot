@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.5.2] - 2026-07-15
+
 ### Added a regression test for en dash/hyphen title tolerance
 
 The 1.5.1 dash-tolerance fix taught `isValidBriefing()` to accept em dash, en
