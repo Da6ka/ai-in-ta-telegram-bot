@@ -87,7 +87,10 @@ function resetState({ allowFrom = [OWNER], subscribers = [OWNER], pending = {}, 
   doStorage.map.clear()
   kv.map.clear()
   doStorage.map.set('access', { dmPolicy: 'allowlist', allowFrom: [...allowFrom], ownerChatId: OWNER, adminIds: [...adminIds], pending: structuredClone(pending) })
-  doStorage.map.set('subscribers', { subscribers: [...subscribers], owner: OWNER })
+  // No `owner` field: nothing in the Worker ever writes subscribers.owner, so
+  // this mirrors the real shape. The owner is identified by access.ownerChatId
+  // (set above) — the source of truth the /unsubscribe and /forgetme guards use.
+  doStorage.map.set('subscribers', { subscribers: [...subscribers] })
   fetchLog = []
   fetchOverride = null
 }
@@ -757,11 +760,11 @@ test('subscription logic under stress', async (t) => {
     kv.map.delete('usage_stats')
   })
   await t.test('S4 duplicate ids in subscriber list -> still a single dispatch (runner de-dupes at send time)', async () => {
-    doStorage.map.set('subscribers', { subscribers: ['2001', '2001'], owner: OWNER })
+    doStorage.map.set('subscribers', { subscribers: ['2001', '2001'] })
     fetchLog = []
     await send(upd(OWNER, '/broadcast dup-check'))
     assert.equal(ghDispatches().length, 1, 'one dispatch regardless of duplicate ids; broadcast.mjs Set-dedupes recipients')
-    doStorage.map.set('subscribers', { subscribers: [OWNER], owner: OWNER })
+    doStorage.map.set('subscribers', { subscribers: [OWNER] })
   })
   await t.test('capacity cap holds: neither /start nor /adduser can push the allowlist past MAX_USERS', async () => {
     // MAX_USERS = 30 in the Worker. Fill the allowlist to the cap (owner + 29),

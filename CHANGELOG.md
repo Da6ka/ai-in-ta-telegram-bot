@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+### Fixed the owner-can't-unsubscribe guard checking a field nothing writes
+
+`/unsubscribe` gated the owner-refusal on `subscribers.owner`, but no code
+path ever writes that field — it stays `''` from `DEFAULT_SUBSCRIBERS` — so
+the guard never fired and the bot owner could unsubscribe from their own daily
+briefing (they'd then miss it until re-subscribing). The guard now keys off
+`access.ownerChatId`, the same source of truth `/forgetme` already uses.
+
+The `F8` test passed only because its fixture hand-seeded
+`subscribers: { owner: OWNER }`, a shape the running Worker never produces.
+Dropped that field from the test fixtures so `F8` now exercises the real
+`access.ownerChatId` path and fails if the guard regresses.
+
 ## [1.5.2] - 2026-07-15
 
 ### Added a regression test for en dash/hyphen title tolerance
