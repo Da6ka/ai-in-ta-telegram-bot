@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.5.3] - 2026-07-15
+
 ### Fixed the owner-can't-unsubscribe guard checking a field nothing writes
 
 `/unsubscribe` gated the owner-refusal on `subscribers.owner`, but no code
