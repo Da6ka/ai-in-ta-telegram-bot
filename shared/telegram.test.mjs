@@ -93,6 +93,15 @@ test('isValidBriefing accepts a real briefing and rejects garbage generations', 
   )
 })
 
+// TITLE_DASH regression: a model drifting onto a visually similar dash
+// character (en dash, plain hyphen) instead of the prompt-specified em dash
+// still produces a perfectly usable briefing and must not be rejected
+// identically to a genuinely malformed title.
+test('isValidBriefing tolerates en dash and hyphen title separators, not just em dash', () => {
+  assert.equal(isValidBriefing('# Daily AI Recruitment Briefing \u2013 2 July 2026\n\n- [Story](https://ex.com)'), true, 'en dash accepted')
+  assert.equal(isValidBriefing('# Daily AI Recruitment Briefing - 2 July 2026\n\n- [Story](https://ex.com)'), true, 'hyphen accepted')
+})
+
 // AUD-1 regression: the thin-generation guard. A headered briefing with zero
 // or one linked story (the "no content" fallback, or the degenerate 1-story
 // run observed in prod on 2026-07-02) must count below MIN_BRIEFING_ITEMS so
