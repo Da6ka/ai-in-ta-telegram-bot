@@ -271,4 +271,7 @@ Least-privilege scope for each credential:
 **When to actually release:**
 
 - Release per batch, not per PR. Let entries accumulate under `[Unreleased]` and cut a version once a cluster of related work is stable and complete, not after every individual merge.
-- To cut a release: rename `[Unreleased]` to `[x.y.z] - YYYY-MM-DD`, open a fresh empty `[Unreleased]` above it, then tag it (`git tag vX.Y.Z && git push --tags`, or `gh release create vX.Y.Z`).
+- To cut a release:
+  1. Rename `[Unreleased]` to `[x.y.z] - YYYY-MM-DD`, open a fresh empty `[Unreleased]` above it, and bump `version` in `package.json`.
+  2. Tag it: `git tag vX.Y.Z && git push origin vX.Y.Z`, then `gh release create vX.Y.Z` (the README Release badge reads the latest **GitHub Release**, not the tag, so publishing the release is what updates it).
+  3. **Deploy the Worker — this is a separate, manual step.** There is no CI/CD deploy: merging, tagging, and publishing a release do **not** ship the code. Run `cd worker && npx wrangler deploy` to push it live to the production bot. Verify with `npx wrangler deployments list` (newest entry at 100%) and `curl -s https://ai-in-ta-telegram-bot.ai-in-ta-bot.workers.dev` (returns `ok`).
