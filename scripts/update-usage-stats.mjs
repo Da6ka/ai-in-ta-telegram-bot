@@ -4,6 +4,7 @@
 // which required giving it broad file Write access. Moving it here means the
 // agent only needs web search, not arbitrary file writes.
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
+import { applyBriefingToUsageStats } from '../shared/telegram.mjs'
 
 const path = 'state/usage_stats.json'
 const existing = existsSync(path)
@@ -19,9 +20,7 @@ const today = process.env.BRIEFING_DATE_ISO || new Date().toISOString().slice(0,
 // after fetching the live subscriber list from KV).
 const recipients = Number(process.env.RECIPIENT_COUNT ?? 0)
 
-existing.briefings_sent = (existing.briefings_sent ?? 0) + 1
-existing.last_briefing_at = today
-existing.briefing_history = [...(existing.briefing_history ?? []), { date: today, recipients }].slice(-30)
+const updated = applyBriefingToUsageStats(existing, { today, recipients })
 
-writeFileSync(path, JSON.stringify(existing, null, 2) + '\n')
-console.log(`Updated usage_stats.json: briefings_sent=${existing.briefings_sent}, recipients=${recipients}`)
+writeFileSync(path, JSON.stringify(updated, null, 2) + '\n')
+console.log(`Updated usage_stats.json: briefings_sent=${updated.briefings_sent}, recipients=${recipients}`)

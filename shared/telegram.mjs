@@ -142,6 +142,70 @@ export function recentStoryBullets(entries, todayISO) {
   return sorted.flatMap((e) => e.bullets).slice(-MAX_RECENT_STORY_BULLETS)
 }
 
+// --- Generation-pipeline helpers used by the GitHub Actions delivery scripts.
+// Kept here (unit-tested) rather than inline in the script bodies: the scripts
+// run only in CI, where a regression is invisible until a briefing silently
+// misfires or usage_stats corrupts. ---
+
+// scripts/check-credit-balance.mjs classifies a failed Anthropic pre-flight:
+// ONLY the specific low-credit body blocks the (multi-dollar) generation run.
+// Any other failure (rate limit, model hiccup, network blip) must NOT block, or
+// an unrelated transient error silently skips the day's briefing.
+export function isLowBalanceError(body) {
+  return /credit balance is too low/i.test(String(body ?? ''))
+}
+
+// scripts/update-usage-stats.mjs bookkeeping after a successful daily briefing:
+// bump the counter, stamp the date, and append to a history capped at the last
+// USAGE_HISTORY_LIMIT editions. Returns a NEW object (input untouched);
+// fields it doesn't manage (command_counts, last_seen) are carried over as-is.
+export const USAGE_HISTORY_LIMIT = 30
+export function applyBriefingToUsageStats(existing, { today, recipients = 0 } = {}) {
+  const base = existing ?? {
+    briefings_sent: 0,
+    last_briefing_at: null,
+    briefing_history: [],
+    command_counts: {},
+    last_seen: {},
+  }
+  return {
+    ...base,
+    briefings_sent: (base.briefings_sent ?? 0) + 1,
+    last_briefing_at: today,
+    briefing_history: [...(base.briefing_history ?? []), { date: today, recipients }].slice(-USAGE_HISTORY_LIMIT),
+  }
+}
+
+// scripts/score-briefing.mjs scorecard heuristics (Phase 16 re-bench). The
+// hostname a bullet's link points at, minus a leading www. — G5 counts distinct
+// domains off this. Non-URL input falls through unchanged so the caller can
+// still surface it in the report.
+export function briefingDomain(url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '')
+  } catch {
+    return url
+  }
+}
+
+// G3 heuristic: does a story bullet carry a date token placing it in the recent
+// window? Deliberately lenient — any recognizable recent-date signal passes, and
+// bullets with none are flagged for manual review rather than silently failed.
+const DATED_MONTH_NAMES = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
+export function bulletLooksDated(bullet, now = new Date(), freshHours = 48) {
+  const b = String(bullet ?? '')
+  const lower = b.toLowerCase()
+  const cutoff = new Date(now.getTime() - freshHours * 3600 * 1000)
+  const iso = b.match(/\b(\d{4})-(\d{2})-(\d{2})\b/)
+  if (iso) {
+    const d = new Date(iso[0])
+    if (!Number.isNaN(+d) && d >= cutoff && d <= now) return true
+  }
+  if (DATED_MONTH_NAMES.some((m) => lower.includes(m))) return true
+  if (/\b(today|yesterday|this week|hours ago|announced (today|yesterday))\b/.test(lower)) return true
+  return false
+}
+
 // Pace sends to stay under Telegram's ~30 msg/s ceiling. 40ms ≈ 25/s, leaving
 // headroom for the API's own variability.
 const DEFAULT_PACE_MS = 40

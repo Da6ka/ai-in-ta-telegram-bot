@@ -9,7 +9,7 @@
 // scorecard row. G6 (source tiering) and G8 (silent fallback) and the five
 // editorial 1-10 scores are judgment calls — left blank for the human scorer.
 import { readFileSync } from 'node:fs'
-import { countBriefingItems, MIN_BRIEFING_ITEMS } from '../shared/telegram.mjs'
+import { countBriefingItems, MIN_BRIEFING_ITEMS, briefingDomain, bulletLooksDated } from '../shared/telegram.mjs'
 
 const TARGET_ITEMS = 4 // prompt's minimum-coverage loop target (G2)
 const FRESH_HOURS = 48 // G3: bullets should reference the past ~48h
@@ -30,37 +30,14 @@ const urls = bullets
   .map((b) => b.match(/\]\((https?:\/\/[^)]+)\)/)?.[1])
   .filter(Boolean)
 
-const domainOf = (u) => {
-  try {
-    return new URL(u).hostname.replace(/^www\./, '')
-  } catch {
-    return u
-  }
-}
-const domains = urls.map(domainOf)
+const domains = urls.map(briefingDomain)
 const uniqueDomains = new Set(domains)
 const dupDomains = domains.filter((d, i) => domains.indexOf(d) !== i)
 
 // G3 heuristic: does each bullet carry a date token in the past ~48h? We can't
 // robustly parse every phrasing, so we flag bullets with NO recognizable recent
 // date for manual review rather than silently passing them.
-const monthNames = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
-const cutoff = new Date(today.getTime() - FRESH_HOURS * 3600 * 1000)
-function bulletLooksDated(b) {
-  const lower = b.toLowerCase()
-  // ISO date within window
-  const iso = b.match(/\b(\d{4})-(\d{2})-(\d{2})\b/)
-  if (iso) {
-    const d = new Date(iso[0])
-    if (!Number.isNaN(+d) && d >= cutoff && d <= today) return true
-  }
-  // "Jul 2", "July 2", "2 July" near current month
-  if (monthNames.some((m) => lower.includes(m))) return true
-  // relative phrasing
-  if (/\b(today|yesterday|this week|hours ago|announced (today|yesterday))\b/.test(lower)) return true
-  return false
-}
-const undatedBullets = bullets.filter((b) => !bulletLooksDated(b))
+const undatedBullets = bullets.filter((b) => !bulletLooksDated(b, today, FRESH_HOURS))
 
 const bottomLine = /\*\*bottom line:?\*\*/i.test(md)
 
@@ -112,7 +89,7 @@ if (!noFetch) {
   console.log(`\nLink resolution:`)
   linkResults.forEach((r) => {
     const tag = r.status === 0 ? 'DEAD' : r.status === 403 ? 'bot-block?' : r.status >= 400 ? 'DEAD' : 'ok'
-    console.log(`  [${r.status || 'ERR'}] ${tag.padEnd(10)} ${domainOf(r.url)}`)
+    console.log(`  [${r.status || 'ERR'}] ${tag.padEnd(10)} ${briefingDomain(r.url)}`)
   })
   if (botBlocked.length) console.log(`  (${botBlocked.length} × 403 — verify each is bot-blocking, not a dead link)`)
 }

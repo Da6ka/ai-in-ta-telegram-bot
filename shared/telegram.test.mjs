@@ -2,7 +2,7 @@
 // fetch is mocked; paceMs/baseDelayMs are set to 0 so the suite stays fast.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { tgRequest, sendHtml, sendHtmlToMany, sendTextToMany, isValidBriefing, countBriefingItems, MIN_BRIEFING_ITEMS, extractBriefingBullets, pruneRecentStories, RECENT_STORIES_WINDOW_DAYS, recentStoryBullets, MAX_RECENT_STORY_BULLETS, bulletUrlKey, dedupeBullets, normalizeBriefing } from './telegram.mjs'
+import { tgRequest, sendHtml, sendHtmlToMany, sendTextToMany, isValidBriefing, countBriefingItems, MIN_BRIEFING_ITEMS, extractBriefingBullets, pruneRecentStories, RECENT_STORIES_WINDOW_DAYS, recentStoryBullets, MAX_RECENT_STORY_BULLETS, bulletUrlKey, dedupeBullets, normalizeBriefing, isLowBalanceError, applyBriefingToUsageStats, briefingDomain, bulletLooksDated } from './telegram.mjs'
 
 const realFetch = globalThis.fetch
 function mockFetch(handler) {
@@ -286,4 +286,67 @@ test('normalizeBriefing returns untitled content unchanged (freshness gate rejec
   assert.equal(content, md)
   assert.equal(preambleStripped, false)
   assert.equal(dateChanged, false)
+})
+
+
+// --- Generation-pipeline helpers extracted from the delivery scripts ---
+
+test('isLowBalanceError matches only the low-credit body, not unrelated errors', () => {
+  assert.equal(isLowBalanceError('{"type":"error","error":{"message":"Your credit balance is too low to access the API."}}'), true)
+  assert.equal(isLowBalanceError('CREDIT BALANCE IS TOO LOW'), true)
+  assert.equal(isLowBalanceError('{"error":{"type":"rate_limit_error","message":"rate limit"}}'), false)
+  assert.equal(isLowBalanceError('overloaded_error'), false)
+  assert.equal(isLowBalanceError(''), false)
+  assert.equal(isLowBalanceError(null), false)
+})
+
+test('applyBriefingToUsageStats increments, stamps the date, and preserves unmanaged fields', () => {
+  const existing = {
+    briefings_sent: 4,
+    last_briefing_at: '2026-07-14',
+    briefing_history: [{ date: '2026-07-14', recipients: 9 }],
+    command_counts: { briefing: 3 },
+    last_seen: { '1': '2026-07-14' },
+  }
+  const out = applyBriefingToUsageStats(existing, { today: '2026-07-15', recipients: 12 })
+  assert.equal(out.briefings_sent, 5)
+  assert.equal(out.last_briefing_at, '2026-07-15')
+  assert.deepEqual(out.briefing_history.at(-1), { date: '2026-07-15', recipients: 12 })
+  assert.deepEqual(out.command_counts, { briefing: 3 })
+  assert.deepEqual(out.last_seen, { '1': '2026-07-14' })
+  // input object is not mutated
+  assert.equal(existing.briefings_sent, 4)
+  assert.equal(existing.briefing_history.length, 1)
+})
+
+test('applyBriefingToUsageStats caps history at the last 30 editions', () => {
+  const history = Array.from({ length: 30 }, (_, i) => ({ date: `d${i}`, recipients: i }))
+  const out = applyBriefingToUsageStats({ briefings_sent: 30, briefing_history: history }, { today: '2026-07-15', recipients: 1 })
+  assert.equal(out.briefing_history.length, 30)
+  assert.equal(out.briefing_history[0].date, 'd1') // oldest edition dropped
+  assert.deepEqual(out.briefing_history.at(-1), { date: '2026-07-15', recipients: 1 })
+})
+
+test('applyBriefingToUsageStats seeds a fresh stats object from null/undefined', () => {
+  const out = applyBriefingToUsageStats(undefined, { today: '2026-07-15' })
+  assert.equal(out.briefings_sent, 1)
+  assert.equal(out.last_briefing_at, '2026-07-15')
+  assert.deepEqual(out.briefing_history, [{ date: '2026-07-15', recipients: 0 }])
+  assert.deepEqual(out.command_counts, {})
+  assert.deepEqual(out.last_seen, {})
+})
+
+test('briefingDomain strips a leading www and returns the host; non-URLs pass through', () => {
+  assert.equal(briefingDomain('https://www.example.com/path?q=1#x'), 'example.com')
+  assert.equal(briefingDomain('https://blog.openai.com/article'), 'blog.openai.com')
+  assert.equal(briefingDomain('not a url'), 'not a url')
+})
+
+test('bulletLooksDated recognizes in-window ISO dates, month names, and relative phrasing', () => {
+  const now = new Date('2026-07-15T12:00:00Z')
+  assert.equal(bulletLooksDated('- [x](https://a.co) launched 2026-07-14', now), true) // ISO in window
+  assert.equal(bulletLooksDated('- [x](https://a.co) back on 2026-01-01', now), false) // ISO out of window
+  assert.equal(bulletLooksDated('- [x](https://a.co) announced in Jul', now), true) // month name
+  assert.equal(bulletLooksDated('- [x](https://a.co) shipped today', now), true) // relative
+  assert.equal(bulletLooksDated('- [x](https://a.co) with no recognizable signal', now), false)
 })
