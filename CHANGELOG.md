@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Added a regression test for en dash/hyphen title tolerance
+
+The 1.5.1 dash-tolerance fix taught `isValidBriefing()` to accept em dash, en
+dash, or a plain hyphen in the briefing title separator, but shipped without a
+test. Added one asserting all three separators are accepted, so a future
+narrowing of `TITLE_DASH` can't silently reintroduce the rejection of
+otherwise-valid briefings. (#57)
+
 ### Fixed the same Stop-hook outage on the /newbriefing path
 
 The 1.5.1 fix applied `--setting-sources user` and `--debug-file` to
