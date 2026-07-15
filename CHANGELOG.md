@@ -2,6 +2,27 @@
 
 ## [Unreleased]
 
+### Unit-tested the delivery scripts' embedded logic
+
+Extracted the three pieces of consequential pure logic that lived inline in the
+GitHub Actions delivery scripts into `shared/telegram.mjs`, where CI can reach
+them, and added unit tests (133 -> 139):
+
+- `isLowBalanceError()` (from `check-credit-balance.mjs`) -- the classifier that
+  decides whether a failed Anthropic pre-flight blocks the multi-dollar
+  generation run; only the low-credit body blocks, every other error passes so
+  a transient failure can't silently skip the day's briefing.
+- `applyBriefingToUsageStats()` + `USAGE_HISTORY_LIMIT` (from
+  `update-usage-stats.mjs`) -- the daily increment / date-stamp / 30-edition
+  history-cap bookkeeping, now covered for the cap, fresh-seed, and no-mutation
+  cases.
+- `briefingDomain()` and `bulletLooksDated()` (from `score-briefing.mjs`) -- the
+  G5 distinct-domain and G3 recent-date scorecard heuristics.
+
+Behavior is unchanged: the scripts now import these instead of defining them
+inline. Closes the repo's remaining untested-logic gap; the rest of `scripts/`
+is thin Telegram/GitHub/KV `fetch` wrappers left as integration-only.
+
 ## [1.5.3] - 2026-07-15
 
 ### Fixed the owner-can't-unsubscribe guard checking a field nothing writes

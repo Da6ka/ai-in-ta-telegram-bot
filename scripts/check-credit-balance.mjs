@@ -12,6 +12,7 @@
 // as a balance problem, so this can't false-negative-block a real generation
 // attempt over an unrelated transient error.
 import { appendFileSync } from "node:fs";
+import { isLowBalanceError } from "../shared/telegram.mjs";
 
 const { ANTHROPIC_API_KEY } = process.env;
 
@@ -52,7 +53,7 @@ if (res.ok) {
 }
 
 const body = await res.text();
-if (/credit balance is too low/i.test(body)) {
+if (isLowBalanceError(body)) {
   console.log(
     `Anthropic API credit balance is too low (HTTP ${res.status}):\n${body}`,
   );
