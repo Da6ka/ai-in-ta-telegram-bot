@@ -54,6 +54,16 @@ if (items < MIN_BRIEFING_ITEMS) {
 await kvPut('today_briefing_md', md)
 await kvPut('today_briefing_date', today)
 
+// today_briefing_date means "an edition is cached", NOT "subscribers got it":
+// the on-demand path runs this same script after delivering to exactly one
+// requester. The heartbeat needs the second fact, so the daily workflow -- and
+// only it -- passes MARK_DELIVERED, gated on its send step having succeeded.
+// Conflating the two let an on-demand run silence the heartbeat on a day when
+// the daily send never happened (#61 follow-up).
+if (process.env.MARK_DELIVERED === 'true') {
+  await kvPut('last_delivered_date', today)
+}
+
 const existingRaw = await kvGet('usage_stats')
 const existing = existingRaw
   ? JSON.parse(existingRaw)

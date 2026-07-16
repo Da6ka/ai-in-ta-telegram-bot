@@ -1007,7 +1007,7 @@ test('briefing heartbeat cron', async (t) => {
   const HEARTBEAT = '0 12 * * *'
   await t.test("alerts the owner when today's briefing has not landed", async () => {
     resetState()
-    kv.map.set('today_briefing_date', '2020-01-01') // stale: nothing delivered today
+    kv.map.set('last_delivered_date', '2020-01-01') // stale: nothing delivered today
     fetchLog = []
     const waited = []
     await worker.default.scheduled({ cron: HEARTBEAT }, env, { waitUntil: (p) => waited.push(p) })
@@ -1016,17 +1016,34 @@ test('briefing heartbeat cron', async (t) => {
     const s = sends()
     assert.equal(s.length, 1, 'exactly one alert sent')
     assert.equal(String(s[0].body.chat_id), OWNER, 'alert goes to the owner')
-    assert.match(s[0].body.text, /hasn't landed/)
+    assert.match(s[0].body.text, /hasn't been delivered to subscribers/)
   })
   await t.test("stays silent when today's briefing has already landed", async () => {
     resetState()
-    kv.map.set('today_briefing_date', todayUTC())
+    kv.map.set('last_delivered_date', todayUTC())
     fetchLog = []
     const waited = []
     await worker.default.scheduled({ cron: HEARTBEAT }, env, { waitUntil: (p) => waited.push(p) })
     await Promise.all(waited)
     assert.equal(sends().length, 0, 'no alert when the edition is fresh for today')
     assert.equal(ghDispatches().length, 0, 'and no daily dispatch on the heartbeat cron')
+  })
+  // The bug this key exists to fix: today_briefing_date means "an edition is
+  // cached", which an on-demand /newbriefing sets after delivering to exactly
+  // one requester. Reading it here let a single user's /newbriefing silence the
+  // alert on a day when subscribers got nothing.
+  await t.test('an on-demand edition cached today does not silence the alert', async () => {
+    resetState()
+    kv.map.delete('last_delivered_date') // nothing delivered to subscribers today
+    kv.map.set('today_briefing_date', todayUTC()) // but an on-demand run cached one
+    kv.map.set('today_briefing_md', '# Daily AI Recruitment Briefing — test')
+    fetchLog = []
+    const waited = []
+    await worker.default.scheduled({ cron: HEARTBEAT }, env, { waitUntil: (p) => waited.push(p) })
+    await Promise.all(waited)
+    const s = sends()
+    assert.equal(s.length, 1, 'owner still alerted: a cached edition is not a delivery')
+    assert.match(s[0].body.text, /hasn't been delivered to subscribers/)
   })
   await t.test('the daily dispatch cron is unaffected (non-heartbeat event)', async () => {
     resetState()
