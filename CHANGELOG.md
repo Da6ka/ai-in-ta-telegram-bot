@@ -14,7 +14,13 @@ Adds a **"Using the bot (subscribers)"** section covering the four-tap flow
 data commands. Adds a note under the command table spelling out the
 `/newbriefing` limits verified against `worker/src/index.js`: 60-min cooldown
 (5 min for the owner), 3/day per user, 5/day across everyone, cached copy served
-on refusal, daily send unaffected. Docs only.
+on refusal, daily send unaffected.
+
+The note attributes each limit to its real reason rather than lumping them under
+one: an on-demand briefing is delivered only to the requester (not broadcast),
+but it overwrites the single shared cached edition `/briefing` serves everyone,
+so the cooldown is global (the cache and cost are shared); the per-user cap is
+an anti-hogging backstop; the global cap is the cost ceiling. Docs only.
 
 ### README drift: dead rollback path, briefing window, and the reliability story
 

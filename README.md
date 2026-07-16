@@ -89,7 +89,7 @@ To stop: **`/unsubscribe`** ends the daily send but keeps your access; **`/forge
 | `/status`      | Check your access status                    |
 | `/help`        | List available commands                     |
 
-> **`/newbriefing` is rate-limited.** Because everyone shares one briefing, there's a 60-minute cooldown between fresh generations (5 minutes for the owner), a cap of 3 per person per day, and 5 across all users per day. Hit any of them and you get today's cached copy instead of an error — and the morning briefing is never affected by these limits.
+> **`/newbriefing` is rate-limited.** A fresh briefing is delivered only to you, but each run is a paid generation that overwrites the one shared cached edition `/briefing` serves everyone — so three limits apply: a 60-minute cooldown between runs (5 minutes for the owner), global because the cache and the cost are shared (back-to-back regenerations would just re-spend to overwrite the same copy); a cap of 3 per person per day, so no single user hogs it; and 5 across all users per day, the actual cost ceiling. Hit any of them and you get today's cached copy instead of an error — and the morning briefing is never affected by these limits.
 
 **Privacy**
 
