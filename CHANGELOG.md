@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-07-16
+
 ### Heartbeat now asks whether subscribers were served, not whether a copy exists
 
 The 12:00 UTC Cloudflare heartbeat read `today_briefing_date` and treated

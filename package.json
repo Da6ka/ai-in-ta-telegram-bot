@@ -1,6 +1,6 @@
 {
   "name": "ai-in-ta-telegram-bot",
-  "version": "1.5.3",
+  "version": "1.6.0",
   "private": true,
   "description": "AI-in-TA Telegram briefing bot (Cloudflare Worker + GitHub Actions delivery)",
   "scripts": {
