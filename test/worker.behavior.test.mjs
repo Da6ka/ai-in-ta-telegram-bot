@@ -313,7 +313,7 @@ test('user commands', async (t) => {
 
 // =============== briefing / rate limiting ===============
 test('briefing and rate limiting', async (t) => {
-  resetState({ allowFrom: [OWNER, '222'] })
+  resetState({ allowFrom: [OWNER, '222', '333', '444'] })
   await t.test('F9 /briefing with fresh cache -> serves HTML, no dispatch', async () => {
     kv.map.set('today_briefing_date', todayUTC())
     kv.map.set('today_briefing_md', '# Daily AI Recruitment Briefing — test\n\n- [Story](https://ex.com) **bold**')
@@ -379,6 +379,55 @@ test('briefing and rate limiting', async (t) => {
     await send(upd('222', '/newbriefing'))
     assert.equal(ghDispatches().length, 0)
     assert.ok(sends()[0].body.text.includes("reached today's limit"))
+  })
+  // The per-user cap (F12) bounds hogging, not spend: each allowlisted user
+  // gets their own 3/day, so total cost scales with the allowlist. The global
+  // cap is the actual cost ceiling. Driven with distinct senders so the
+  // per-user cap can't be what refuses the request.
+  await t.test('F12b global cap: shared limit refuses a user who is under their own cap', async () => {
+    doStorage.map.set('briefing_rate', {
+      lastDispatchAt: 0,
+      date: todayUTC(),
+      counts: { '222': 2, '333': 3 },
+      total: 5,
+    })
+    fetchLog = []
+    await send(upd('444', '/newbriefing')) // 444 has spent 0 of its own 3
+    assert.equal(ghDispatches().length, 0, 'no dispatch once the shared cap is spent')
+    assert.ok(
+      sends()[0].body.text.includes('shared daily limit'),
+      'user told about the shared limit, not their own',
+    )
+  })
+  await t.test('F12c global cap resets at UTC midnight and refunds on failed dispatch', async () => {
+    doStorage.map.set('briefing_rate', {
+      lastDispatchAt: 0,
+      date: '2020-01-01',
+      counts: { '222': 3 },
+      total: 5,
+    })
+    fetchLog = []
+    await send(upd('222', '/newbriefing'))
+    assert.equal(ghDispatches().length, 1, 'stale date resets both caps, dispatch allowed')
+    assert.equal(doStorage.map.get('briefing_rate').total, 1, 'global total restarts at 1')
+
+    // A dispatch GitHub never accepted must not consume a shared slot.
+    doStorage.map.set('briefing_rate', { lastDispatchAt: 0, date: todayUTC(), counts: {}, total: 4 })
+    fetchOverride = (url) => (url.includes('api.github.com') ? new Response('boom', { status: 500 }) : null)
+    fetchLog = []
+    await send(upd('222', '/newbriefing'))
+    assert.equal(doStorage.map.get('briefing_rate').total, 4, 'global slot refunded on dispatch failure')
+    fetchOverride = null
+  })
+  // A briefing_rate record written before the global cap existed has no
+  // `total`. It must default to 0 rather than NaN-compare its way into
+  // refusing every dispatch.
+  await t.test('F12d pre-existing rate record without `total` still dispatches', async () => {
+    doStorage.map.set('briefing_rate', { lastDispatchAt: 0, date: todayUTC(), counts: {} })
+    fetchLog = []
+    await send(upd('222', '/newbriefing'))
+    assert.equal(ghDispatches().length, 1, 'absent total is treated as 0, not NaN')
+    assert.equal(doStorage.map.get('briefing_rate').total, 1)
   })
   await t.test('F13 failed GitHub dispatch -> rollback, user informed, retry possible', async () => {
     doStorage.map.set('briefing_rate', { lastDispatchAt: 0, date: todayUTC(), counts: {} })

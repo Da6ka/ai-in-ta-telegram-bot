@@ -1,6 +1,6 @@
 # AI-in-TA Telegram Bot — Technical Specification
 
-Version: 1.4.0 · Status: describes the deployed system as of 2026-07-13
+Version: 1.5.3 · Status: describes the deployed system as of 2026-07-16
 
 > This is the interface/requirements-level companion to [`design.md`](./design.md).
 > `design.md` explains _why_ the system is shaped the way it is (narrative,
@@ -98,7 +98,7 @@ generation-side record. `scripts/sync-kv.mjs` is the one-way bridge
 ### 3.3 Anthropic API (generation)
 
 - Invoked as `claude -p <prompt>` from Actions, model **`claude-opus-4-8`**,
-  `--allowedTools WebSearch`, `--max-budget-usd 2` per run.
+  `--allowedTools WebSearch`, `--max-budget-usd 4` per run.
 - Prompts: [`briefing-prompt.md`](../briefing-prompt.md) (daily),
   [`briefing-prompt-ondemand.md`](../briefing-prompt-ondemand.md) (on-demand).
   Editorial rules (sourcing, no repeated domains, news-not-evergreen, 48-hour
@@ -134,6 +134,14 @@ usage_stats:
   last_seen: { <chat_id>: <YYYY-MM-DD> }
 today_briefing_md:   <string>
 today_briefing_date: <YYYY-MM-DD>
+briefing_rate:                  # generation rate limiting (§6.2)
+  lastDispatchAt: <epoch_ms>    # global, drives the cooldown
+  date:           <YYYY-MM-DD>  # UTC day the counters below belong to
+  counts:         { <id>: <int> }  # per-user daily cap
+  total:          <int>         # global daily cap
+seen_updates:  [<int>, ...]     # capped ring of handled Telegram update_ids,
+                                # so a Telegram redelivery can't re-run a
+                                # non-idempotent command (e.g. /broadcast)
 ```
 
 Consistency: mutations to `allowFrom` / `subscribers` / admin sets MUST be
@@ -164,13 +172,19 @@ is the idempotency marker.
    `repository_dispatch: daily-briefing-trigger`.
 2. `daily-briefing.yml`: idempotency check on `last_briefing_at`; if already
    today, **no-op**. Otherwise `claude -p briefing-prompt.md` → write
-   `state/today_briefing.md`, bump `usage_stats`.
-3. `send-briefing.mjs` reads live subscribers from KV, sends to each.
-4. Workflow commits `state/` back to `main`.
+   `state/today_briefing.md`.
+3. **Freshness & content gate:** the edition MUST be dated today AND carry at
+   least `MIN_BRIEFING_ITEMS` (**2**) linked stories. A rejected edition is not
+   sent, does not bump `usage_stats`, and deliberately leaves `last_briefing_at`
+   un-advanced so the day stays retryable; the owner is alerted instead.
+4. `send-briefing.mjs` reads live subscribers from KV, sends to each; then
+   `usage_stats` is bumped and covered stories recorded.
+5. Workflow commits `state/` back to `main`.
 
 **Accept:** exactly one briefing is delivered per calendar day even if two or
 three triggers fire (Cron + GitHub schedule + watchdog). No subscriber receives
-duplicates.
+duplicates. A stale or thin edition is never delivered, and never marks the day
+done.
 
 ### 5.2 On-demand `/briefing`
 
@@ -195,17 +209,36 @@ per-invocation subrequest cap that silently dropped recipients past ~45).
 
 ## 6. Constraints & limits
 
+### 6.1 Enforced limits
+
 | Limit                        | Value                                      | Enforced at                                                          |
 | ---------------------------- | ------------------------------------------ | -------------------------------------------------------------------- |
-| `MAX_USERS`                  | **30**                                     | `BotState.addAllowedUser` (atomic), `/start`, callback-approval path |
-| Generation dispatch cooldown | **60 min** global (`DISPATCH_COOLDOWN_MS`) | Worker, before `/newbriefing` dispatch                               |
-| Generation daily cap         | **3/day** (`DAILY_DISPATCH_CAP`)           | Worker                                                               |
-| Per-run LLM spend            | **$2** (`--max-budget-usd`)                | Actions                                                              |
-| Briefing model               | `claude-opus-4-8`                          | Actions                                                              |
-| Briefing window              | last 48 hours                              | prompt                                                               |
+| `MAX_USERS`                  | **30**                                            | `BotState.addAllowedUser` (atomic), `/start`, callback-approval path |
+| `MAX_PENDING`                | **50**                                            | Worker, on `/start` (capped independently of `MAX_USERS`)           |
+| Generation dispatch cooldown | **60 min**, **5 min** for the owner               | Worker, before `/newbriefing` dispatch                              |
+| Generation daily cap         | **3/day per user** (`DAILY_DISPATCH_CAP`)         | Worker (`briefing_rate.counts`)                                     |
+| Generation daily cap, shared | **5/day total** (`GLOBAL_DAILY_DISPATCH_CAP`)     | Worker (`briefing_rate.total`)                                      |
+| Per-run LLM spend            | **$4** (`--max-budget-usd`)                       | Actions                                                             |
+| Briefing model               | `claude-opus-4-8`                                 | Actions                                                             |
+| Briefing window              | last 48 hours                                     | prompt                                                              |
 
-The generation cooldown/cap are **global**, not per-user, because the result is
-shared (one `today_briefing` for everyone).
+### 6.2 How the generation limits compose
+
+Three limits with three different jobs — they are independent, and the strictest
+one wins:
+
+- **Cooldown (global, role-dependent).** One `lastDispatchAt` shared by everyone,
+  because the result is shared (one `today_briefing` for all). The owner's window
+  is 5 min rather than 60 so on-demand refreshes aren't blocked for an hour.
+- **Per-user daily cap.** Bounds *hogging*, not spend: it stops one user
+  hammering `/newbriefing` all day. Each user has their own 3, so this alone does
+  **not** bound total cost — it scales with the allowlist.
+- **Global daily cap.** The actual cost ceiling, since every dispatch is a paid
+  Actions + Claude run. Without it the only real bound was the cooldown, at ~24
+  dispatches/day.
+
+A user refused by any of the three is served the cached edition where one exists,
+never a bare error, and the daily scheduled send is unaffected by all three.
 
 ---
 
@@ -221,8 +254,8 @@ shared (one `today_briefing` for everyone).
   `chat_id` checks and cannot be overridden by message text.
 - **Privacy:** data-subject commands (`/privacy`, `/mydata`, `/forgetme`) are
   first-class. The allowlist holds real third-party personal data (Telegram id
-  - access/subscription state) — as of 2026-07-13, 12 allowlisted / 4
-    subscribed. Any future export/debug tooling must not dump raw user ids
+  - access/subscription state) — as of 2026-07-16, 5 subscribed. Any future
+    export/debug tooling must not dump raw user ids
     carelessly.
 - **Observability:** Worker `console.log/error` persisted to Workers Logs
   (`[observability] enabled`), queryable via dashboard / `wrangler tail`.

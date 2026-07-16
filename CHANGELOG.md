@@ -2,6 +2,49 @@
 
 ## [Unreleased]
 
+### Global daily cap on briefing generation
+
+The three generation limits were doing two jobs, not three: the global 60-minute
+cooldown and the per-user 3/day cap both existed, but neither bounded total
+spend. The per-user cap bounds *hogging* -- each allowlisted user gets their own
+3/day, so cost scaled with the allowlist -- which left the cooldown as the only
+real ceiling, at ~24 dispatches/day and $4 of paid Actions + Claude run apiece.
+
+Adds `GLOBAL_DAILY_DISPATCH_CAP` (**5/day across everyone**, UTC-reset) as an
+independent third limit, tracked in `briefing_rate.total`. The per-user cap is
+deliberately kept: making the cap global *instead* would let any single
+allowlisted user burn the shared quota and lock everyone else out for the day,
+including the owner. A user refused by the shared cap is served the cached
+edition, and the daily scheduled send -- which never goes through
+`reserveBriefingDispatch` -- is unaffected.
+
+Rollback refunds the shared slot along with the per-user one, so a dispatch
+GitHub never accepted doesn't consume quota. Rate records written before this
+cap existed have no `total` and default to 0 rather than NaN-comparing into
+refusing every dispatch. Tests 139 -> 142 (F12b/F12c/F12d), each verified to
+fail without the change.
+
+### Corrected the technical spec against the code
+
+`docs/technical-spec.md` had drifted from the deployed system on several
+enforced values, which matters for a document whose whole purpose is being
+checkable against an implementation:
+
+- Per-run LLM spend was documented as `--max-budget-usd 2`; both workflows
+  actually pass **4**, so the stated cost ceiling was half the real one.
+- The dispatch cooldown was documented as a flat 60 min, omitting the owner's
+  5-min window, and the note below the limits table claimed the cooldown and cap
+  are "global, not per-user" -- wrong about the cap, which is per-user by design.
+  Replaced with §6.2, explaining how the three limits compose and what each one
+  actually bounds.
+- §5.1 omitted the freshness/content gate entirely (dated-today +
+  `MIN_BRIEFING_ITEMS`), including the part that matters most: a rejected
+  edition leaves `last_briefing_at` un-advanced so the day stays retryable.
+- Added `MAX_PENDING` (50) to the limits table, and `briefing_rate` /
+  `seen_updates` to the §4.1 DO field list.
+- §3.2 and §5.3 both cross-referenced a "§6.2" that did not exist; the new
+  subsection resolves the dangling reference.
+
 ### Unit-tested the delivery scripts' embedded logic
 
 Extracted the three pieces of consequential pure logic that lived inline in the
