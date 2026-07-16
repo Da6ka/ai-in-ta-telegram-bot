@@ -1,7 +1,7 @@
 # AI-in-TA Wiki — Design Doc
 
-Status: **proposal, partially built (2026-07-16).** Stage 1 — the raw-source
-layer and its backfill — is live; stages 2 and 3 are not. Unlike
+Status: **partially built (2026-07-16).** Stages 1 (raw-source layer +
+backfill) and 2 (append + ingest) are built; stage 3 is not. Unlike
 `docs/design.md`, which documents what's deployed, this describes a target and
 its rationale.
 
@@ -155,22 +155,20 @@ argument and git rejects it with a confusing "ambiguous argument" error.
 
 ---
 
-Layer 2: the wiki (stage 2, not built)
+Layer 2: the wiki (stage 2)
 ---
 
-**Ingest hook.** A new step in `daily-briefing.yml`, immediately after "Record
-covered stories" and before "Commit updated state", gated identically:
+**Append.** `scripts/append-wiki-sources.mjs` records the edition that just went
+out into the raw layer. Runs in **both** `daily-briefing.yml` and
+`on-demand-briefing.yml`, gated identically to "Record covered stories" — an
+on-demand edition reaches a real subscriber, so leaving it out would reopen the
+hole the backfill just closed. Deterministic and LLM-free.
 
-```yaml
-if: steps.idempotency.outputs.should_run == 'true'
-  && steps.freshness.outputs.ok == 'true'
-  && steps.send.outcome == 'success'
-```
+**Ingest.** `claude -p` over `wiki-ingest-prompt.md`, in `daily-briefing.yml`
+only. On-demand runs append but never ingest, so a burst of `/newbriefing`
+can't trigger a burst of ingests — the next daily run picks their records up.
 
-Only editions that actually reached subscribers enter the wiki. A rejected or
-thin generation must not.
-
-Three constraints inherited from things that already went wrong here:
+Constraints, each inherited from something that already went wrong here:
 
 - **`--setting-sources user`.** Without it, this repo's `.claude/settings.json`
   Stop hook runs `npm test` and blocks completion — on 2026-07-14 that silently
@@ -178,16 +176,41 @@ Three constraints inherited from things that already went wrong here:
   skips hooks but disables tool search with them.)
 - **`continue-on-error: true`.** Delivery is the product; the wiki is
   telemetry. A failed ingest must never fail the job or fire the owner alert —
-  same posture as the re-benchmark step.
-- **Haiku, not Opus, with a ~$1 cap.** This is bookkeeping over text that's
-  already written and verified, not the WebSearch agent loop. Opus is priced
-  for the part that needs judgment.
+  same posture as the re-benchmark step. Its records stay pending and the next
+  run retries them.
+- **Haiku, not Opus, with a $1 cap.** This is bookkeeping over text that's
+  already researched, written, and gate-checked, not the WebSearch agent loop.
+  Opus is priced for the part that needs judgment.
+- **No WebSearch in `--allowedTools`.** The wiki must only ever contain what
+  the bot published. The prompt says so; the allowlist enforces it.
+
+**Pending is tracked by record id, not a date watermark.** On-demand editions
+can append records for a date the daily ingest already processed (up to 3
+`/newbriefing` a day), and a watermark would skip them forever. Ids also make a
+multi-day outage self-heal: the next ingest picks up every missed day, not just
+today. State lives in `wiki/ingest-state.json`; `wiki/.pending.json` is
+gitignored scratch holding the exact input the model saw.
+
+**Marking happens in a separate step**, gated on the ingest's `.outcome` — not
+`.conclusion`, which `continue-on-error` forces to `success` even on failure.
+A half-finished ingest that marked its own records done would never retry them.
+
+**Batching.** `INGEST_BATCH_LIMIT` (25) caps one run. Without it, a backlog big
+enough to blow the budget cap would fail the step, leave everything pending,
+and hand the next run the same too-big batch plus a day's new stories — a
+permanently wedged ingest. A backlog drains over successive runs instead, and
+`wiki-pending.mjs` logs what it deferred rather than letting a capped batch read
+as full coverage. Override with `WIKI_INGEST_BATCH` (`0` = no cap) when
+bootstrapping a large corpus by hand.
 
 **Pages.** `vendors/<slug>.md` per company (ClearCo, HireVue, Workday);
 `themes/<slug>.md` per durable topic (agentic sourcing, AI regulation, campus
 hiring). `index.md` catalogs; `log.md` records each ingest. `[[wikilinks]]`
 between pages, matching the convention already used in the operator's personal
 memory dir. Exact page contract lives in `wiki/CLAUDE.md`.
+
+**Cold start.** The backfilled 91 records are all pending. At 25/run that's ~4
+daily runs to drain, or one local run with `WIKI_INGEST_BATCH=0`.
 
 ---
 
@@ -213,7 +236,9 @@ Stages
 1. **Raw layer + backfill.** `wiki/CLAUDE.md`, `wiki/sources/`,
    `scripts/backfill-wiki-sources.mjs`. **Done 2026-07-16** — 91 records, 11
    days.
-2. **Ingest step.** Append-on-send + the Haiku ingest into `wiki/`. Watch a
-   week: are pages growing sensibly, or is it generating slop?
+2. **Ingest step.** Append-on-send + the Haiku ingest into `wiki/`. **Built
+   2026-07-16**, not yet observed on a real run. Watch a week: are pages
+   growing sensibly, or is it generating slop? The first ingests drain the
+   backfill, so judge quality there before trusting it unattended.
 3. **`/wiki` in the bot.** Only at ~3 months of corpus, only if stage 2's
    pages are actually worth querying.

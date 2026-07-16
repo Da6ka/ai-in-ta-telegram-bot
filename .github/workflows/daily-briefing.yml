@@ -218,6 +218,70 @@ jobs:
         if: steps.idempotency.outputs.should_run == 'true' && steps.freshness.outputs.ok == 'true' && steps.send.outcome == 'success'
         run: node scripts/update-recent-stories.mjs
 
+      # The wiki's raw layer (docs/wiki-design.md). Gated identically to
+      # "Record covered stories" above: only an edition that actually reached
+      # subscribers gets archived. Deterministic and LLM-free -- it records what
+      # already went out, nothing more.
+      - name: Archive stories to the wiki
+        if: steps.idempotency.outputs.should_run == 'true' && steps.freshness.outputs.ok == 'true' && steps.send.outcome == 'success'
+        env:
+          WIKI_PROVENANCE: daily
+        run: node scripts/append-wiki-sources.mjs
+
+      # Deliberately NOT gated on today's send: pending is computed from record
+      # ids, so this also picks up what an earlier ingest failed on or never
+      # saw -- an on-demand edition, or every day of a multi-day outage. Writes
+      # the count so the expensive claude call below is skipped when there's
+      # nothing to fold in.
+      - name: Collect pending wiki records
+        id: wiki_pending
+        if: steps.idempotency.outputs.should_run == 'true'
+        run: node scripts/wiki-pending.mjs
+
+      # Folds the pending records into wiki/ pages.
+      #
+      # continue-on-error: delivery is the product, the wiki is telemetry. A
+      # failed ingest must never fail the job or fire the owner alert -- same
+      # posture as the re-benchmark step below. The records simply stay pending
+      # and the next run retries them.
+      #
+      # Haiku, not Opus: this is bookkeeping over text that's already been
+      # researched, written, and gate-checked -- not the WebSearch agent loop
+      # that needed Opus's coverage (see the generate step). --max-budget-usd
+      # and timeout-minutes are hard cost/wall-clock ceilings on an agent loop
+      # with no other iteration bound (LLM10/ASI02), same as generation's.
+      #
+      # --setting-sources user skips this repo's .claude/settings.json Stop
+      # hook (npm test) -- on 2026-07-14 that hook pinned the model into a
+      # Stop-block retry loop that silently ate three runs' output and budget.
+      # Same fix as the generate step.
+      #
+      # No WebSearch in --allowedTools, deliberately: the wiki must only ever
+      # contain what the bot published. The prompt says so, but the tool
+      # allowlist is what actually enforces it.
+      - name: Ingest into the wiki
+        id: wiki_ingest
+        if: steps.idempotency.outputs.should_run == 'true' && steps.wiki_pending.outputs.count != '0'
+        continue-on-error: true
+        timeout-minutes: 10
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          claude -p "$(cat wiki-ingest-prompt.md)" \
+            --model claude-haiku-4-5-20251001 \
+            --allowedTools "Read Write Edit Glob Grep" \
+            --max-budget-usd 1 \
+            --setting-sources user
+
+      # Separate step so a failed or half-finished ingest never marks its
+      # records done -- they'd never be retried. Reads .outcome, not
+      # .conclusion: continue-on-error above forces conclusion to 'success'
+      # even when the step failed, so conclusion would mark records ingested
+      # that never were.
+      - name: Mark wiki records ingested
+        if: steps.wiki_ingest.outcome == 'success'
+        run: node scripts/wiki-commit-ingest.mjs
+
       - name: Sync to Cloudflare KV
         if: steps.idempotency.outputs.should_run == 'true' && steps.freshness.outputs.ok == 'true'
         env:
@@ -236,17 +300,25 @@ jobs:
       # Issue #24: a bare pull-rebase+push here had no retry, so a push that lost
       # a race (or hit a transient failure) failed the whole job AFTER subscribers
       # already got the briefing — silently dropping the usage-stats/recent-stories
-      # update for the day with no recovery. This commit only ever touches state/,
-      # so on a rebase conflict `-X theirs` is safe: it always keeps our
+      # update for the day with no recovery. This commit only ever touches state/
+      # and wiki/, so on a rebase conflict `-X theirs` is safe: it always keeps our
       # freshly-generated state over whatever the conflicting upstream commit did
       # to the same lines (note: for `rebase`, "theirs" means the commit being
       # replayed — i.e. ours — the opposite of `merge`'s meaning).
+      #
+      # `-X theirs` on the append-only wiki/sources/*.jsonl could in principle
+      # drop lines an upstream commit appended. It can't in practice: the only
+      # writers are this workflow and on-demand-briefing.yml, and the shared
+      # `briefing-generation` concurrency group serializes them, so their
+      # appends never diverge. If one is ever lost anyway,
+      # scripts/backfill-wiki-sources.mjs regenerates the corpus from these
+      # commits' own history.
       - name: Commit updated state
         if: steps.idempotency.outputs.should_run == 'true'
         run: |
           git config user.name "daily-briefing-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add state/
+          git add state/ wiki/
           if git diff --cached --quiet; then
             echo "No state changes to commit"
             exit 0

@@ -191,6 +191,18 @@ jobs:
         if: steps.freshness.outputs.fresh == 'true' && steps.freshness.outputs.items != '0'
         run: node scripts/update-recent-stories.mjs
 
+      # The wiki's raw layer (docs/wiki-design.md). Gated the same as "Record
+      # covered stories" above -- an on-demand edition reaches a real
+      # subscriber, so it belongs in the archive exactly like a daily one.
+      # Only the append runs here: the ingest (daily-briefing.yml) picks these
+      # records up on its next run, so a burst of /newbriefing can't trigger a
+      # burst of ingests.
+      - name: Archive stories to the wiki
+        if: steps.freshness.outputs.fresh == 'true' && steps.freshness.outputs.items != '0'
+        env:
+          WIKI_PROVENANCE: on-demand
+        run: node scripts/append-wiki-sources.mjs
+
       - name: Sync to Cloudflare KV
         if: steps.freshness.outputs.fresh == 'true'
         env:
@@ -204,7 +216,9 @@ jobs:
       # a race (or hit a transient failure) failed the whole job AFTER the
       # requester already got their briefing — silently dropping the
       # recent-stories update for this edition with no recovery. This commit
-      # only ever touches state/, so on a rebase conflict `-X theirs` is safe:
+      # only ever touches state/ and wiki/, so on a rebase conflict `-X theirs`
+      # is safe (see daily-briefing.yml's equivalent step for why that holds for
+      # the append-only wiki/sources/*.jsonl too):
       # it always keeps our freshly-generated state over whatever the conflicting
       # upstream commit did to the same lines (note: for `rebase`, "theirs" means
       # the commit being replayed — i.e. ours — the opposite of `merge`'s meaning).
@@ -213,7 +227,7 @@ jobs:
         run: |
           git config user.name "daily-briefing-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add state/
+          git add state/ wiki/
           if git diff --cached --quiet; then
             echo "No state changes to commit"
             exit 0

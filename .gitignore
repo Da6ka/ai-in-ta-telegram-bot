@@ -4,3 +4,6 @@ node_modules/
 .DS_Store
 state/briefing_stderr.log
 state/briefing_debug.log
+
+# Wiki ingest scratch — rewritten each run, never committed
+wiki/.pending.json
