@@ -2,6 +2,32 @@
 
 ## [Unreleased]
 
+### README drift: dead rollback path, briefing window, and the reliability story
+
+Five README claims had gone stale against the deployed system:
+
+- The Cloudflare Worker cutover steps still told operators the live webhook
+  displaces "the old long-polling `server.ts`" and to roll back by restarting
+  "the local `bun server.ts` poller" -- but that file no longer exists in the
+  repo, so the rollback path was dead and misleading to anyone following the
+  setup fresh. Cutover now describes `setWebhook` as all-or-nothing, and
+  rollback as clearing the webhook with the explicit caveat that there's no
+  poller to fall back to.
+- The briefing window was described two ways: "past 48 hours" in the intro and
+  "past 7 days" in the editorial note. The prompt's actual rule is *prefer
+  24-48h, hard cap 7 days*, and the sample edition itself carries items 3-4
+  days old. Reconciled to "the past day or two" (target) and "nothing older
+  than a week" (cap).
+- "No single point of failure" overstated the reliability design -- v1.6.0's
+  spec walked this back after the Worker cron and GitHub schedule missed the
+  same morning (#61). The section now says "defended in depth rather than by a
+  single trigger" and adds the 12:00 UTC Cloudflare heartbeat (the Worker's
+  second cron) as the only check outside GitHub's scheduler.
+- Intro send time said 09:00 UTC; the primary Worker cron is 09:05 (as the
+  diagram and reliability prose already said). Aligned to 09:05.
+
+Docs only; no code or workflow change.
+
 ### Spec page HTML is now tracked, and its cover matches v1.6.0
 
 The interactive one-pager at ai-in-ta-bot-spec.vercel.app was only ever a

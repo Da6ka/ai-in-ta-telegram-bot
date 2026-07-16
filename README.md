@@ -3,9 +3,9 @@
 [![CI](https://github.com/Da6ka/ai-in-ta-telegram-bot/actions/workflows/ci.yml/badge.svg)](https://github.com/Da6ka/ai-in-ta-telegram-bot/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/Da6ka/ai-in-ta-telegram-bot)](https://github.com/Da6ka/ai-in-ta-telegram-bot/releases)
 
-A Telegram bot that sends a **daily briefing on AI in recruitment** — the latest news, tools, and research from the past 48 hours, researched and written by Claude Code and delivered straight to your chat.
+A Telegram bot that sends a **daily briefing on AI in recruitment** — the latest news, tools, and research from the past day or two, researched and written by Claude Code and delivered straight to your chat.
 
-Subscribers tap `/subscribe` and get the briefing every morning at **09:00 UTC / 12:00 MSK**. No app to install, no laptop to keep awake — everything runs on GitHub Actions and a Cloudflare Worker.
+Subscribers tap `/subscribe` and get the briefing every morning at **09:05 UTC / 12:05 MSK**. No app to install, no laptop to keep awake — everything runs on GitHub Actions and a Cloudflare Worker.
 
 <p align="center">
   <a href="https://ai-in-ta-bot-spec.vercel.app/">
@@ -61,7 +61,7 @@ A real edition, sent via `/briefing`:
 >
 > **Bottom line:** More capable models are arriving faster than the compliance and fairness guardrails around them — pair any new AI hiring capability with documented human review and a live read on your states' shifting rules before you scale it.
 
-Every item is sourced (clickable, dated, no bare URLs), never repeats a domain, and skips evergreen "guide"/"trends" content in favor of actual news from the past 7 days — see `briefing-prompt.md` for the exact editorial rules.
+Every item is sourced (clickable, dated, no bare URLs), never repeats a domain, and skips evergreen "guide"/"trends" content in favor of recent news — freshest first, nothing older than a week — see `briefing-prompt.md` for the exact editorial rules.
 
 ## Commands
 
@@ -124,7 +124,9 @@ Cloudflare Worker                            GitHub Actions
 
 **The daily run:**
 
-`daily-briefing.yml` has three independent triggers, so no single point of failure decides whether the day's briefing goes out: the Cloudflare Worker's Cron Trigger (09:05 UTC — `worker/wrangler.toml` + the `scheduled` handler in `worker/src/index.js`) fires a `repository_dispatch`; GitHub Actions' own `schedule` trigger (09:00 UTC) fires independently as a backup — on its own it has proven to run 1-4h late or skip a day entirely; and `daily-briefing-watchdog.yml` kicks off a fallback run if neither has advanced `state/usage_stats.json`'s `last_briefing_at` by 10:30 UTC. All three are safe to land on the same day — the workflow's own idempotency check means only the first one to actually run does the work.
+`daily-briefing.yml` is defended in depth rather than by a single trigger: the Cloudflare Worker's Cron Trigger (09:05 UTC — `worker/wrangler.toml` + the `scheduled` handler in `worker/src/index.js`) fires a `repository_dispatch`; GitHub Actions' own `schedule` trigger (09:00 UTC) fires independently as a backup — on its own it has proven to run 1-4h late or skip a day entirely; and `daily-briefing-watchdog.yml` kicks off a fallback run if neither has advanced `state/usage_stats.json`'s `last_briefing_at` by 10:30 UTC. All three are safe to land on the same day — the workflow's own idempotency check means only the first one to actually run does the work.
+
+The redundancy is real but not absolute: all three ride GitHub's scheduler, and the Worker cron and GitHub schedule missed the *same* morning on 2026-07-16 (#61). A separate **Cloudflare heartbeat** (12:00 UTC — the Worker's second cron in `worker/wrangler.toml`) closes that gap: it doesn't generate anything, but it alerts the owner if KV's `last_delivered_date` isn't today, and as the only check running outside GitHub it catches an account-wide Actions failure the other layers would miss.
 
 1. `briefing-prompt.md` is handed to `claude -p`, which searches the web, composes the briefing, and writes it to `state/today_briefing.md` (plus `state/usage_stats.json` for the idempotency check above).
 2. `scripts/send-briefing.mjs` sends the result to every subscriber in the bot's live list (the `subscribers` KV key).
@@ -211,14 +213,14 @@ State (`access`, `subscribers`, `usage_stats`, `today_briefing_md`, `today_brief
    gh secret set CF_API_TOKEN --repo <owner>/ai-in-ta-telegram-bot       # needs Workers KV Storage: Edit
    gh secret set CF_KV_NAMESPACE_ID --repo <owner>/ai-in-ta-telegram-bot # same id as step 3
    ```
-8. **Test before cutover** ⚠️ — send fake Telegram updates straight to the deployed Worker URL with curl (including the `X-Telegram-Bot-Api-Secret-Token` header) and confirm the replies and KV state look right. Do this **before** touching the live webhook — once set, Telegram stops delivering to the old long-polling `server.ts` for _all_ commands, not just `/newbriefing`.
+8. **Test before cutover** ⚠️ — send fake Telegram updates straight to the deployed Worker URL with curl (including the `X-Telegram-Bot-Api-Secret-Token` header) and confirm the replies and KV state look right. Do this **before** pointing the live webhook at it — `setWebhook` is all-or-nothing: once set, every command routes to this Worker, so a broken deploy takes down the whole bot, not just `/newbriefing`.
 9. **Cutover** (only once step 8 checks out):
    ```bash
    curl "https://api.telegram.org/bot<TOKEN>/setWebhook" \
      -d "url=https://<your-worker>.workers.dev" \
      -d "secret_token=<same value as TELEGRAM_WEBHOOK_SECRET>"
    ```
-   To roll back: `curl "https://api.telegram.org/bot<TOKEN>/deleteWebhook"` and restart the local `bun server.ts` poller.
+   To roll back, clear the webhook: `curl "https://api.telegram.org/bot<TOKEN>/deleteWebhook"`. Note there's no local poller to fall back to anymore — live commands stay offline until you re-point the webhook at a working Worker.
 
 ## Staging environment (optional)
 
