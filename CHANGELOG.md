@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+### Spec page HTML is now tracked, and its cover matches v1.6.0
+
+The interactive one-pager at ai-in-ta-bot-spec.vercel.app was only ever a
+direct upload to Vercel with a saved local copy -- nothing in the repo, so the
+deployed page could drift from the source with no record of it. It is now
+`docs/technical-spec.html`, version-controlled next to `technical-spec.md`.
+Credential names stay redacted to generic labels (e.g. "CI dispatch token"),
+since the page is public. Vercel still ships it by direct upload and Git stays
+disconnected on that project -- a past auto-build served the repo root, 404'd,
+and clobbered the upload -- so tracking the file changes nothing about how it
+deploys.
+
+The same change refreshes the README cover screenshots
+(`docs/assets/spec-preview-{light,dark}.png`) to the v1.6.0 layout: the
+per-user vs global dispatch caps, the `MAX_PENDING` tile, the $4 per-run
+budget, the role-dependent cooldown, and the 12:00 UTC Cloudflare-side
+heartbeat. The cover no longer shows the stale v1.4.0 page. (#70)
+
 ### Removed a scratch log that shipped in v1.6.0 by accident
 
 `.worker-cron-validation-log.md` was an untracked scratch file written by a
