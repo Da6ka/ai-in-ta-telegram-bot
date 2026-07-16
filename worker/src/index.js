@@ -580,6 +580,16 @@ async function serveStaleBriefing(env, senderId) {
   return true
 }
 
+// Whether /briefing would actually serve something right now. Mirrors the
+// /briefing handler's own condition exactly -- pointing a rate-limited user at
+// /briefing when nothing is cached sends them in a circle: /briefing would find
+// no cache, route straight back into requestGeneration, hit the same limit, and
+// print the same advice again.
+async function hasTodayCached(env) {
+  if ((await env.BOT_STATE.get('today_briefing_date')) !== todayUTC()) return false
+  return Boolean(await env.BOT_STATE.get('today_briefing_md'))
+}
+
 // Shared by /newbriefing and /briefing's stale-cache path: rate-limit check,
 // then dispatch generation, rolling back the reservation if dispatch fails.
 // During the cooldown the user still gets something — the cached briefing if
@@ -588,14 +598,19 @@ async function serveStaleBriefing(env, senderId) {
 async function requestGeneration(env, stub, senderId, generatingMsg, isOwner = false) {
   const r = await stub.reserveBriefingDispatch(senderId, isOwner)
   if (!r.allowed) {
-    if (r.reason === 'daily_cap') {
+    // Both caps: serveStaleBriefing only fires when a *previous* day's edition
+    // is saved, so reaching past it means either today's edition is cached
+    // (point at /briefing) or nothing is (don't -- see hasTodayCached).
+    if (r.reason === 'daily_cap' || r.reason === 'global_daily_cap') {
       if (await serveStaleBriefing(env, senderId)) return
-      await reply(env, senderId, "You've reached today's limit for fresh briefings — /briefing will still get you the latest one.")
-      return
-    }
-    if (r.reason === 'global_daily_cap') {
-      if (await serveStaleBriefing(env, senderId)) return
-      await reply(env, senderId, "The bot has hit its shared daily limit for fresh briefings — /briefing will still get you the latest one, and tomorrow's daily update is unaffected.")
+      const limit =
+        r.reason === 'daily_cap'
+          ? "You've reached today's limit for fresh briefings"
+          : 'The bot has hit its shared daily limit for fresh briefings'
+      const tail = (await hasTodayCached(env))
+        ? ' — /briefing will still get you the latest one.'
+        : " — and there's no saved edition to fall back on right now. The daily briefing isn't affected by this limit, so today's should still arrive; /briefing will have it once it does."
+      await reply(env, senderId, limit + tail)
       return
     }
     const date = await env.BOT_STATE.get('today_briefing_date')
