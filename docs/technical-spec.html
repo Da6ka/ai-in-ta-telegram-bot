@@ -1,0 +1,1148 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>AI-in-TA Bot — Technical Specification</title>
+    <style>
+      :root {
+        --ground: #eef1f4;
+        --surface: #ffffff;
+        --surface-2: #f6f8fa;
+        --ink: #131820;
+        --ink-soft: #3b4553;
+        --muted: #5f6b7a;
+        --faint: #8a97a6;
+        --line: #dbe1e8;
+        --line-strong: #c3ccd6;
+        --accent: #0c7a84;
+        --accent-bright: #109aa6;
+        --accent-wash: #e2f1f2;
+        --amber: #9a6a12;
+        --amber-wash: #f5ecd8;
+        --green: #1f7a52;
+        --green-wash: #dcefe4;
+        --red: #b23a30;
+        --shadow:
+          0 1px 2px rgba(19, 24, 32, 0.05),
+          0 8px 24px -12px rgba(19, 24, 32, 0.18);
+        --mono:
+          ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+        --sans:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+        --maxw: 1080px;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --ground: #0c1015;
+          --surface: #141a22;
+          --surface-2: #10161d;
+          --ink: #e8edf3;
+          --ink-soft: #b9c4d0;
+          --muted: #8a97a6;
+          --faint: #64717f;
+          --line: #232c37;
+          --line-strong: #303b48;
+          --accent: #2bb7c2;
+          --accent-bright: #46d0da;
+          --accent-wash: #10333a;
+          --amber: #d9ad55;
+          --amber-wash: #322a15;
+          --green: #4cc088;
+          --green-wash: #123528;
+          --red: #e0685e;
+          --shadow:
+            0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 30px -14px rgba(0, 0, 0, 0.6);
+        }
+      }
+      :root[data-theme="light"] {
+        --ground: #eef1f4;
+        --surface: #ffffff;
+        --surface-2: #f6f8fa;
+        --ink: #131820;
+        --ink-soft: #3b4553;
+        --muted: #5f6b7a;
+        --faint: #8a97a6;
+        --line: #dbe1e8;
+        --line-strong: #c3ccd6;
+        --accent: #0c7a84;
+        --accent-bright: #109aa6;
+        --accent-wash: #e2f1f2;
+        --amber: #9a6a12;
+        --amber-wash: #f5ecd8;
+        --green: #1f7a52;
+        --green-wash: #dcefe4;
+        --red: #b23a30;
+        --shadow:
+          0 1px 2px rgba(19, 24, 32, 0.05),
+          0 8px 24px -12px rgba(19, 24, 32, 0.18);
+      }
+      :root[data-theme="dark"] {
+        --ground: #0c1015;
+        --surface: #141a22;
+        --surface-2: #10161d;
+        --ink: #e8edf3;
+        --ink-soft: #b9c4d0;
+        --muted: #8a97a6;
+        --faint: #64717f;
+        --line: #232c37;
+        --line-strong: #303b48;
+        --accent: #2bb7c2;
+        --accent-bright: #46d0da;
+        --accent-wash: #10333a;
+        --amber: #d9ad55;
+        --amber-wash: #322a15;
+        --green: #4cc088;
+        --green-wash: #123528;
+        --red: #e0685e;
+        --shadow:
+          0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 30px -14px rgba(0, 0, 0, 0.6);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--ground);
+        color: var(--ink);
+        font-family: var(--sans);
+        line-height: 1.6;
+        -webkit-font-smoothing: antialiased;
+      }
+      .wrap {
+        max-width: var(--maxw);
+        margin: 0 auto;
+        padding: 0 24px;
+      }
+
+      /* ---------- typographic system ---------- */
+      h1,
+      h2,
+      h3 {
+        text-wrap: balance;
+        letter-spacing: -0.02em;
+        font-weight: 700;
+      }
+      .eyebrow {
+        font-family: var(--mono);
+        font-size: 0.72rem;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--accent);
+        font-weight: 600;
+      }
+      .mono {
+        font-family: var(--mono);
+      }
+      code,
+      .code {
+        font-family: var(--mono);
+        font-size: 0.82em;
+        background: var(--surface-2);
+        border: 1px solid var(--line);
+        padding: 0.08em 0.38em;
+        border-radius: 5px;
+        color: var(--ink-soft);
+        white-space: nowrap;
+      }
+
+      /* ---------- masthead ---------- */
+      header.masthead {
+        border-bottom: 1px solid var(--line);
+        background:
+          radial-gradient(
+            120% 140% at 88% -10%,
+            var(--accent-wash) 0%,
+            transparent 52%
+          ),
+          var(--surface);
+      }
+      .masthead-inner {
+        padding: 56px 0 44px;
+      }
+      .kicker-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 22px;
+      }
+      .livedot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: var(--green);
+        position: relative;
+        flex: none;
+        box-shadow: 0 0 0 0 var(--green);
+      }
+      .livedot::after {
+        content: "";
+        position: absolute;
+        inset: -5px;
+        border-radius: 50%;
+        border: 1.5px solid var(--green);
+        opacity: 0.5;
+        animation: pulse 2.6s ease-out infinite;
+      }
+      @keyframes pulse {
+        0% {
+          transform: scale(0.6);
+          opacity: 0.7;
+        }
+        80%,
+        100% {
+          transform: scale(1.5);
+          opacity: 0;
+        }
+      }
+      h1 {
+        font-size: clamp(2.1rem, 5.4vw, 3.4rem);
+        line-height: 1.04;
+        margin: 0 0 14px;
+      }
+      h1 .thin {
+        display: block;
+        font-weight: 500;
+        color: var(--muted);
+        font-size: 0.42em;
+        letter-spacing: 0.01em;
+        margin-top: 12px;
+      }
+      .lede {
+        font-size: 1.12rem;
+        color: var(--ink-soft);
+        max-width: 60ch;
+        margin: 0;
+      }
+
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 28px;
+      }
+      .chip {
+        font-family: var(--mono);
+        font-size: 0.74rem;
+        letter-spacing: 0.02em;
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 6px 11px;
+        border-radius: 999px;
+        background: var(--surface-2);
+        border: 1px solid var(--line);
+        color: var(--ink-soft);
+      }
+      .chip b {
+        color: var(--ink);
+        font-weight: 600;
+      }
+      .chip .k {
+        color: var(--faint);
+      }
+
+      /* ---------- section rhythm ---------- */
+      main {
+        padding: 20px 0 70px;
+      }
+      section {
+        padding: 46px 0;
+        border-bottom: 1px solid var(--line);
+      }
+      section:last-child {
+        border-bottom: 0;
+      }
+      .sec-head {
+        margin-bottom: 26px;
+      }
+      .sec-head h2 {
+        font-size: 1.5rem;
+        margin: 8px 0 8px;
+      }
+      .sec-head p {
+        margin: 0;
+        color: var(--muted);
+        max-width: 64ch;
+      }
+
+      /* ---------- architecture diagram ---------- */
+      .diagram {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        box-shadow: var(--shadow);
+        overflow: hidden;
+      }
+      .diag-io {
+        padding: 14px 18px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-family: var(--mono);
+        font-size: 0.8rem;
+        color: var(--muted);
+        background: var(--surface-2);
+      }
+      .diag-io.bottom {
+        border-top: 1px solid var(--line);
+      }
+      .diag-io .tg {
+        color: var(--accent);
+        font-weight: 600;
+      }
+      .diag-io .arrow {
+        color: var(--faint);
+      }
+      .runtimes {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        align-items: stretch;
+      }
+      .runtime {
+        padding: 26px 22px;
+      }
+      .runtime h3 {
+        font-family: var(--mono);
+        font-size: 0.82rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        margin: 0 0 4px;
+        color: var(--ink);
+      }
+      .runtime .role {
+        font-size: 0.86rem;
+        color: var(--muted);
+        margin: 0 0 18px;
+      }
+      .runtime ul {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .runtime li {
+        font-size: 0.88rem;
+        color: var(--ink-soft);
+        padding-left: 16px;
+        position: relative;
+      }
+      .runtime li::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0.62em;
+        width: 6px;
+        height: 6px;
+        border-radius: 1px;
+        background: var(--accent);
+        transform: rotate(45deg);
+      }
+      .boundary {
+        position: relative;
+        width: 1px;
+        background: repeating-linear-gradient(
+          to bottom,
+          var(--line-strong) 0 6px,
+          transparent 6px 12px
+        );
+      }
+      .boundary span {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) rotate(180deg);
+        writing-mode: vertical-rl;
+        font-family: var(--mono);
+        font-size: 0.64rem;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--faint);
+        background: var(--surface);
+        padding: 10px 3px;
+        white-space: nowrap;
+      }
+      .stores {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1px;
+        background: var(--line);
+        border-top: 1px solid var(--line);
+      }
+      .store {
+        background: var(--surface);
+        padding: 16px 18px;
+      }
+      .store .tag {
+        font-family: var(--mono);
+        font-size: 0.68rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--accent);
+        font-weight: 600;
+      }
+      .store .name {
+        font-family: var(--mono);
+        font-size: 0.9rem;
+        font-weight: 600;
+        margin: 3px 0 4px;
+      }
+      .store .desc {
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+      .store.truth {
+        box-shadow: inset 3px 0 0 var(--accent);
+      }
+
+      /* ---------- generic cards grid ---------- */
+      .grid {
+        display: grid;
+        gap: 16px;
+      }
+      .cols-3 {
+        grid-template-columns: repeat(3, 1fr);
+      }
+      .cols-2 {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 20px;
+        box-shadow: var(--shadow);
+      }
+
+      /* ---------- limit tiles ---------- */
+      .tile .val {
+        font-family: var(--mono);
+        font-weight: 700;
+        font-size: 2rem;
+        letter-spacing: -0.02em;
+        color: var(--ink);
+        line-height: 1;
+        font-variant-numeric: tabular-nums;
+      }
+      .tile .val .u {
+        font-size: 0.9rem;
+        color: var(--muted);
+        font-weight: 500;
+        margin-left: 3px;
+      }
+      .tile .lbl {
+        font-size: 0.86rem;
+        font-weight: 600;
+        margin: 12px 0 3px;
+      }
+      .tile .sub {
+        font-size: 0.78rem;
+        color: var(--muted);
+      }
+      .tile.limit {
+        border-color: color-mix(in srgb, var(--amber) 40%, var(--line));
+      }
+      .tile.limit .val {
+        color: var(--amber);
+      }
+
+      /* ---------- command table ---------- */
+      .table-scroll {
+        overflow-x: auto;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        box-shadow: var(--shadow);
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        background: var(--surface);
+        font-size: 0.88rem;
+        min-width: 620px;
+      }
+      thead th {
+        text-align: left;
+        font-family: var(--mono);
+        font-size: 0.68rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--faint);
+        font-weight: 600;
+        padding: 13px 16px;
+        border-bottom: 1px solid var(--line-strong);
+        background: var(--surface-2);
+      }
+      tbody td {
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+        color: var(--ink-soft);
+      }
+      tbody tr:last-child td {
+        border-bottom: 0;
+      }
+      td .cmd {
+        font-family: var(--mono);
+        font-weight: 600;
+        color: var(--ink);
+        font-size: 0.86rem;
+      }
+      .pill {
+        display: inline-block;
+        font-family: var(--mono);
+        font-size: 0.68rem;
+        letter-spacing: 0.03em;
+        padding: 2px 8px;
+        border-radius: 999px;
+        white-space: nowrap;
+      }
+      .pill.any {
+        background: var(--surface-2);
+        color: var(--muted);
+        border: 1px solid var(--line);
+      }
+      .pill.allow {
+        background: var(--accent-wash);
+        color: var(--accent);
+      }
+      .pill.admin {
+        background: var(--amber-wash);
+        color: var(--amber);
+      }
+      .pill.owner {
+        background: var(--green-wash);
+        color: var(--green);
+      }
+
+      /* ---------- invariants ---------- */
+      .rules {
+        list-style: none;
+        margin: 18px 0 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .rules li {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-left: 3px solid var(--accent);
+        border-radius: 8px;
+        padding: 12px 16px;
+        font-size: 0.88rem;
+        color: var(--ink-soft);
+      }
+      .rules li b {
+        color: var(--ink);
+        font-weight: 600;
+      }
+
+      /* ---------- timeline ---------- */
+      .timeline {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+        margin-top: 8px;
+      }
+      .tl {
+        display: grid;
+        grid-template-columns: 92px 1fr;
+        gap: 20px;
+        padding: 18px 0;
+        border-top: 1px solid var(--line);
+        position: relative;
+      }
+      .tl:first-child {
+        border-top: 0;
+      }
+      .tl .time {
+        font-family: var(--mono);
+        font-weight: 700;
+        font-size: 0.95rem;
+        color: var(--ink);
+        font-variant-numeric: tabular-nums;
+      }
+      .tl .time small {
+        display: block;
+        font-weight: 500;
+        font-size: 0.68rem;
+        color: var(--faint);
+        letter-spacing: 0.04em;
+        margin-top: 3px;
+      }
+      .tl .body h4 {
+        margin: 0 0 4px;
+        font-size: 0.96rem;
+      }
+      .tl .body p {
+        margin: 0;
+        font-size: 0.86rem;
+        color: var(--muted);
+      }
+      .tl .rank {
+        display: inline-block;
+        font-family: var(--mono);
+        font-size: 0.64rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        padding: 2px 7px;
+        border-radius: 4px;
+        margin-bottom: 7px;
+      }
+      .rank.p {
+        background: var(--green-wash);
+        color: var(--green);
+      }
+      .rank.b {
+        background: var(--surface-2);
+        color: var(--muted);
+        border: 1px solid var(--line);
+      }
+
+      /* ---------- secrets table (least privilege) ---------- */
+      .kv {
+        display: grid;
+        gap: 10px;
+      }
+      .kv-row {
+        display: grid;
+        grid-template-columns: 1.1fr 1fr 1.2fr;
+        gap: 14px;
+        align-items: baseline;
+        padding: 12px 16px;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+      }
+      .kv-row .cred {
+        font-family: var(--mono);
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: var(--ink);
+      }
+      .kv-row .held {
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+      .kv-row .scope {
+        font-size: 0.8rem;
+        color: var(--ink-soft);
+      }
+
+      .note {
+        margin-top: 20px;
+        padding: 16px 18px;
+        border-radius: 12px;
+        background: var(--accent-wash);
+        border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+        font-size: 0.88rem;
+        color: var(--ink-soft);
+      }
+      .note b {
+        color: var(--ink);
+      }
+
+      footer {
+        padding: 34px 0 60px;
+        color: var(--faint);
+        font-size: 0.82rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 18px;
+        align-items: center;
+      }
+      footer .mono {
+        color: var(--muted);
+      }
+
+      @media (max-width: 760px) {
+        .runtimes {
+          grid-template-columns: 1fr;
+        }
+        .boundary {
+          width: auto;
+          height: 1px;
+          background: repeating-linear-gradient(
+            to right,
+            var(--line-strong) 0 6px,
+            transparent 6px 12px
+          );
+        }
+        .boundary span {
+          writing-mode: horizontal-tb;
+          transform: translate(-50%, -50%);
+          top: 50%;
+          padding: 3px 10px;
+        }
+        .stores {
+          grid-template-columns: 1fr;
+        }
+        .cols-3,
+        .cols-2 {
+          grid-template-columns: 1fr;
+        }
+        .kv-row {
+          grid-template-columns: 1fr;
+          gap: 4px;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .livedot::after {
+          animation: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="masthead">
+      <div class="wrap masthead-inner">
+        <div class="kicker-row">
+          <span class="livedot" aria-hidden="true"></span>
+          <span class="eyebrow">Technical Specification · v1.6.0 · live</span>
+        </div>
+        <h1>
+          AI-in-TA Telegram Bot
+          <span class="thin"
+            >A private, self-running daily briefing on AI in recruitment —
+            researched by Claude, delivered every morning, operated by two
+            runtimes split along a latency boundary.</span
+          >
+        </h1>
+        <div class="chips">
+          <span class="chip"
+            ><span class="k">model</span> <b>claude-opus-4-8</b></span
+          >
+          <span class="chip"
+            ><span class="k">schedule</span> <b>09:05 UTC</b> daily</span
+          >
+          <span class="chip"
+            ><span class="k">window</span> last <b>48h</b></span
+          >
+          <span class="chip"
+            ><span class="k">access</span> <b>allowlist-gated</b></span
+          >
+          <span class="chip"><span class="k">cap</span> <b>30 users</b></span>
+          <span class="chip"
+            ><span class="k">runtimes</span> Worker <b>+</b> Actions</span
+          >
+        </div>
+      </div>
+    </header>
+
+    <main class="wrap">
+      <!-- ARCHITECTURE -->
+      <section>
+        <div class="sec-head">
+          <span class="eyebrow">01 · System context</span>
+          <h2>Two runtimes, one latency boundary</h2>
+          <p>
+            Generation needs <code>claude -p</code> running for tens of seconds
+            with web search; live commands must answer Telegram in milliseconds.
+            Splitting them means a slow generation run can never make
+            <code>/briefing</code> feel slow, and a webhook hiccup can never
+            affect the scheduled send.
+          </p>
+        </div>
+
+        <div class="diagram">
+          <div class="diag-io">
+            <span class="tg">Telegram</span>
+            <span class="arrow">— webhook (secret-token validated) —▶</span>
+            <span>Cloudflare Worker</span>
+          </div>
+
+          <div class="runtimes">
+            <div class="runtime">
+              <h3>Cloudflare Worker</h3>
+              <p class="role">Webhook + cron · always on · milliseconds</p>
+              <ul>
+                <li>
+                  Validates <code>X-Telegram-Bot-Api-Secret-Token</code> on
+                  every request
+                </li>
+                <li>Serves <code>/briefing</code> from KV — no generation</li>
+                <li>
+                  Mutates access &amp; subscriptions in the Durable Object
+                </li>
+                <li>
+                  Cron Trigger <code>5 9 * * *</code> → dispatches the daily run
+                </li>
+              </ul>
+            </div>
+            <div class="boundary" aria-hidden="true">
+              <span>latency boundary</span>
+            </div>
+            <div class="runtime">
+              <h3>GitHub Actions</h3>
+              <p class="role">Generation + fan-out · on demand · minutes</p>
+              <ul>
+                <li>
+                  <code>claude -p</code> + WebSearch composes the briefing
+                </li>
+                <li>
+                  <code>send-briefing.mjs</code> delivers to every subscriber
+                </li>
+                <li>
+                  <code>broadcast.mjs</code> fans out on the runner, paced +
+                  retried
+                </li>
+                <li>
+                  <code>sync-kv.mjs</code> bridges the result back into KV
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="stores">
+            <div class="store truth">
+              <div class="tag">source of truth</div>
+              <div class="name">BotState · DO</div>
+              <div class="desc">
+                Strongly-consistent access list, subscribers, usage stats.
+              </div>
+            </div>
+            <div class="store">
+              <div class="tag">read mirror</div>
+              <div class="name">BOT_STATE · KV</div>
+              <div class="desc">
+                Cheap Worker reads — cached briefing, live subscriber list.
+              </div>
+            </div>
+            <div class="store">
+              <div class="tag">generation record</div>
+              <div class="name">state/ · git</div>
+              <div class="desc">
+                What a given day produced; holds the idempotency marker.
+              </div>
+            </div>
+          </div>
+
+          <div class="diag-io bottom">
+            <span>delivery</span>
+            <span class="arrow">◀— send-briefing / broadcast —</span>
+            <span class="tg">Subscribers</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- COMMANDS -->
+      <section>
+        <div class="sec-head">
+          <span class="eyebrow">02 · Command contract</span>
+          <h2>What each command does, and who may call it</h2>
+          <p>
+            Access is enforced by <code>chat_id</code> checks in the Worker —
+            never by message content. Owner-gated commands pass
+            <code>isOwnerOrAdmin()</code>; managing admins stays keyed to the
+            owner alone.
+          </p>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Command</th>
+                <th>Access</th>
+                <th>Effect</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="cmd">/start</span></td>
+                <td><span class="pill any">anyone</span></td>
+                <td>
+                  Request access — adds sender to <code>pending</code>; enforces
+                  the 30-user cap
+                </td>
+              </tr>
+              <tr>
+                <td><span class="cmd">/briefing</span></td>
+                <td><span class="pill allow">allowlisted</span></td>
+                <td>
+                  Serves the cached copy from KV, sub-second, no generation
+                </td>
+              </tr>
+              <tr>
+                <td><span class="cmd">/newbriefing</span></td>
+                <td><span class="pill allow">allowlisted</span></td>
+                <td>
+                  Dispatches a fresh generation run; honors the cooldown &amp;
+                  daily cap
+                </td>
+              </tr>
+              <tr>
+                <td><span class="cmd">/subscribe · /unsubscribe</span></td>
+                <td><span class="pill allow">allowlisted</span></td>
+                <td>Opt in / out of the daily send</td>
+              </tr>
+              <tr>
+                <td><span class="cmd">/privacy · /mydata · /forgetme</span></td>
+                <td><span class="pill allow">allowlisted</span></td>
+                <td>Data-subject rights over everything stored about you</td>
+              </tr>
+              <tr>
+                <td><span class="cmd">/admin · /pending · /listusers</span></td>
+                <td><span class="pill admin">owner / admin</span></td>
+                <td>Read stats, review requests, list the population</td>
+              </tr>
+              <tr>
+                <td><span class="cmd">/adduser · /removeuser</span></td>
+                <td><span class="pill admin">owner / admin</span></td>
+                <td>Add or remove someone from the allowlist directly</td>
+              </tr>
+              <tr>
+                <td><span class="cmd">/broadcast &lt;msg&gt;</span></td>
+                <td><span class="pill admin">owner / admin</span></td>
+                <td>
+                  Validated by the Worker, fanned out on the Actions runner
+                </td>
+              </tr>
+              <tr>
+                <td><span class="cmd">/addadmin · /removeadmin</span></td>
+                <td><span class="pill owner">owner only</span></td>
+                <td>
+                  Delegate / revoke admin — target must already be allowlisted
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <ul class="rules">
+          <li>
+            <b>An admin can't escalate.</b> Admin management is keyed to
+            <code>ownerChatId</code> alone — a delegated admin can't grant
+            themselves more privilege or demote a peer.
+          </li>
+          <li>
+            <b>The owner is protected.</b> Can't be removed, can't unsubscribe,
+            can't erase their own data — each checks
+            <code>ownerChatId</code> directly.
+          </li>
+          <li>
+            <b>Removal is complete.</b> <code>/removeuser</code> (or a user's
+            own <code>/forgetme</code>) also revokes any admin status they held.
+          </li>
+        </ul>
+      </section>
+
+      <!-- LIMITS -->
+      <section>
+        <div class="sec-head">
+          <span class="eyebrow">03 · Constraints</span>
+          <h2>Hard limits, enforced in code</h2>
+          <p>
+            Three limits guard generation, and the strictest one wins: a shared
+            cooldown (shorter for the owner), a per-user daily cap that bounds
+            hogging, and a global daily cap that bounds cost. A refused request
+            still gets the cached edition — never a bare error.
+          </p>
+        </div>
+        <div class="grid cols-3">
+          <div class="card tile limit">
+            <div class="val">30</div>
+            <div class="lbl">Maximum users</div>
+            <div class="sub">
+              <code>MAX_USERS</code> — checked atomically in the DO so two
+              concurrent approvals can't both slip past.
+            </div>
+          </div>
+          <div class="card tile limit">
+            <div class="val">50</div>
+            <div class="lbl">Pending queue cap</div>
+            <div class="sub">
+              <code>MAX_PENDING</code> — bounds the access-request queue, capped
+              independently of the user allowlist.
+            </div>
+          </div>
+          <div class="card tile limit">
+            <div class="val">60<span class="u">min</span></div>
+            <div class="lbl">Generation cooldown</div>
+            <div class="sub">
+              Global and role-dependent — <b>5 min</b> for the owner. During it,
+              users still get the cached briefing rather than an error.
+            </div>
+          </div>
+          <div class="card tile limit">
+            <div class="val">3<span class="u">/day</span></div>
+            <div class="lbl">Per-user dispatch cap</div>
+            <div class="sub">
+              <code>DAILY_DISPATCH_CAP</code> — bounds one user hogging
+              <code>/newbriefing</code>; scales with the allowlist, so it
+              doesn't cap cost alone.
+            </div>
+          </div>
+          <div class="card tile limit">
+            <div class="val">5<span class="u">/day</span></div>
+            <div class="lbl">Global dispatch cap</div>
+            <div class="sub">
+              <code>GLOBAL_DAILY_DISPATCH_CAP</code> — the real cost ceiling,
+              since every dispatch is a paid Actions + Claude run.
+            </div>
+          </div>
+          <div class="card tile limit">
+            <div class="val">$4</div>
+            <div class="lbl">Per-run LLM budget</div>
+            <div class="sub">
+              <code>--max-budget-usd</code> caps spend on any single generation
+              run.
+            </div>
+          </div>
+          <div class="card tile">
+            <div class="val">48<span class="u">h</span></div>
+            <div class="lbl">News window</div>
+            <div class="sub">
+              Every edition looks back exactly two days — freshness over recall.
+            </div>
+          </div>
+          <div class="card tile">
+            <div class="val">&lt;1<span class="u">s</span></div>
+            <div class="lbl">Live command latency</div>
+            <div class="sub">
+              KV- and DO-backed replies answer in milliseconds, independent of
+              generation.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- RELIABILITY / TIMELINE -->
+      <section>
+        <div class="sec-head">
+          <span class="eyebrow">04 · Reliability</span>
+          <h2>Layered triggers, plus a heartbeat outside GitHub</h2>
+          <p>
+            Three triggers race each morning; an idempotency marker
+            (<code>last_briefing_at</code>) makes it safe for more than one to
+            fire — only the first to actually run does the work. But two of the
+            three ride GitHub's scheduler, so a Cloudflare-side heartbeat is the
+            only detection that survives a GitHub-wide bad morning.
+          </p>
+        </div>
+        <div class="timeline">
+          <div class="tl">
+            <div class="time">09:05<small>UTC</small></div>
+            <div class="body">
+              <span class="rank p">primary</span>
+              <h4>Cloudflare Worker Cron Trigger</h4>
+              <p>
+                Fires <code>scheduled()</code> →
+                <code>repository_dispatch</code> to
+                <code>daily-briefing.yml</code> (PR&nbsp;#43); the minute offset
+                dodges GitHub's top-of-hour congestion. Best-effort too — it and
+                the backup missed together on 2026-07-16 (issue&nbsp;#61).
+              </p>
+            </div>
+          </div>
+          <div class="tl">
+            <div class="time">09:00<small>UTC</small></div>
+            <div class="body">
+              <span class="rank b">backup</span>
+              <h4>GitHub Actions schedule</h4>
+              <p>
+                Fires the same workflow independently. Best-effort by GitHub's
+                own docs — observed 1–4h late or skipped entirely
+                (issue&nbsp;#17), so it's a backstop, not the plan.
+              </p>
+            </div>
+          </div>
+          <div class="tl">
+            <div class="time">10:30<small>UTC</small></div>
+            <div class="body">
+              <span class="rank b">watchdog</span>
+              <h4>Stale-check fallback</h4>
+              <p>
+                If <code>last_briefing_at</code> still isn't today,
+                <code>daily-briefing-watchdog.yml</code> re-dispatches the run
+                and alerts the owner — but it too runs on GitHub's scheduler.
+              </p>
+            </div>
+          </div>
+          <div class="tl">
+            <div class="time">12:00<small>UTC</small></div>
+            <div class="body">
+              <span class="rank p">heartbeat</span>
+              <h4>Cloudflare-side heartbeat</h4>
+              <p>
+                <code>briefingHeartbeat</code> alerts the owner if KV's
+                <code>last_delivered_date</code> isn't today. Detection only, no
+                dispatch — but the only layer outside GitHub's scheduler, so it
+                catches an account-wide Actions failure the others would miss.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECURITY -->
+      <section>
+        <div class="sec-head">
+          <span class="eyebrow">05 · Security &amp; privacy</span>
+          <h2>Least privilege, per credential</h2>
+          <p>
+            Every secret carries the narrowest scope that still works; the
+            allowlist holds real third-party personal data, so data-subject
+            rights are first-class, not an afterthought.
+          </p>
+        </div>
+        <div class="kv">
+          <div class="kv-row">
+            <span class="cred">Webhook secret</span
+            ><span class="held">Worker secret</span
+            ><span class="scope"
+              >Validates every inbound webhook is really Telegram</span
+            >
+          </div>
+          <div class="kv-row">
+            <span class="cred">CI dispatch token</span
+            ><span class="held">Worker secret</span
+            ><span class="scope"
+              >Fine-grained PAT — single repo,
+              <code>Contents: write</code></span
+            >
+          </div>
+          <div class="kv-row">
+            <span class="cred">LLM API key</span
+            ><span class="held">repo secret</span
+            ><span class="scope">Spend-capped workspace key</span>
+          </div>
+          <div class="kv-row">
+            <span class="cred">KV storage token</span
+            ><span class="held">repo secret</span
+            ><span class="scope"
+              ><code>Workers KV Storage: Edit</code> — nothing more</span
+            >
+          </div>
+          <div class="kv-row">
+            <span class="cred">Bot API token</span
+            ><span class="held">repo + Worker</span
+            ><span class="scope">Full bot control — rotated on any leak</span>
+          </div>
+          <div class="kv-row">
+            <span class="cred">Owner identifier</span
+            ><span class="held">repo variable</span
+            ><span class="scope">Not sensitive — the owner's own chat id</span>
+          </div>
+        </div>
+        <div class="note">
+          <b>Environments are fully isolated.</b> Production and staging run
+          distinct Workers, distinct bots, distinct KV namespaces, and distinct
+          webhook secrets — a staging change is exercised end-to-end with zero
+          chance of touching prod state or prod subscribers.
+          <code>wrangler deploy</code> targets prod;
+          <code>--env staging</code> is required to touch staging.
+        </div>
+      </section>
+
+      <footer>
+        <span class="mono">AI-in-TA Telegram Bot</span>
+        <span>·</span>
+        <span>Specification reflects the deployed system as of 2026-07-16</span>
+        <span>·</span>
+        <span class="mono">v1.6.0</span>
+      </footer>
+    </main>
+  </body>
+</html>
