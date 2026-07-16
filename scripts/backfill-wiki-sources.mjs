@@ -18,8 +18,9 @@
 // restates is the wiki layer's job, the raw layer stays dumb. See
 // docs/wiki-design.md.
 import { execFileSync } from 'node:child_process'
-import { readFileSync, existsSync, writeFileSync, mkdirSync } from 'node:fs'
+import { readFileSync, existsSync } from 'node:fs'
 import { bulletUrlKey } from '../shared/telegram.mjs'
+import { parseBullet, writeSourceFile } from '../shared/wiki-sources.mjs'
 
 const PATH = 'state/recent_stories.json'
 
@@ -37,25 +38,6 @@ function parseEntries(json) {
   }
 }
 
-// Bullet shape (briefing-prompt.md): "- **Headline**, prose ... ([Link
-// title](https://url)) (16 July 2026)". Every field is best-effort: a bullet
-// that drifts from the format still gets archived, just with nulls, because
-// losing the record entirely is worse than losing its title.
-function parseBullet(bullet) {
-  const headline = bullet.match(/\*\*(.+?)\*\*/)?.[1] ?? null
-  const link = bullet.match(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/)
-  const url = link?.[2] ?? null
-  let domain = null
-  if (url) {
-    try {
-      domain = new URL(url).hostname.replace(/^www\./, '')
-    } catch {
-      domain = null
-    }
-  }
-  return { headline, source_title: link?.[1] ?? null, url, domain, key: bulletUrlKey(bullet) }
-}
-
 const shas = git(['log', '--format=%H', '--', PATH]).trim().split('\n').filter(Boolean)
 
 // date -> Map(urlKey -> record). Oldest revision first so the earliest wording
@@ -71,7 +53,7 @@ function absorb(entries, provenance) {
     const bucket = byDate.get(entry.date)
     for (const bullet of entry.bullets ?? []) {
       const parsed = parseBullet(bullet)
-      const key = parsed.key ?? bullet
+      const key = bulletUrlKey(bullet) ?? bullet
       if (bucket.has(key)) continue
       bucket.set(key, {
         date: entry.date,
@@ -109,11 +91,10 @@ for (const [date, bucket] of all) {
   byMonth.get(month).push(...bucket.values())
 }
 
-mkdirSync('wiki/sources', { recursive: true })
 let total = 0
 for (const [month, records] of byMonth) {
   const file = `wiki/sources/${month}.jsonl`
-  writeFileSync(file, records.map((r) => JSON.stringify(r)).join('\n') + '\n')
+  writeSourceFile(file, records)
   total += records.length
   console.log(`${file}: ${records.length} record(s)`)
 }

@@ -2,6 +2,36 @@
 
 ## [Unreleased]
 
+### The wiki now fills itself from each sent edition
+
+Stage 1 gave the corpus a home (`wiki/sources/`) but no writer and no reader --
+the backfill ran once and nothing has touched it since. This adds the writer.
+
+Every edition that reaches a subscriber is now appended to the raw layer by
+`scripts/append-wiki-sources.mjs`, from **both** the daily and on-demand
+workflows: an on-demand edition reaches a real subscriber, so excluding it
+would reopen the hole the backfill just closed. Then, daily only, a Haiku
+`claude -p` pass folds the pending records into `wiki/vendors/` and
+`wiki/themes/` pages per the schema in `wiki/CLAUDE.md`. On-demand appends but
+never ingests, so a burst of `/newbriefing` can't trigger a burst of ingests.
+
+Delivery cannot regress: the ingest is `continue-on-error`, gated behind the
+existing send/freshness checks, and carries the `--setting-sources user` fix
+that the 2026-07-14 Stop-hook outage taught us. It has no WebSearch -- the wiki
+may only ever contain what the bot published, and the tool allowlist is what
+enforces that, not the prompt.
+
+Pending work is tracked by record id rather than a date watermark, so an
+on-demand story added after a date was ingested still gets picked up and a
+multi-day outage self-heals. Batches are capped at 25 records per run: without
+a cap, a backlog large enough to blow `--max-budget-usd` would fail, stay
+pending, and hand the next run the same too-big batch forever. Marking records
+ingested is a separate step gated on the ingest's `.outcome` (not
+`.conclusion`, which `continue-on-error` forces to `success`), so a
+half-finished ingest never marks its own work done.
+
+Stage 3 (a bot-facing `/wiki` query surface) remains deliberately unbuilt. (#76)
+
 ### Sent stories now survive past the 14-day dedup window
 
 `state/recent_stories.json` looks like an archive but isn't one: it is the
