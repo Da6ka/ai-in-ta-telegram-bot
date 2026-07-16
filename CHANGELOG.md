@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+### README now guides subscribers, and surfaces the /newbriefing limits
+
+The README was written operator-first: the actual subscriber journey was only
+implied in prose, and `/newbriefing`'s rate limits weren't documented anywhere,
+so a user who hit the cooldown or a daily cap had no way to know it was expected
+rather than broken.
+
+Adds a **"Using the bot (subscribers)"** section covering the four-tap flow
+(`/start` -> approval -> `/subscribe` -> briefing), plus stop/erase and the
+data commands. Adds a note under the command table spelling out the
+`/newbriefing` limits verified against `worker/src/index.js`: 60-min cooldown
+(5 min for the owner), 3/day per user, 5/day across everyone, cached copy served
+on refusal, daily send unaffected. Docs only.
+
 ### README drift: dead rollback path, briefing window, and the reliability story
 
 Five README claims had gone stale against the deployed system:
