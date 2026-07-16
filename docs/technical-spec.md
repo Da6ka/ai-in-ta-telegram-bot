@@ -241,7 +241,75 @@ shared (one `today_briefing` for everyone).
      1–4h late or skipped, issue #17).
   3. `daily-briefing-watchdog.yml`, 10:30 UTC — re-dispatches + alerts owner
      (`send-alert.mjs`) if `last_briefing_at` ≠ today.
+
+  Layers 2 and 3 are both GitHub `schedule`, so they share its failure mode:
+  a bad morning in GitHub's scheduler can take out the backup trigger and the
+  watchdog meant to catch it. On 2026-07-16 layers 1 and 2 missed together
+  (issue #61) — the Worker cron is best-effort too, so the redundancy is
+  weaker than "primary + backup" implies.
+
+- **Cloudflare-side heartbeat** (`briefingHeartbeat`, cron `0 12 * * *`):
+  alerts the owner if KV's `today_briefing_date` ≠ today. Detection only — it
+  does **not** dispatch a run. Its purpose is the account-wide Actions failure
+  (billing hold, outage) that every in-Actions guard above would miss, since it
+  runs on Cloudflare. It is the only layer outside GitHub's scheduler.
 - **Broadcast fan-out** runs on the runner to avoid the Worker subrequest cap.
+
+### 8.1 Diagnosing a missed daily trigger
+
+When no briefing has gone out and `state/usage_stats.json` still shows a
+`last_briefing_at` earlier than today, the first question is which layer failed:
+the Worker cron never fired, or it fired and its dispatch to Actions failed.
+These two calls separate those cases. Both need the personal Cloudflare account
+(`da6ka.iv@gmail.com`) — see §10; the Valiotti account is empty and will read as
+a false "all clear". The bearer token below is the wrangler OAuth token from
+`~/.wrangler/config/default.toml`.
+
+**Are the crons still registered on the live Worker?** Confirms config, not
+firing — a deploy that dropped `[triggers]` shows up here:
+
+```
+GET https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/ai-in-ta-telegram-bot/schedules
+```
+
+Expect both `5 9 * * *` (briefing dispatch) and `0 12 * * *` (heartbeat).
+`modified_on` tracks the last `wrangler deploy`, not the last fire.
+
+**Did the cron actually fire?** This is the decisive one. A scheduled
+invocation appears as a row at the cron's minute, so its _absence_ at 09:05 is
+positive evidence the Worker never ran — which rules out a failed dispatch,
+an expired `GITHUB_TOKEN`, and anything else Worker-side:
+
+```
+POST https://api.cloudflare.com/client/v4/graphql
+
+query {
+  viewer {
+    accounts(filter: {accountTag: "{account_id}"}) {
+      workersInvocationsAdaptive(
+        limit: 100,
+        filter: {scriptName: "ai-in-ta-telegram-bot", datetime_geq: "YYYY-MM-DDT00:00:00Z"},
+        orderBy: [datetimeMinute_DESC]
+      ) {
+        sum { requests errors }
+        dimensions { datetimeMinute scriptName status }
+      }
+    }
+  }
+}
+```
+
+Compare the 09:05 row against the days either side; webhook traffic at other
+minutes confirms the Worker itself is healthy and isolates the miss to the cron.
+
+The dashboard's own observability query endpoint
+(`/workers/observability/telemetry/query`) returns 403 under the wrangler OAuth
+token, which is why the GraphQL dataset above is the practical route.
+
+Recovery is `gh workflow run daily-briefing.yml`; the idempotency check and the
+`briefing-generation` concurrency group make that safe even if a delayed trigger
+lands mid-run. First seen 2026-07-16, when the Worker cron and the GitHub
+`schedule` both missed the same morning (issue #61).
 
 ---
 
@@ -259,7 +327,8 @@ shared (one `today_briefing` for everyone).
 
 Bindings (`worker/wrangler.toml`): KV `BOT_STATE`
 (`id 4d433b91…`), Durable Object `BOT_DO` → class `BotState` (migration `v1`),
-var `GITHUB_REPO = Da6ka/ai-in-ta-telegram-bot`, cron `5 9 * * *`.
+var `GITHUB_REPO = Da6ka/ai-in-ta-telegram-bot`, crons `5 9 * * *` (briefing
+dispatch) and `0 12 * * *` (heartbeat, §8).
 
 Rotate on any suspected leak and at least annually; after rotation, trigger
 `daily-briefing.yml` manually to confirm generate → send → KV sync still pass.
