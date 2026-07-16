@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+### Removed a scratch log that shipped in v1.6.0 by accident
+
+`.worker-cron-validation-log.md` was an untracked scratch file written by a
+scheduled monitoring task tracking PR #41. A `git add -A` in #63 swept it into
+the repo and it shipped in v1.6.0. It was never meant to be tracked, and it was
+already dead: #41 was closed on 2026-07-13 (superseded by #43's
+repository_dispatch design), the file's own content reads DISCONTINUED, and the
+task that maintained it has been deleted. The deliberate record of that
+investigation lives in `docs/qa/worker-cron-trigger-validation-log.md`, which
+stays. (#68)
+
+### Release steps now bump the spec header
+
+The spec header tracks the app version, but nothing automates it and nothing
+fails when it's missed, so it drifted silently -- it sat at 1.4.0 through three
+releases before v1.6.0 caught it. It is now release step 2 (the rest
+renumbered): it is the line that tells a reader whether the spec describes
+what's deployed, so drift there is worse than drift anywhere else. (#67)
+
 ## [1.6.0] - 2026-07-16
 
 ### Heartbeat now asks whether subscribers were served, not whether a copy exists
