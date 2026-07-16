@@ -25,6 +25,7 @@ Subscribers tap `/subscribe` and get the briefing every morning at **09:05 UTC /
 
 - [What it does](#what-it-does)
 - [Example briefing](#example-briefing)
+- [Using the bot (subscribers)](#using-the-bot-subscribers)
 - [Commands](#commands)
 - [How it works](#how-it-works)
 - [Quickstart](#quickstart)
@@ -63,6 +64,17 @@ A real edition, sent via `/briefing`:
 
 Every item is sourced (clickable, dated, no bare URLs), never repeats a domain, and skips evergreen "guide"/"trends" content in favor of recent news — freshest first, nothing older than a week — see `briefing-prompt.md` for the exact editorial rules.
 
+## Using the bot (subscribers)
+
+If someone's already running the bot and you just want the briefing, the whole flow is four taps:
+
+1. **`/start`** — requests access. Access is allowlist-gated, so this puts you in a queue rather than letting you straight in.
+2. **Wait for approval** — the owner gets your request and approves it. You'll be able to use the commands below once they do.
+3. **`/subscribe`** — now the daily briefing lands in your chat every morning at 09:05 UTC. That's the only step you need for the daily send.
+4. **`/briefing`** any time for today's edition (instant, cached), or **`/newbriefing`** to generate a fresh one on the spot.
+
+To stop: **`/unsubscribe`** ends the daily send but keeps your access; **`/forgetme`** erases everything the bot stores about you. Curious what that is? **`/mydata`** shows it and **`/privacy`** explains how it's handled.
+
 ## Commands
 
 **Everyday**
@@ -76,6 +88,8 @@ Every item is sourced (clickable, dated, no bare URLs), never repeats a domain, 
 | `/unsubscribe` | Stop the daily briefing                     |
 | `/status`      | Check your access status                    |
 | `/help`        | List available commands                     |
+
+> **`/newbriefing` is rate-limited.** Because everyone shares one briefing, there's a 60-minute cooldown between fresh generations (5 minutes for the owner), a cap of 3 per person per day, and 5 across all users per day. Hit any of them and you get today's cached copy instead of an error — and the morning briefing is never affected by these limits.
 
 **Privacy**
 
