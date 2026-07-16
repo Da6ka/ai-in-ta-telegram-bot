@@ -2,6 +2,27 @@
 
 ## [Unreleased]
 
+### Sent stories now survive past the 14-day dedup window
+
+`state/recent_stories.json` looks like an archive but isn't one: it is the
+dedup feed injected into the generation prompt, so `pruneRecentStories()` drops
+anything older than 14 days and `MAX_RECENT_STORY_BULLETS` caps what goes in --
+both load-bearing for the `--max-budget-usd` ceiling after the 2026-07-04
+incident. Everything the bot has ever published was therefore expiring, and
+widening the window to keep it would have paid for history with generation
+quality.
+
+History now lives in `wiki/sources/YYYY-MM.jsonl` -- append-only, never pruned,
+and never injected into any prompt. `scripts/backfill-wiki-sources.mjs` mines
+it out of the daily "Update briefing state" commits and is idempotent, so it
+can be re-run after a schema change. First run recovered 91 records across 11
+briefing days (2026-07-01 -> 2026-07-16); two of those days survived only in
+git history, already pruned out of the live file.
+
+This is stage 1 of the LLM-wiki design in `docs/wiki-design.md`. The raw layer
+and its schema (`wiki/CLAUDE.md`) are inert on their own -- nothing reads them
+yet, and the daily workflow is untouched. Stage 2 (the ingest step) and stage 3
+(a bot-facing query surface) are deliberately not built. (#75)
 ### README now guides subscribers, and surfaces the /newbriefing limits
 
 The README was written operator-first: the actual subscriber journey was only
