@@ -429,6 +429,38 @@ test('briefing and rate limiting', async (t) => {
     assert.equal(ghDispatches().length, 1, 'absent total is treated as 0, not NaN')
     assert.equal(doStorage.map.get('briefing_rate').total, 1)
   })
+  // Both cap messages used to point at /briefing unconditionally. With no
+  // cached edition that advice is a loop: /briefing finds no cache, routes back
+  // into requestGeneration, hits the same cap, prints the same advice.
+  await t.test('F12e cap message with no cache at all does not send the user to /briefing', async () => {
+    kv.map.delete('today_briefing_date')
+    kv.map.delete('today_briefing_md')
+    for (const [reason, rate] of [
+      ['per-user', { lastDispatchAt: 0, date: todayUTC(), counts: { '222': 3 }, total: 0 }],
+      ['global', { lastDispatchAt: 0, date: todayUTC(), counts: {}, total: 5 }],
+    ]) {
+      doStorage.map.set('briefing_rate', rate)
+      fetchLog = []
+      await send(upd('222', '/newbriefing'))
+      const text = sends()[0].body.text
+      assert.equal(ghDispatches().length, 0, `${reason}: refused`)
+      assert.ok(!text.includes('/briefing will still get you'), `${reason}: no dead-end advice`)
+      assert.ok(text.includes('no saved edition'), `${reason}: says why`)
+      assert.ok(text.includes("daily briefing isn't affected"), `${reason}: daily send reassurance`)
+    }
+  })
+  await t.test("F12f cap message with today's edition cached still points at /briefing", async () => {
+    kv.map.set('today_briefing_date', todayUTC())
+    kv.map.set('today_briefing_md', '# Daily AI Recruitment Briefing — test\n\n- [S](https://ex.com)')
+    doStorage.map.set('briefing_rate', { lastDispatchAt: 0, date: todayUTC(), counts: {}, total: 5 })
+    fetchLog = []
+    await send(upd('222', '/newbriefing'))
+    const text = sends()[0].body.text
+    assert.ok(text.includes('shared daily limit'), 'shared cap named')
+    assert.ok(text.includes('/briefing will still get you the latest one'), 'advice kept when it works')
+    kv.map.delete('today_briefing_date')
+    kv.map.delete('today_briefing_md')
+  })
   await t.test('F13 failed GitHub dispatch -> rollback, user informed, retry possible', async () => {
     doStorage.map.set('briefing_rate', { lastDispatchAt: 0, date: todayUTC(), counts: {} })
     fetchOverride = (url) => url.includes('api.github.com') ? new Response('boom', { status: 500 }) : null

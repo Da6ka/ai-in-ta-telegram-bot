@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+### Rate-limit messages no longer point at a /briefing that has nothing to serve
+
+Both cap messages ended with "/briefing will still get you the latest one".
+That advice is only true when today's edition is actually cached. With nothing
+cached it's a loop: /briefing finds no cache, routes back into
+`requestGeneration`, hits the same cap, and prints the same advice again. The
+wording predates the global cap -- the new message inherited the flaw by
+copying the existing per-user one, so both are fixed here.
+
+The tail is now conditional on `hasTodayCached()`, which mirrors the /briefing
+handler's own cache condition rather than restating it. With no cached edition
+the user is told there's nothing to fall back on, and that the daily briefing
+isn't affected by the limit so today's should still arrive -- which is the
+actually useful thing to know, and true whether or not they're subscribed.
+Tests 142 -> 144.
+
 ### Global daily cap on briefing generation
 
 The three generation limits were doing two jobs, not three: the global 60-minute
