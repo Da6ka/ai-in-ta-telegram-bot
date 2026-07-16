@@ -42,6 +42,14 @@ const DISPATCH_COOLDOWN_MS = 60 * 60 * 1000
 // cost backstop, since every run is a paid generation.
 const OWNER_DISPATCH_COOLDOWN_MS = 5 * 60 * 1000
 const DAILY_DISPATCH_CAP = 3
+// Hard cost ceiling across everyone, per UTC day. The per-user cap above stops
+// one user hogging generations, but it does not bound total spend: the limits
+// are independent, so N allowlisted users each get their own 3/day. Before this
+// existed, the only real ceiling was the global cooldown -- ~24 dispatches/day
+// at 60-min spacing, and every dispatch is a paid Actions + Claude run. Set
+// above the owner's realistic daily refresh need so it only bites on a genuinely
+// anomalous day; a user who trips it is served the cached edition, not an error.
+const GLOBAL_DAILY_DISPATCH_CAP = 5
 
 // A generation run (install + claude -p web search + send + KV sync) finishes
 // well within this window. Used only for message wording: if the last dispatch
@@ -305,13 +313,23 @@ export class BotState extends DurableObject {
   async reserveBriefingDispatch(senderId, isOwner = false) {
     const now = Date.now()
     const today = todayUTC()
-    const rl = (await this.ctx.storage.get('briefing_rate')) ?? { lastDispatchAt: 0, date: today, counts: {} }
+    const rl = (await this.ctx.storage.get('briefing_rate')) ?? { lastDispatchAt: 0, date: today, counts: {}, total: 0 }
     if (rl.date !== today) {
       rl.date = today
       rl.counts = {}
+      rl.total = 0
     }
     if ((rl.counts[senderId] ?? 0) >= DAILY_DISPATCH_CAP) {
       return { allowed: false, reason: 'daily_cap' }
+    }
+    // Checked after the per-user cap so a user who has spent their own quota
+    // gets the message about their own limit, which is the more actionable of
+    // the two. `total` is absent on records written before this cap existed --
+    // those default to 0 and start counting from the next dispatch, which is
+    // correct: a partial day's history can't be reconstructed, and undercounting
+    // for one day is harmless next to refusing every dispatch on a NaN compare.
+    if ((rl.total ?? 0) >= GLOBAL_DAILY_DISPATCH_CAP) {
+      return { allowed: false, reason: 'global_daily_cap' }
     }
     const cooldownMs = isOwner ? OWNER_DISPATCH_COOLDOWN_MS : DISPATCH_COOLDOWN_MS
     const elapsed = now - rl.lastDispatchAt
@@ -326,6 +344,7 @@ export class BotState extends DurableObject {
     const prevLastDispatchAt = rl.lastDispatchAt
     rl.lastDispatchAt = now
     rl.counts[senderId] = (rl.counts[senderId] ?? 0) + 1
+    rl.total = (rl.total ?? 0) + 1
     await this.ctx.storage.put('briefing_rate', rl)
     return { allowed: true, prevLastDispatchAt }
   }
@@ -337,6 +356,7 @@ export class BotState extends DurableObject {
     if (!rl) return
     rl.lastDispatchAt = prevLastDispatchAt ?? 0
     if (rl.counts[senderId]) rl.counts[senderId] -= 1
+    if (rl.total) rl.total -= 1
     await this.ctx.storage.put('briefing_rate', rl)
   }
 
@@ -571,6 +591,11 @@ async function requestGeneration(env, stub, senderId, generatingMsg, isOwner = f
     if (r.reason === 'daily_cap') {
       if (await serveStaleBriefing(env, senderId)) return
       await reply(env, senderId, "You've reached today's limit for fresh briefings — /briefing will still get you the latest one.")
+      return
+    }
+    if (r.reason === 'global_daily_cap') {
+      if (await serveStaleBriefing(env, senderId)) return
+      await reply(env, senderId, "The bot has hit its shared daily limit for fresh briefings — /briefing will still get you the latest one, and tomorrow's daily update is unaffected.")
       return
     }
     const date = await env.BOT_STATE.get('today_briefing_date')
