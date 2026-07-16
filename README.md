@@ -176,7 +176,7 @@ gh variable set OWNER_CHAT_ID --repo <owner>/ai-in-ta-telegram-bot   # your nume
 
 Live commands like `/newbriefing`, `/briefing`, `/admin`, and `/subscribe` are handled by a **Cloudflare Worker** (`worker/`) that receives Telegram's webhook directly — so they work 24/7, independent of any local Mac or Claude Code session.
 
-State (`access`, `subscribers`, `usage_stats`, `today_briefing_md`, `today_briefing_date`) lives in a Cloudflare KV namespace bound as `BOT_STATE`. Briefing _generation_ is still delegated to GitHub Actions (`on-demand-briefing.yml`, triggered via `repository_dispatch`), which writes the result back into KV via `scripts/sync-kv.mjs` so `/briefing` can serve a cached copy without re-generating.
+State (`access`, `subscribers`, `usage_stats`, `today_briefing_md`, `today_briefing_date`, `last_delivered_date`) lives in a Cloudflare KV namespace bound as `BOT_STATE`. Briefing _generation_ is still delegated to GitHub Actions (`on-demand-briefing.yml`, triggered via `repository_dispatch`), which writes the result back into KV via `scripts/sync-kv.mjs` so `/briefing` can serve a cached copy without re-generating.
 
 `/broadcast` delivery is likewise delegated to Actions (`broadcast.yml`, also triggered via `repository_dispatch`): the Worker validates the owner + message and dispatches it, then `scripts/broadcast.mjs` fans the message out to every subscriber (paced + retried) and sends the owner a delivery report. Running the fan-out on the runner instead of in the Worker avoids the Worker's per-invocation subrequest cap, which silently dropped recipients past ~45.
 

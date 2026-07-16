@@ -653,8 +653,12 @@ async function requestGeneration(env, stub, senderId, generatingMsg, isOwner = f
 // sync-kv.mjs -- so a value that isn't today means nothing was delivered.
 async function briefingHeartbeat(env) {
   const today = todayUTC()
-  const date = await env.BOT_STATE.get('today_briefing_date')
-  if (date === today) return // healthy: today's edition synced to KV
+  // last_delivered_date, not today_briefing_date: the latter only means an
+  // edition is cached, which an on-demand /newbriefing sets while delivering to
+  // one requester -- that would silence this alert on a day when subscribers
+  // got nothing. Written solely by the daily send's sync-kv.mjs (MARK_DELIVERED).
+  const date = await env.BOT_STATE.get('last_delivered_date')
+  if (date === today) return // healthy: today's edition went out to subscribers
   const stub = env.BOT_DO.get(env.BOT_DO.idFromName('singleton'))
   const owner = (await stub.getAccess()).ownerChatId
   if (!owner) return
@@ -662,10 +666,10 @@ async function briefingHeartbeat(env) {
   await reply(
     env,
     owner,
-    `[ai-in-ta] Today's briefing (${today}) hasn't landed by 12:00 UTC — nothing was delivered. ` +
+    `[ai-in-ta] Today's briefing (${today}) hasn't been delivered to subscribers by 12:00 UTC. ` +
       `This heartbeat runs on Cloudflare, so it fires even when GitHub Actions is blocked account-wide ` +
       `(billing hold / outage) — the failure mode the in-Actions watchdog can't catch. ` +
-      `Last saved edition: ${date || 'none'}. Check https://github.com/${repo}/actions`,
+      `Last delivery: ${date || 'none'}. Check https://github.com/${repo}/actions`,
   )
 }
 

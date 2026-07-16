@@ -118,7 +118,8 @@ generation-side record. `scripts/sync-kv.mjs` is the one-way bridge
 
 ### 4.1 `BotState` Durable Object (source of truth)
 
-Single instance. Logical fields:
+Single instance, DO storage only. These four keys and no others — the DO is the
+authority for *access and coordination* state, not for briefing content:
 
 ```
 access:
@@ -127,13 +128,6 @@ access:
   allowFrom:   [<int>, ...]     # allowlist (length ≤ MAX_USERS)
   pending:     { <id>: {info, requestedAt} }
 subscribers:   [<int>, ...]     # always includes owner
-usage_stats:
-  command_counts: { <command>: <int> }
-  briefings_sent: <int>
-  last_briefing_at: <YYYY-MM-DD>
-  last_seen: { <chat_id>: <YYYY-MM-DD> }
-today_briefing_md:   <string>
-today_briefing_date: <YYYY-MM-DD>
 briefing_rate:                  # generation rate limiting (§6.2)
   lastDispatchAt: <epoch_ms>    # global, drives the cooldown
   date:           <YYYY-MM-DD>  # UTC day the counters below belong to
@@ -149,11 +143,35 @@ strongly-consistent read-modify-write inside the DO (KV's eventual consistency
 would race concurrent `/subscribe` / approvals). `addAllowedUser` enforces
 `MAX_USERS` atomically.
 
-### 4.2 KV namespace `BOT_STATE` (read mirror)
+### 4.2 KV namespace `BOT_STATE`
 
-Mirrors the fields above for cheap Worker reads (notably `/briefing`'s cached
-copy and the subscriber list read by `send-briefing.mjs`). Written by the DO
-and by `sync-kv.mjs`; never the authority.
+Two distinct roles, easily confused:
+
+**Read mirror of DO state.** `access` and `subscribers` are mirrored here for
+cheap Worker reads and for `send-briefing.mjs` / `broadcast.mjs` on the runner.
+The DO remains the authority; these are re-mirrored before each daily send (#49).
+
+**KV-resident state** (not in the DO — written by `sync-kv.mjs` from the
+generation side, and by the DO's usage writers):
+
+```
+today_briefing_md:   <string>
+today_briefing_date: <YYYY-MM-DD>  # an edition is CACHED (daily OR on-demand)
+last_delivered_date: <YYYY-MM-DD>  # the daily send REACHED SUBSCRIBERS (§8)
+usage_stats:
+  command_counts: { <command>: <int> }
+  briefings_sent: <int>
+  last_briefing_at: <YYYY-MM-DD>
+  last_seen: { <chat_id>: <YYYY-MM-DD> }
+```
+
+`today_briefing_date` and `last_delivered_date` are **not** interchangeable: an
+on-demand `/newbriefing` writes the first while delivering to one requester, and
+only the daily send writes the second. §8's heartbeat depends on that split.
+
+Note `usage_stats.last_briefing_at` here is the KV copy, written by `sync-kv.mjs`
+on **both** the daily and on-demand paths. It is not the idempotency marker —
+that is the git-versioned copy in §4.3, which only the daily workflow advances.
 
 ### 4.3 Git-versioned `state/` (generation record)
 
@@ -282,7 +300,13 @@ never a bare error, and the daily scheduled send is unaffected by all three.
   weaker than "primary + backup" implies.
 
 - **Cloudflare-side heartbeat** (`briefingHeartbeat`, cron `0 12 * * *`):
-  alerts the owner if KV's `today_briefing_date` ≠ today. Detection only — it
+  alerts the owner if KV's `last_delivered_date` ≠ today. It reads
+  `last_delivered_date` and **not** `today_briefing_date`: the latter only means
+  an edition is cached, which an on-demand `/newbriefing` sets while delivering
+  to exactly one requester — reading it would silence the alert on a day when
+  subscribers got nothing. `last_delivered_date` is written solely by
+  `daily-briefing.yml`'s KV sync (`MARK_DELIVERED`), a step that is skipped
+  unless the send succeeded. Detection only — it
   does **not** dispatch a run. Its purpose is the account-wide Actions failure
   (billing hold, outage) that every in-Actions guard above would miss, since it
   runs on Cloudflare. It is the only layer outside GitHub's scheduler.

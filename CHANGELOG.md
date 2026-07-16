@@ -2,6 +2,35 @@
 
 ## [Unreleased]
 
+### Heartbeat now asks whether subscribers were served, not whether a copy exists
+
+The 12:00 UTC Cloudflare heartbeat read `today_briefing_date` and treated
+"equals today" as "the briefing landed". That key only means *an edition is
+cached* -- the on-demand path writes it via the same `sync-kv.mjs` after
+delivering to exactly one requester. So a single user's `/newbriefing` could
+silence the heartbeat on a day when subscribers got nothing.
+
+Adds `last_delivered_date`, written only by `daily-briefing.yml`'s KV sync
+(`MARK_DELIVERED=true`) -- a step that is skipped unless its "Send to Telegram"
+step succeeded, so the key means what the heartbeat is actually asking. The
+on-demand workflow deliberately omits the flag. The alert text now says
+"hasn't been delivered to subscribers" rather than "hasn't landed", since the
+distinction is the whole point.
+
+Narrow but real: the heartbeat's designed failure mode is an account-wide
+Actions block, where an on-demand run couldn't have generated either, so
+nothing would write the key and the alert fires correctly. The gap needed
+on-demand to succeed *and* the daily triggers to miss *and* the watchdog to
+miss -- two of which happened on 2026-07-16 (#61). Tests 144 -> 145.
+
+Documenting the new key also surfaced that spec §4.1 listed `usage_stats`,
+`today_briefing_md` and `today_briefing_date` as Durable Object fields. They
+are KV-resident -- the DO holds only `access`, `subscribers`, `briefing_rate`
+and `seen_updates`, as `worker/src/index.js`'s own top-of-file note says. §4.2
+now carries the KV-resident state (separating it from the DO *mirror*, which is
+a different role for the same namespace) and spells out that
+`today_briefing_date` and `last_delivered_date` are not interchangeable.
+
 ### Rate-limit messages no longer point at a /briefing that has nothing to serve
 
 Both cap messages ended with "/briefing will still get you the latest one".

@@ -225,6 +225,12 @@ jobs:
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           CF_KV_NAMESPACE_ID: ${{ secrets.CF_KV_NAMESPACE_ID }}
           RECIPIENT_COUNT: ${{ steps.send.outputs.recipient_count }}
+          # Marks last_delivered_date, the heartbeat's signal (worker/src/index.js).
+          # Only this workflow sets it: this step is skipped unless "Send to
+          # Telegram" above succeeded, so the key means subscribers actually got
+          # the edition -- which is what the heartbeat is asking. on-demand-
+          # briefing.yml deliberately omits it.
+          MARK_DELIVERED: 'true'
         run: node scripts/sync-kv.mjs
 
       # Issue #24: a bare pull-rebase+push here had no retry, so a push that lost
