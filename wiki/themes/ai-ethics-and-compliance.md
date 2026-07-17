@@ -1,0 +1,33 @@
+# AI ethics and compliance
+
+Legal and regulatory pressure on AI hiring is accelerating: federal judges are finding AI vendors liable alongside employers for discrimination, EU and US state laws are tightening requirements, and applicant trust is collapsing (only 26% trust AI to evaluate them fairly). The pattern is clear — "the algorithm did it" is no longer a defense. TA leaders must document human oversight at every consequential decision point, audit tools for bias, and keep vendor contracts and audit trails in order. Compliance is no longer optional; it is a competitive differentiator.
+
+## Timeline
+
+- **1 Jul 2026** — Only 26% of applicants trust AI to evaluate them fairly, making visible human oversight and clear explanations table stakes — position AI as co-pilot, not autopilot. — [ATSOndemand](https://power.atsondemand.com/top-ai-recruiting-trends-2026-the-rise-of-human-ai-partnership-in-talent-acquisition/)
+
+- **1 Jul 2026** — Trust and compliance are now table stakes — only 26% of applicants trust AI to evaluate them fairly, and EU AI Act obligations tighten expectations for hiring vendors. — [Bullhorn](https://www.bullhorn.com/blog/best-recruitment-ai-tools/)
+
+- **2 Jul 2026** — A federal judge let the Mobley v. Workday AI-bias suit proceed, with Judge Rita Lin's 22 June order allowing FEHA and ADA claims to move toward trial and treating the vendor as an "agent" of employers — meaning your ATS vendor's flaws can become your liability. TA leaders should inventory every AI screening tool, demand bias-audit documentation, and lock in human-review checkpoints now. — [SHRM](https://www.shrm.org/topics-tools/news/technology/workday-ai-lawsuit-wake-up-call-hr)
+
+- **3 Jul 2026** — A California federal judge (Rita Lin) ruled Workday must face state FEHA discrimination claims, finding a sufficient California nexus because its AI screening tools are built and maintained there — extending exposure to employers nationwide and reinforcing that "the vendor's algorithm did it" is not a defense. TA leaders should re-examine vendor contracts, bias audits, and human-oversight documentation now. — [HR Dive](https://www.hrdive.com/news/workday-california-AI-bias-lawsuit-feha/823555/)
+
+- **3 Jul 2026** — Colorado's landmark AI Act reached its effective date but in narrowed form: the original Colorado Artificial Intelligence Act was set to take effect 30 June 2026, after Colorado signed replacement bill SB 26-189 in May to scale back the broader framework governing high-risk automated employment decisions. Employers using AI hiring tools with Colorado applicants should confirm which obligations (notice, human review, bias auditing) actually survived. — [National Law Review](https://natlawreview.com/article/federal-government-quietly-removed-its-ai-hiring-guidance-four-states-are-writing)
+
+- **3 Jul 2026** — The Council of the EU gave final sign-off to the AI Act "omnibus" simplification package, deferring the high-risk compliance deadline — which covers AI used in recruitment, candidate evaluation and selection — from 2 August 2026 to 2 December 2027. TA teams running AI hiring tools in the EU gain roughly 16 months, but the extension is runway to finish bias testing, human-oversight documentation and vendor due diligence, not a reason to pause them. — [Gibson Dunn](https://www.gibsondunn.com/eu-ai-act-omnibus-agreement-postponed-high-risk-deadlines-and-other-key-changes/)
+
+- **13 Jul 2026** — Twenty-six Meta employees sued in Oakland federal court alleging Meta's AI used signals like productivity and "AI token usage" to disproportionately select workers with disabilities or on medical leave for layoffs — and that Meta failed to bias-test the system under California and NYC law. It appears to be the first major suit challenging AI in layoffs; audit and document any AI touching workforce decisions, not just hiring. — [US News](https://www.usnews.com/news/top-news/articles/2026-07-14/meta-used-ai-to-target-workers-with-medical-conditions-for-layoffs-former-employees-lawsuit-claims)
+
+- **14 Jul 2026** — Candidates are increasingly using AI to cheat live interviews and coding screens, and employers are reacting fast: Bloomberg reports firms including Google, Cisco and McKinsey are reinstating in-person rounds, while Anthropic has had to rewrite its own technical questions because so many applicants were answering with Claude — a signal to rebuild assessments around verifiable, supervised or explicitly AI-permitted work rather than unmonitored take-homes. — [Bloomberg](https://www.bloomberg.com/news/articles/2026-07-14/ai-tools-can-help-job-hunters-cheat-on-interviews-and-coding-tests)
+
+- **14 Jul 2026** — uRecruits launched version 2.0, explicitly positioning "a human in every decision" as its answer to tightening AI hiring laws — AI scores and organizes candidates across screening and matching, but a recruiter makes each call. Whether or not you use the tool, it's a signal that "human-in-the-loop by design" is becoming a compliance selling point; press your own vendors on where the human review actually sits. — [PR Newswire](https://www.prnewswire.com/news-releases/as-ai-hiring-laws-tighten-urecruits-launches-2-0-with-a-human-in-every-decision-302824964.html)
+
+- **7 Jul 2026** — Recruiter impersonation is now an AI-scaled threat to your employer brand: fraudsters posing as staffing firms (including a fake version of Doherty's recruiting team) are blasting out AI-written job ads tailored to individuals' real job interests to harvest confidential candidate data, as generative tools cut the cost of a convincing fake to minutes. The FBI logged roughly 22,000 AI-enabled scam complaints last year; TA leaders should publish and promote official application channels, warn candidates proactively, and monitor for brand impersonation. — [The Spokesman-Review](https://www.spokesman.com/stories/2026/jul/07/employment-seekers-and-businesses-navigate-rise-in/)
+
+## Open questions
+
+- Which state AIs acts will survive preemption challenges or federal harmonization attempts?
+- How enforceable is the EU AI Act's December 2027 deadline, and what compliance documentation will satisfy both regulators and plaintiff counsel?
+- Can bias audits catch discrimination baked into job descriptions, recruiter calibration, or hiring manager feedback?
+
+Related: [[agentic-recruiting]], [[skills-based-hiring]], [[workday]], [[anthropic]]
