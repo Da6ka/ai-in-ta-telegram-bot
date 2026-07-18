@@ -4,11 +4,15 @@ AI-powered agents are automating recruitment workflows end-to-end: sourcing, scr
 
 ## Timeline
 
+- **21 Jun 2026** — Mega HR launched Megan, billed as the first fully functional AI recruiter running directly inside Greenhouse, handling screening, outreach, scheduling, interview documentation, and candidate communication — added in minutes with no implementation fees, and with continuous bias/risk auditing on its evaluations. For Greenhouse shops, this is a low-friction way to test an agentic recruiter against your live pipeline; pressure-test its audit trail before letting it touch candidate-facing decisions. — [PR Newswire](https://www.prnewswire.com/news-releases/greenhouse-gets-its-first-ai-recruiter-meet-megan-your-always-on-hiring-partner-302585222.html)
+
 - **1 Jul 2026** — Claude is shifting from a text generator into a platform for agentic recruiting workflows — analyzing recruiting data and interacting directly with ATS and hiring systems, not just drafting messages. — [Metaview](https://www.metaview.ai/resources/blog/claude-for-recruiters)
 
 - **1 Jul 2026** — The defining 2026 trend is end-to-end automation: sourcing, interview scheduling, and conversation summaries handled by AI, freeing recruiters for judgment-heavy work. — [Metaview](https://www.metaview.ai/resources/blog/recruiting-trends)
 
 - **2 Jul 2026** — HireVue launched its voice-based AI Interviewer, running two-way conversational screens 24/7 and scoring candidates against IO-validated rubrics — its first product since the March Hireguide acquisition. It pushes automated evaluation earlier in the funnel, so weigh candidate experience and audit trails before deploying at scale. — [PR Newswire](https://www.prnewswire.com/news-releases/hirevue-ai-interviewer-sets-new-enterprise-standard-grounded-in-validated-hiring-science-302803800.html)
+
+- **3 Jul 2026** — LinkedIn's Hiring Assistant is now live in French and German, its first expansion beyond English; pilot users reportedly saved 4+ hours per role and reviewed 62% fewer profiles. If you run multilingual req pipelines in EMEA, this is the moment to test whether the agent's sourcing quality holds up outside English. — [StartupHub.ai](https://www.startuphub.ai/ai-news/tech/2026/linkedin-hiring-assistant-goes-global)
 
 - **7 Jul 2026** — Josh Bersin argues multi-agent AI has now genuinely "arrived" in talent acquisition, cataloguing candidate-facing and workflow agents shipping across Eightfold, Paradox, Maki, Radancy and others — and citing early results like time-to-hire dropping from two weeks to three days and call-center scheduling roles being eliminated. — [Josh Bersin Company Research](https://www.prnewswire.com/news-releases/josh-bersin-company-research-shows-talent-acquisition-moving-beyond-ai-experimentation-302819410.html)
 
