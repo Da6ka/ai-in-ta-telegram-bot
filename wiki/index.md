@@ -20,6 +20,6 @@ A persistent, compounding view of AI-in-recruitment news. Read `CLAUDE.md` for t
 
 ## Coverage notes
 
-- This ingest includes stories recovered from git (2026-07-01 to 2026-07-02) folded into seven vendor pages and three theme pages.
-- Several vendors mentioned in the corpus (Paradox, Maki, Radancy, Mega HR, Folks, Neuroscale, Fusemachines) appear in stories that cluster with [[agentic-recruiting]] but have not yet reached the second-mention threshold for individual vendor pages. Their stories are recorded in the theme timeline.
+- Vendors mentioned in the corpus (Paradox, Maki, Radancy, Mega HR, Folks, Neuroscale, Recruitable, Fusemachines, Cognizant) appear in stories that cluster with [[agentic-recruiting]] and [[skills-based-hiring]] but have not yet reached the second-mention threshold for individual vendor pages. Their stories are recorded in the theme timeline.
 - The Workday Mobley v. Workday suit is cited multiple times but as defendant/subject, not vendor, so no vendor page — its implications are on [[ai-ethics-and-compliance]].
+- HR Path (RPO/outsourcing consolidation) mentioned once; insufficient coverage for a dedicated page.

@@ -1,14 +1,6 @@
 {
   "entries": [
     {
-      "date": "2026-07-05",
-      "bullets": [
-        "- **A Ramp Economics Lab / Revelio Labs study of 21,559 US firms found the heaviest AI adopters grew headcount 10.2% over the two years after adoption — with entry-level roles up 12% — while low-intensity \"dabblers\" saw no significant gains.** For TA leaders, this reframes AI from a headcount-cutter to a growth signal: depth of adoption, not tool procurement, predicts hiring expansion, so workforce plans should track which business units are actually operationalizing AI. ([Ramp Economics Lab](https://ramp.com/data/heavy-ai-adopters-hire-more)) (30 June)",
-        "- **Palo Alto Networks CEO Nikesh Arora said he now hires almost exclusively through hackathons and is reshaping his ~21,000-person workforce via ~2% monthly attrition, warning that 90% of large-company employees lack the AI skills their roles will demand — a \"Darwinian moment.\"** It's an aggressive template for skills-first, demonstrated-ability hiring over credential screening; TA leaders should pressure-test whether their assessment process can actually surface applied AI fluency rather than claimed proficiency. ([Fortune](https://fortune.com/2026/07/01/ceo-of-palo-alto-networks-nikesh-arora-workers-about-to-face-darwinian-moment-thanks-to-ai-evolve-or-get-cut/)) (1 July)",
-        "- Anthropic shipped the **Claude apps gateway for Amazon Bedrock and Google Cloud** — a self-hosted control plane that adds corporate SSO, centrally enforced policy, role-based access, per-user cost attribution, and daily/weekly/monthly spend caps to Claude Code and Claude agents running in your own cloud. For any TA team piloting agentic sourcing or screening on Claude in AWS or GCP, this is the governance layer that makes agent spend budgetable and keeps candidate data inside your environment — stand up caps and identity-provider login before scaling a pilot. ([Claude by Anthropic](https://claude.com/blog/introducing-the-claude-apps-gateway)) (2 July 2026)"
-      ]
-    },
-    {
       "date": "2026-07-10",
       "bullets": [
         "- **UST struck a strategic alliance with Anthropic and will certify 20,000 associates worldwide on Claude**, embedding it across engineering, consulting, and operations. When a services giant standardizes its delivery workforce on Claude, it both reshapes the skills profile TA teams should source for and signals how fast agentic tooling is moving from pilot to enterprise default. ([Morningstar / PR Newswire](https://www.morningstar.com/news/pr-newswire/20260708io00270/ust-partners-with-anthropic-to-bring-claude-into-usts-platforms-engineering-and-operations-and-train-20000-ust-employees-globally)) (8 July)",
@@ -86,6 +78,13 @@
       "bullets": [
         "- The EEOC's draft Strategic Plan for FY 2026–2030 drops AI in hiring as an enforcement priority — it acknowledges that generative AI is reshaping how candidates apply and how employers screen, but attaches no performance measure or enforcement objective to AI-assisted employment decisions. With federal scrutiny receding, compliance risk shifts almost entirely to the state patchwork, so keep bias audits and documented human review in place regardless of the softer federal signal; the public comment period closes tomorrow. ([EEOC Releases Updated Draft Strategic Plan for Public Comment](https://www.shrm.org/topics-tools/employment-law-compliance/eeoc-releases-updated-draft-strategic-plan-public-comment)) (comment period closes 19 July 2026)",
         "- Intention.ly formally launched a Recruitment Marketing service after a 24-month pilot with RIA, hybrid-RIA and independent broker-dealer clients, pairing advisor recruitment and talent acquisition with an AI-powered \"Advisor Brand Builder\" that auto-generates candidate-facing brand identities, sites and content. If you hire in wealth or financial services, it's a signal that employer-branding and AI content generation are converging into the sourcing stack — audit how your own advisor and candidate value proposition shows up before a competitor's AI-built one outshines it. ([Intention.ly Officially Launches Recruitment Marketing Service Offering](https://finance.yahoo.com/small-business/articles/intention-ly-officially-launches-recruitment-130000782.html)) (16 July 2026)"
+      ]
+    },
+    {
+      "date": "2026-07-19",
+      "bullets": [
+        "- LTM struck a partnership with Anthropic to embed Claude, Claude Code, and Claude Cowork across enterprise delivery, committing to a dedicated Center of Excellence and the training of thousands of certified AI specialists and forward-deployed engineers. For TA leaders, it's another marquee services firm building its AI-implementation bench through certification pipelines rather than lateral poaching — reinforcing \"AI specialist / FDE\" as a distinct, fast-hardening hiring category to define and source for now. ([MarTech Series](https://martechseries.com/predictive-ai/ai-platforms-machine-learning/ltm-partners-with-anthropic-to-accelerate-claude-adoption-and-expand-enterprise-delivery/)) (13 July 2026)",
+        "- Xobin unveiled NURA, an agentic AI built for enterprise hiring that parses up to a million résumés in ~10 minutes, runs structured AI interviews, evaluates candidates, and schedules qualified talent with human recruiters — already in use at four of the top ten Indian IT services firms and two of the top five Indian banks. Before letting a single agent screen-to-schedule at that volume, pressure-test its evaluation logic for auditability and adverse-impact monitoring. ([PR Newswire](https://www.prnewswire.com/in/news-releases/xobin-unveils-nura-an-ai-agent-built-for-enterprise-hiring-302824553.html)) (14 July 2026)"
       ]
     }
   ]
