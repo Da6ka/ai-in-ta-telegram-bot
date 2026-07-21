@@ -4,6 +4,10 @@ Resumes and credentials are losing signal. AI screening is pushing organizations
 
 ## Timeline
 
+- **14 Jul 2026** — JLL's Future of Work survey of 2,200+ C-suite and corporate real-estate leaders found most expect AI to grow their workforces (60%) and reinvent rather than replace human roles (60%) — with the most AI-advanced firms leaning into full-time hiring and entry-level investment, even as only 15% say they've reached an "optimizing" stage of adoption. Read alongside the grad-hiring data, it frames the real planning question: not whether to hire, but which roles to redesign first. — [JLL](https://www.jll.com/en-us/newsroom/ai-redesigns-jobs-not-cuts-them)
+
+- **17 Jul 2026** — A ResumeTemplates.com survey of hiring managers found 48% would now rather invest in AI tools than hire and train a recent college graduate, 55% have shifted at least part of their entry-level hiring budget to AI, and 23% plan to hire fewer 2026 grads or none at all — a signal to redesign early-career pipelines around AI-augmented roles before next cycle, not bolt AI onto existing headcount plans. — [Class of 2026 College Graduate Hiring Report](https://www.prnewswire.com/news-releases/class-of-2026-college-graduate-hiring-report-302828328.html)
+
 - **1 Jul 2026** — Skills-based hiring is displacing resume-first screening — build evaluation around demonstrated capability, not credentials. — [SHRM](https://www.shrm.org/events-education/education/webinars/the-recruiting-trends-shaping-2026-ai-skillfishing-and-software-insights)
 
 - **1 Jul 2026** — ROI is landing where humans stay in the loop: combining AI screening with human-led final interviews cut time-to-hire by 40% while lifting first-year retention by 25%. — [SelectSoftware Reviews](https://www.selectsoftwarereviews.com/blog/ai-recruiting-statistics)
