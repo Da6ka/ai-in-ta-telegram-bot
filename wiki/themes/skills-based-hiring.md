@@ -40,6 +40,8 @@ Resumes and credentials are losing signal. AI screening is pushing organizations
 
 - **16 Jul 2026** — Intention.ly formally launched a Recruitment Marketing service after a 24-month pilot with RIA, hybrid-RIA and independent broker-dealer clients, pairing advisor recruitment and talent acquisition with an AI-powered "Advisor Brand Builder" that auto-generates candidate-facing brand identities, sites and content. If you hire in wealth or financial services, it's a signal that employer-branding and AI content generation are converging into the sourcing stack — audit how your own advisor and candidate value proposition shows up before a competitor's AI-built one outshines it. — [Intention.ly](https://finance.yahoo.com/small-business/articles/intention-ly-officially-launches-recruitment-130000782.html)
 
+- **21 Jul 2026** — An Indeed Flex survey of ~2,000 US and UK workers found 62% believe companies are cutting entry-level hiring because of AI, but only 31% report AI has actually reduced openings in their own field — a perception-versus-reality gap. For TA leaders, the takeaway is to counter candidate anxiety with clear messaging rather than let the narrative shape early-career pipeline decisions. — [Indeed Flex](https://www.prnewswire.com/news-releases/nearly-two-thirds-of-workers-believe-ai-is-reducing-entry-level-hiring-according-to-indeed-flex-survey-302830059.html)
+
 ## Open questions
 
 - Which "skills" are actually job-predictive, and which are just current-fad proxies that will fade as AI fluency becomes baseline?

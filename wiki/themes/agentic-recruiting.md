@@ -42,6 +42,10 @@ AI-powered agents are automating recruitment workflows end-to-end: sourcing, scr
 
 - **7 Jul 2026** — Neuroscale AI launched Arbi, an autonomous recruiting platform pitched to run sourcing, bulk evaluation, and personalized outreach end to end and "replace your entire recruiting stack." Treat the all-in-one claim skeptically, but note the direction: fully autonomous sourcing-to-outreach agents are now shipping as commercial products, so pressure-test any pilot for auditability and adverse-impact monitoring before handing over evaluation. — [GlobeNewswire](https://www.globenewswire.com/news-release/2026/07/07/3323372/0/en/Neuroscale-AI-Launches-Arbi-the-AI-Recruiting-Platform-Built-to-Replace-Your-Entire-Recruiting-Stack.html)
 
+- **20 Jul 2026** — Workable expanded its MCP Server to 94 tools, giving AI assistants including Claude direct, permission-scoped read/write access to candidate and employee search, the full performance-review cycle, and account management — so a recruiter can drive live hiring data from Claude without opening the ATS. Every session is bound to the user's existing role and access, which is exactly the governance layer to verify before letting an assistant write to your pipeline. — [Workable](https://www.manilatimes.net/2026/07/21/tmt-newswire/globenewswire/workable-expands-mcp-server-to-94-tools-extending-ai-assistant-access-across-the-full-hiring-and-hr-lifecycle/2387861)
+
+- **21 Jul 2026** — Paylocity launched Ignite AI, a platform-wide agent layer spanning pay, time, and recruiting — including a Resume Summary Agent that auto-generates candidate overviews for recruiters. If you run Paylocity for payroll, the recruiting agents now arrive bundled rather than as a separate buy; scope where they touch candidate decisions before switching them on. — [Paylocity](https://www.globenewswire.com/news-release/2026/07/21/3330499/29665/en/Paylocity-Launches-Ignite-AI-Redefining-Industry-AI-Leadership.html)
+
 ## Open questions
 
 - How do multi-agent systems distribute decision authority between agents, between agents and humans, and across orgs? Who is liable when an agent makes an adverse-impact decision?

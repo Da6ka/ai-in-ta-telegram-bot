@@ -34,6 +34,8 @@ Legal and regulatory pressure on AI hiring is accelerating, though federal enfor
 
 - **18 Jul 2026** — The EEOC's draft Strategic Plan for FY 2026–2030 drops AI in hiring as an enforcement priority — it acknowledges that generative AI is reshaping how candidates apply and how employers screen, but attaches no performance measure or enforcement objective to AI-assisted employment decisions. With federal scrutiny receding, compliance risk shifts almost entirely to the state patchwork, so keep bias audits and documented human review in place regardless of the softer federal signal; the public comment period closes 19 July 2026. — [SHRM](https://www.shrm.org/topics-tools/employment-law-compliance/eeoc-releases-updated-draft-strategic-plan-public-comment)
 
+- **21 Jul 2026** — An Indeed Flex survey of ~2,000 US and UK workers found 62% believe companies are cutting entry-level hiring because of AI, but only 31% report AI has actually reduced openings in their own field — a perception-versus-reality gap. For TA leaders, the takeaway is to counter candidate anxiety with clear messaging rather than let the narrative shape early-career pipeline decisions. — [Indeed Flex](https://www.prnewswire.com/news-releases/nearly-two-thirds-of-workers-believe-ai-is-reducing-entry-level-hiring-according-to-indeed-flex-survey-302830059.html)
+
 ## Open questions
 
 - Which state AIs acts will survive preemption challenges or federal harmonization attempts?
