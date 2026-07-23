@@ -46,6 +46,10 @@ AI-powered agents are automating recruitment workflows end-to-end: sourcing, scr
 
 - **21 Jul 2026** — Paylocity launched Ignite AI, a platform-wide agent layer spanning pay, time, and recruiting — including a Resume Summary Agent that auto-generates candidate overviews for recruiters. If you run Paylocity for payroll, the recruiting agents now arrive bundled rather than as a separate buy; scope where they touch candidate decisions before switching them on. — [Paylocity](https://www.globenewswire.com/news-release/2026/07/21/3330499/29665/en/Paylocity-Launches-Ignite-AI-Redefining-Industry-AI-Leadership.html)
 
+- **20 Jul 2026** — HireQuotient integrated its AI recruiter into Paylocity, pushing AI candidate sourcing and screening to Paylocity customers in manufacturing, building services, construction, healthcare and insurance — frontline sectors historically underserved by AI hiring tools. If you run high-volume deskless hiring on Paylocity, the sourcing/screening layer now arrives as a native integration rather than a separate buy; scope where it touches candidate decisions before switching it on. — [TechStartups](https://techstartups.com/2026/07/20/hirequotient-extends-ai-recruiting-capabilities-to-paylocity-customers-in-frontline-industries/)
+
+- **20 Jul 2026** — Netchex launched Mesh, six task-specific "AI HR teammates" (payroll, compliance, scheduling and admin) aimed squarely at deskless-workforce employers in hospitality, restaurants, healthcare and dealerships, with human approval required for sensitive actions. Early-access results (winning back roughly half of Monday admin time, fewer payroll corrections) are directional, not audited — treat them as a pilot benchmark, not a guarantee, if you evaluate it. — [Netchex](https://bizneworleans.com/netchex-introduces-ai-hr-teammates/)
+
 ## Open questions
 
 - How do multi-agent systems distribute decision authority between agents, between agents and humans, and across orgs? Who is liable when an agent makes an adverse-impact decision?

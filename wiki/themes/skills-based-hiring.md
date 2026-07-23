@@ -42,6 +42,10 @@ Resumes and credentials are losing signal. AI screening is pushing organizations
 
 - **21 Jul 2026** — An Indeed Flex survey of ~2,000 US and UK workers found 62% believe companies are cutting entry-level hiring because of AI, but only 31% report AI has actually reduced openings in their own field — a perception-versus-reality gap. For TA leaders, the takeaway is to counter candidate anxiety with clear messaging rather than let the narrative shape early-career pipeline decisions. — [Indeed Flex](https://www.prnewswire.com/news-releases/nearly-two-thirds-of-workers-believe-ai-is-reducing-entry-level-hiring-according-to-indeed-flex-survey-302830059.html)
 
+- **21 Jul 2026** — CompTIA's inaugural AI Skills Tracker found 80% of professionals use AI tools at least a few times a month, but only 29% report a high level of familiarity — and most are self-teaching rather than getting employer-sponsored training. For TA and workforce planning, it's a signal to hire and develop against demonstrated AI fluency, not tool exposure, and to build structured upskilling into onboarding. — [CompTIA](https://www.prnewswire.com/news-releases/survey-of-business-and-tech-leaders-reveals-persistent-gap-between-corporate-ai-adoption-and-workforce-readiness-302830296.html)
+
+- **21 Jul 2026** — Clara Shih — ex-Meta and Salesforce AI leader — launched the New Work Foundation, a nonprofit shipping AI-native, résumé-free tools (a career-outlook "Field Report" and a job-matching agent called JobClaw) to close the information gap between AI insiders and early-career job seekers. A useful read on how candidate-side AI discovery is maturing — worth auditing whether your employer presence and structured job data surface well in tools that match on strengths rather than résumés. — [Forbes](https://www.forbes.com/sites/courtney-connley-hampton/2026/07/21/meet-the-tech-exec-using-ai-to-help-gen-z-get-hired/)
+
 ## Open questions
 
 - Which "skills" are actually job-predictive, and which are just current-fad proxies that will fade as AI fluency becomes baseline?
