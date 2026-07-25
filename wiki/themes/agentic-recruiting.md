@@ -50,6 +50,8 @@ AI-powered agents are automating recruitment workflows end-to-end: sourcing, scr
 
 - **20 Jul 2026** — Netchex launched Mesh, six task-specific "AI HR teammates" (payroll, compliance, scheduling and admin) aimed squarely at deskless-workforce employers in hospitality, restaurants, healthcare and dealerships, with human approval required for sensitive actions. Early-access results (winning back roughly half of Monday admin time, fewer payroll corrections) are directional, not audited — treat them as a pilot benchmark, not a guarantee, if you evaluate it. — [Netchex](https://bizneworleans.com/netchex-introduces-ai-hr-teammates/)
 
+- **22 Jul 2026** — RocketReach launched an MCP Server that gives AI assistants — including Claude — direct, real-time access to its database of 700M+ verified contacts and 60M companies, so recruiters can prospect and source candidates from inside a chat assistant rather than the RocketReach UI. It extends the "MCP-into-the-sourcing-stack" pattern to contact data; before wiring it in, confirm how candidate PII is scoped and logged when an assistant queries it. — [PR Newswire](https://www.prnewswire.com/news-releases/rocketreach-launches-rocketreach-mcp-giving-ai-assistants-direct-access-to-700m-verified-contacts-302832384.html)
+
 ## Open questions
 
 - How do multi-agent systems distribute decision authority between agents, between agents and humans, and across orgs? Who is liable when an agent makes an adverse-impact decision?
