@@ -48,6 +48,10 @@ Resumes and credentials are losing signal. AI screening is pushing organizations
 
 - **21 Jul 2026** — Clara Shih — ex-Meta and Salesforce AI leader — launched the New Work Foundation, a nonprofit shipping AI-native, résumé-free tools (a career-outlook "Field Report" and a job-matching agent called JobClaw) to close the information gap between AI insiders and early-career job seekers. A useful read on how candidate-side AI discovery is maturing — worth auditing whether your employer presence and structured job data surface well in tools that match on strengths rather than résumés. — [Forbes](https://www.forbes.com/sites/courtney-connley-hampton/2026/07/21/meet-the-tech-exec-using-ai-to-help-gen-z-get-hired/)
 
+- **21 Jul 2026** — Gallup's latest workforce data shows more than half of US employees (52%) now use AI at work — the first time adoption has crossed 50% — but engagement gains only materialize where managers actively guide that use (48% engaged vs. 30% without support). For TA, this reframes the near-term hire from "can they use AI" to "can they enable a team to use AI," making manager AI-coaching a screenable competency. — [U.S. News](https://www.usnews.com/news/national-news/articles/2026-07-21/survey-more-than-half-of-u-s-employees-now-use-ai-at-work)
+
+- **22 Jul 2026** — The SANS 2026 Cybersecurity Workforce Survey found demand for specialists in newly emerging AI-security roles more than doubled over the past year, even as hiring for established security skills also rose. The signal for TA teams staffing security: open reqs against roles that didn't exist last cycle rather than backfill the old org chart. — [Help Net Security](https://www.helpnetsecurity.com/2026/07/22/cybersecurity-workforce-trends-report/)
+
 ## Open questions
 
 - Which "skills" are actually job-predictive, and which are just current-fad proxies that will fade as AI fluency becomes baseline?

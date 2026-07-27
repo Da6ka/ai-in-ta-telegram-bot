@@ -1,9 +1,8 @@
-# Daily AI Recruitment Briefing — 26 July 2026
-
-## Claude & Anthropic in TA
-- Anthropic upgraded Claude's voice mode to route queries through its Sonnet and Opus models by default instead of the smaller Haiku, so spoken interactions can now handle far more complex, multi-step requests. For TA teams piloting voice-based screening, scheduling, or candidate Q&A on Claude, the capability ceiling just rose — worth re-testing conversational flows that previously broke down on nuance. ([Anthropic updates Claude voice mode with more capable models](https://techcrunch.com/2026/07/23/anthropic-updates-claude-voice-mode-with-more-capable-models/)) (23 July 2026)
+# Daily AI Recruitment Briefing — 27 July 2026
 
 ## AI in Recruitment — What's New
-- A new Resume Genius survey of 1,500 US hiring managers found 87% now use AI in at least one stage of recruitment, but 86% expect AI to make verifying candidate authenticity harder over the next year — 58% have already seen AI-generated resumes and 17% have caught deepfakes in video interviews. The takeaway for TA leaders: adoption is effectively universal, so the near-term investment shifts from "should we use AI" to building identity-verification and fraud-detection into the funnel. ([Workspan Daily News Bytes for July 24, 2026](https://worldatwork.org/publications/workspan-daily/workspan-daily-news-bytes-for-july-24-2026)) (24 July 2026)
 
-**Bottom line:** As conversational AI gets materially more capable and near-universal in hiring, the binding constraint is no longer efficiency but trust — prioritize candidate authenticity and verification controls before layering on more automation.
+- Gallup's latest workforce data shows more than half of US employees (52%) now use AI at work — the first time adoption has crossed 50% — but engagement gains only materialize where managers actively guide that use (48% engaged vs. 30% without support). For TA, it reframes the near-term hire from "can they use AI" to "can they enable a team to," and makes manager AI-coaching a screenable competency. ([U.S. News](https://www.usnews.com/news/national-news/articles/2026-07-21/survey-more-than-half-of-u-s-employees-now-use-ai-at-work)) (21 July)
+- The SANS 2026 Cybersecurity Workforce Survey found demand for specialists in newly emerging AI-security roles more than doubled over the past year, even as hiring for established security skills also rose. If you staff security, the signal is to open reqs against roles that didn't exist last cycle rather than backfill the old org chart. ([Help Net Security](https://www.helpnetsecurity.com/2026/07/22/cybersecurity-workforce-trends-report/)) (22 July)
+
+**Bottom line:** AI fluency has quietly become the workforce baseline, not the differentiator — so this cycle's edge comes from hiring the managers who can operationalize it and the specialists for roles that didn't exist a year ago, not from bolting AI onto yesterday's headcount plan.

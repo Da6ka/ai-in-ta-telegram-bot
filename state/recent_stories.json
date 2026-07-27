@@ -1,15 +1,6 @@
 {
   "entries": [
     {
-      "date": "2026-07-13",
-      "bullets": [
-        "- New research from The Josh Bersin Company (with AMS) finds talent acquisition has moved from AI experimentation to execution at scale, with leaders replacing isolated pilots with enterprise-wide \"talent architectures\" that connect sourcing, hiring, internal mobility, and workforce planning — and buyers now demanding proof of business outcomes, not just innovation, from vendors. TA leaders should pressure-test whether their stack is an integrated system or a pile of point tools. ([Josh Bersin Company Research Shows Talent Acquisition Moving Beyond AI Experimentation](https://www.prnewswire.com/news-releases/josh-bersin-company-research-shows-talent-acquisition-moving-beyond-ai-experimentation-302819410.html)) (7 July 2026)",
-        "- Apple sued OpenAI in federal court alleging trade-secret theft tied to 400+ former Apple employees, claiming candidates were coached to bring \"actual parts\" to OpenAI interviews and to evade Apple's exit-security processes. It's a stark reminder that competitive hiring turns interviews into an IP-risk surface — tighten confidentiality protocols and onboarding/offboarding safeguards when recruiting from or losing talent to rivals. ([Apple sues OpenAI over alleged trade secret theft](https://techcrunch.com/2026/07/10/apple-sues-openai-over-alleged-trade-secret-theft/)) (10 July 2026)",
-        "- New HBR research argues generative AI is raising the bar for knowledge workers rather than replacing them, reshaping what three major MBA-recruiting sectors now expect from entry-level hires. A useful frame for rewriting reqs and assessments around demonstrated AI-augmented judgment instead of task execution alone. ([Research: AI Is Changing What Employers Want from New Hires](https://hbr.org/2026/07/research-ai-is-changing-what-employers-want-from-new-hires)) (8 July 2026)",
-        "- HR Path, the Paris-based HR consulting, technology-implementation and outsourcing group, closed a roughly $1 billion funding deal led by Ardian to fund international expansion, an active acquisition strategy, and a UK push — a sign that capital is now flowing to HR-services roll-ups, not just point-solution AI startups. TA leaders relying on outsourced RPO or implementation partners should expect more consolidation (and vendor churn) in that layer of their stack. ([BusinessCloud](https://businesscloud.co.uk/news/hr-path-targets-uk-acquisitions-with-1-billion-funding-deal/)) (8 July 2026)"
-      ]
-    },
-    {
       "date": "2026-07-14",
       "bullets": [
         "- **India-based digital engineering firm LTM struck a partnership with Anthropic to deploy Claude, Claude Code, and Claude Cowork across its enterprise delivery, and will scale its \"AI1000\" initiative to train thousands of Claude-certified architects and forward-deployed engineers.** Coming days after the UST deal, it confirms a pattern: services giants are standardizing delivery workforces on Claude, so expect \"Claude-certified\" to keep surfacing as a demanded skill in engineering and consulting reqs. ([BusinessToday](https://www.businesstoday.in/technology/artificial-intelligence/story/ltm-deepens-enterprise-ai-play-partners-with-anthropic-to-deploy-claude-at-scale-542497-2026-07-13)) (13 July)",
@@ -115,6 +106,13 @@
       "bullets": [
         "- Anthropic upgraded Claude's voice mode to route queries through its Sonnet and Opus models by default instead of the smaller Haiku, so spoken interactions can now handle far more complex, multi-step requests. For TA teams piloting voice-based screening, scheduling, or candidate Q&A on Claude, the capability ceiling just rose — worth re-testing conversational flows that previously broke down on nuance. ([Anthropic updates Claude voice mode with more capable models](https://techcrunch.com/2026/07/23/anthropic-updates-claude-voice-mode-with-more-capable-models/)) (23 July 2026)",
         "- A new Resume Genius survey of 1,500 US hiring managers found 87% now use AI in at least one stage of recruitment, but 86% expect AI to make verifying candidate authenticity harder over the next year — 58% have already seen AI-generated resumes and 17% have caught deepfakes in video interviews. The takeaway for TA leaders: adoption is effectively universal, so the near-term investment shifts from \"should we use AI\" to building identity-verification and fraud-detection into the funnel. ([Workspan Daily News Bytes for July 24, 2026](https://worldatwork.org/publications/workspan-daily/workspan-daily-news-bytes-for-july-24-2026)) (24 July 2026)"
+      ]
+    },
+    {
+      "date": "2026-07-27",
+      "bullets": [
+        "- Gallup's latest workforce data shows more than half of US employees (52%) now use AI at work — the first time adoption has crossed 50% — but engagement gains only materialize where managers actively guide that use (48% engaged vs. 30% without support). For TA, it reframes the near-term hire from \"can they use AI\" to \"can they enable a team to,\" and makes manager AI-coaching a screenable competency. ([U.S. News](https://www.usnews.com/news/national-news/articles/2026-07-21/survey-more-than-half-of-u-s-employees-now-use-ai-at-work)) (21 July)",
+        "- The SANS 2026 Cybersecurity Workforce Survey found demand for specialists in newly emerging AI-security roles more than doubled over the past year, even as hiring for established security skills also rose. If you staff security, the signal is to open reqs against roles that didn't exist last cycle rather than backfill the old org chart. ([Help Net Security](https://www.helpnetsecurity.com/2026/07/22/cybersecurity-workforce-trends-report/)) (22 July)"
       ]
     }
   ]
