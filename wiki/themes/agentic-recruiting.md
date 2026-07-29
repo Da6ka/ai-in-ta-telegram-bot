@@ -52,6 +52,10 @@ AI-powered agents are automating recruitment workflows end-to-end: sourcing, scr
 
 - **22 Jul 2026** — RocketReach launched an MCP Server that gives AI assistants — including Claude — direct, real-time access to its database of 700M+ verified contacts and 60M companies, so recruiters can prospect and source candidates from inside a chat assistant rather than the RocketReach UI. It extends the "MCP-into-the-sourcing-stack" pattern to contact data; before wiring it in, confirm how candidate PII is scoped and logged when an assistant queries it. — [PR Newswire](https://www.prnewswire.com/news-releases/rocketreach-launches-rocketreach-mcp-giving-ai-assistants-direct-access-to-700m-verified-contacts-302832384.html)
 
+- **27 Jul 2026** — Major employers are reversing AI-driven hiring freezes, resuming entry-level recruitment as the limits of agents become apparent; Lattice CEO Sarah Franklin notes many clients have restarted junior hiring because "just because you have coding agents doesn't mean you're not hiring engineers." The near-term planning move is to reopen early-career pipelines around AI-native skills rather than assume agents backfill headcount. — [IBTimes](https://www.ibtimes.co.uk/us-employers-reassess-ai-resume-hiring-1810927)
+
+- **28 Jul 2026** — Aptimal opened a private beta for an AI-augmented hiring platform that folds resume screening, scenario-based aptitude assessment, background checks, and applicant tracking into one workflow, positioning the recruiter — not the model — as the decision-maker. Another entrant in the "single-workflow, human-in-control" ATS category worth a look if you're consolidating point tools, though private-beta claims are unaudited. — [OpenPR](https://www.openpr.com/news/4588486/aptimal-launches-ai-augmented-hiring-platform-that-puts)
+
 ## Open questions
 
 - How do multi-agent systems distribute decision authority between agents, between agents and humans, and across orgs? Who is liable when an agent makes an adverse-impact decision?
