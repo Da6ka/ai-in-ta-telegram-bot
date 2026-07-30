@@ -38,6 +38,8 @@ Legal and regulatory pressure on AI hiring is accelerating, though federal enfor
 
 - **24 Jul 2026** — A Resume Genius survey of 1,500 US hiring managers found 87% now use AI in at least one recruitment stage, but 86% expect AI to make verifying candidate authenticity harder over the next year — 58% have already seen AI-generated resumes and 17% have caught deepfakes in video interviews. The shift is from "should we use AI" to building identity-verification and fraud-detection into the funnel as adoption becomes universal. — [Workspan Daily News Bytes](https://worldatwork.org/publications/workspan-daily/workspan-daily-news-bytes-for-july-24-2026)
 
+- **29 Jul 2026** — Greenhouse CEO Daniel Chait warns of an AI "doom loop" in hiring: candidates fire off AI-generated applications at scale while overwhelmed recruiters lean harder on AI to screen them — Greenhouse now sees ~254 applicants per posting and applications per recruiter up 412%. The near-term move for TA leaders is to invest in signal and fraud defenses (identity checks, structured evaluation) rather than more volume-filtering, or the arms race just escalates. — [Greenhouse CEO calls AI hiring an escalating "doom loop"](https://fortune.com/2026/07/27/greenhouse-ceo-daniel-chait-ai-doom-loop-job-seekers-spam-interview-applications-unemployment/)
+
 ## Open questions
 
 - Which state AIs acts will survive preemption challenges or federal harmonization attempts?
