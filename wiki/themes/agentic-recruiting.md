@@ -56,6 +56,8 @@ AI-powered agents are automating recruitment workflows end-to-end: sourcing, scr
 
 - **28 Jul 2026** — Aptimal opened a private beta for an AI-augmented hiring platform that folds resume screening, scenario-based aptitude assessment, background checks, and applicant tracking into one workflow, positioning the recruiter — not the model — as the decision-maker. Another entrant in the "single-workflow, human-in-control" ATS category worth a look if you're consolidating point tools, though private-beta claims are unaudited. — [OpenPR](https://www.openpr.com/news/4588486/aptimal-launches-ai-augmented-hiring-platform-that-puts)
 
+- **29 Jul 2026** — Saramin launched "Agent Fit," an AI recruiting agent that automates talent search and the sending of job offers on its pay-later hiring product — pushing automation past screening into candidate outreach and offer delivery. As agents start initiating contact and extending offers autonomously, audit where a human sign-off and disclosure need to sit in your outbound flow before the model messages candidates on your behalf. — [Saramin Launches AI Recruiting Agent 'Agent Fit' to Automate Job Offers](https://en.sedaily.com/finance/2026/07/29/saramin-launches-ai-recruiting-agent-agent-fit-to-automate)
+
 ## Open questions
 
 - How do multi-agent systems distribute decision authority between agents, between agents and humans, and across orgs? Who is liable when an agent makes an adverse-impact decision?
