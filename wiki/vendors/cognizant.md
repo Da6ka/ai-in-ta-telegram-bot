@@ -10,6 +10,8 @@ Cognizant is building AI-native workforce pipelines at scale: a "Frontier" initi
 
 - **28 Jul 2026** — Cognizant became one of a handful of Global Premier Partners in Anthropic's Claude network, with 30,000+ associates now Claude-certified (targeting its full 350,000+ headcount) under a new "Frontier Certified" workforce model as it embeds Claude across client platforms in manufacturing, life sciences, and insurance. For TA leaders, it's a concrete signal that vendor-issued model certifications are becoming a hiring and internal-mobility credential worth tracking in your skills taxonomy. — [Anthropic](https://www.anthropic.com/news/cognizant-anthropic)
 
+- **28 Jul 2026** — Cognizant opened a dedicated EMEA AI Unit to move agentic pilots into production, citing IDC data that 88% of AI-agent proofs-of-concept never scale — only four of every 33 reach live operation. For TA leaders planning autonomous sourcing or screening agents, it's a reminder to budget for the deployment gap, not just the demo. — [Cognizant](https://news.cognizant.com/2026-07-28-Cognizant-launches-EMEA-AI-Unit-to-help-enterprises-scale-agentic-AI-adoption)
+
 ## Open questions
 
 - As services firms embed specific-model certifications into career progression, how do TA leaders balance hiring for model fluency against hiring for underlying problem-solving and tool-agnostic reasoning?
