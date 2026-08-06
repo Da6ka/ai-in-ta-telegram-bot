@@ -48,6 +48,10 @@ Legal and regulatory pressure on AI hiring is accelerating, though federal enfor
 
 - **4 Aug 2026** — Anthropic named former California Supreme Court Justice **Mariano-Florentino (Tino) Cuéllar as its first Chief Global Affairs Officer**, tasked with leading policy and international engagement as AI governance — including employment and hiring rules — tightens worldwide. It signals that model providers are now building dedicated regulatory-relations muscle TA leaders can expect to lean on when compliance questions land on procurement or deployment. — [Anthropic names global affairs chief as Trump tensions persist](https://www.cnbc.com/2026/08/04/anthropic-names-global-affairs-chief-as-trump-tensions-persist.html)
 
+- **3 Aug 2026** — Deel acquired deepfake-detection startup Clarity (its 15th acquisition, reportedly ~$45–50M) to extend AI identity verification and fraud prevention across the full hire-to-onboard lifecycle, not just a one-time check at application. With synthetic candidate profiles and deepfake interviews now a live threat, this is a signal to build continuous identity assurance into your funnel rather than trusting front-loaded screening. — [Deel picks up cybersecurity firm Clarity in its 15th acquisition](https://www.staffingindustry.com/news/global-daily-news/deel-picks-up-cybersecurity-firm-clarity-in-its-15th-acquisition)
+
+- **3 Aug 2026** — Companies are quietly rehiring the workers they cut for AI — a roundup of reversals (Commonwealth Bank walking back customer-service layoffs after its voice bot raised call volume; IBM automating HR then moving to triple U.S. entry-level hiring) that reframes the "AI replaces headcount" narrative as an expensive round-trip. Before you freeze a pipeline on automation projections, pressure-test whether the work AI is displacing is genuinely gone or just temporarily hidden. — [Need to Know Briefing — August 3, 2026: Companies are rehiring the workers they cut for AI](https://www.kellyservices.com/insights/need-to-know-briefing-august-3-2026)
+
 ## Open questions
 
 - Which state AIs acts will survive preemption challenges or federal harmonization attempts?
