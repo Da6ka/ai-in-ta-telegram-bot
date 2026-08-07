@@ -66,6 +66,8 @@ Resumes and credentials are losing signal. AI screening is pushing organizations
 
 - **30 Jul 2026** — The Conference Board research (35 enterprise-leader interviews plus a survey of ~1,300 workers) finds most organizations are upskilling employees for today's AI tasks, not the roles AI will reshape next — a short-term training posture that leaves future capability gaps unaddressed. For TA and workforce planners, the takeaway is to tie reskilling and hiring plans to where roles are heading, not just current tool proficiency. — [Most Organizations Are Preparing Workers for Today's AI, Not Tomorrow's Jobs](https://www.conference-board.org/press/ai-skilling)
 
+- **5 Aug 2026** — Second Talent extended its AI-native engineer marketplace into India, its tenth Asian market, with pre-vetted engineers backed by contracts, payroll, and compliance support delivered within 24 hours. As AI build plans stall on scarce technical talent, vetted cross-border marketplaces are maturing as faster alternatives to traditional req-to-hire cycles; worth piloting for hard-to-source AI engineering roles. — [Second Talent Expands Into India, Opening Its Market for Tech Talent Hiring](https://www.einpresswire.com/article/931855510/second-talent-expands-into-india-opening-its-market-for-tech-talent-hiring)
+
 ## Open questions
 
 - Which "skills" are actually job-predictive, and which are just current-fad proxies that will fade as AI fluency becomes baseline?

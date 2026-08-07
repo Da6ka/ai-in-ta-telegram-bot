@@ -1,13 +1,6 @@
 {
   "entries": [
     {
-      "date": "2026-07-24",
-      "bullets": [
-        "- Anthropic launched an **Anthropic Economic Index connector** that lets anyone query its labor-usage dataset directly inside Claude — asking which occupations and tasks lean most on AI, drawn from real usage data — and detailed the research agenda for its **Economic Futures Research Fund** on AI's workforce impact. For TA and workforce planners, it's a free way to pressure-test which roles in your org are most AI-exposed before writing next cycle's reqs or reskilling plans. ([The Anthropic Economic Index connector](https://www.anthropic.com/news/anthropic-economic-index-connector)) (22 July 2026)",
-        "- **CJ Olive Young added an \"AI task\" round to its experienced-developer hiring**, using Krafton's Cofa-Probe solution to score not just candidates' deliverables but how they define the problem, write prompts, iterate, and verify results. It's an early, concrete example of assessment design shifting to measure *AI-collaboration* skill rather than raw output — worth auditing whether your own technical screens still reward working without AI. ([Olive Young Adds AI Task Round in Developer Hiring Drive](https://en.sedaily.com/finance/2026/07/21/olive-young-adds-ai-task-round-in-developer-hiring-drive)) (21 July 2026)"
-      ]
-    },
-    {
       "date": "2026-07-25",
       "bullets": [
         "- **Anthropic launched Claude Opus 5**, adding a low/medium/high \"effort\" dial that lets teams trade cost for capability on each call, plus long-horizon agents that can run for hours on a task — at the same $5/$25 per-million pricing as Opus 4.8. For TA, the cost dial and cheaper autonomy make agentic sourcing and high-volume screening materially more affordable to run at scale; pilot it against your current screening spend before renewing per-seat AI tooling. ([Fortune](https://fortune.com/2026/07/24/anthropic-debuts-claude-opus-5-with-feature-that-lets-users-toggle-between-cost-and-capability/)) (24 July 2026)",
@@ -87,6 +80,13 @@
         "- **Deel acquired deepfake-detection startup Clarity** (its 15th acquisition, reportedly ~$45–50M) to extend AI identity verification and fraud prevention across the full hire-to-onboard lifecycle, not just a one-time check at application. With synthetic candidate profiles and deepfake interviews now a live threat, this is a signal to build continuous identity assurance into your funnel rather than trusting front-loaded screening. ([Deel picks up cybersecurity firm Clarity in its 15th acquisition](https://www.staffingindustry.com/news/global-daily-news/deel-picks-up-cybersecurity-firm-clarity-in-its-15th-acquisition)) (3 August 2026)",
         "- **HappyRobot raised a $150M Series C** (led by Prysm Capital and Eurazeo; a16z and YC returning) at a $1.2B valuation to scale AI agents that run operational work across logistics, insurance, and energy for 150+ enterprises. It's not a recruiting tool, but the capital pouring into \"AI workforce\" platforms is exactly the trend reshaping which roles you'll hire for next — watch how agentic operations changes headcount demand in your own org. ([HappyRobot lands $150M Series C to scale agentic AI for enterprise operations](https://tech.eu/2026/08/04/happyrobot-lands-150m-series-c-to-scale-agentic-ai-for-enterprise-operations/)) (4 August 2026)",
         "- **Companies are quietly rehiring the workers they cut for AI** — a roundup of reversals (Commonwealth Bank walking back customer-service layoffs after its voice bot raised call volume; IBM automating HR then moving to triple U.S. entry-level hiring) that reframes the \"AI replaces headcount\" narrative as an expensive round-trip. Before you freeze a pipeline on automation projections, pressure-test whether the work AI is displacing is genuinely gone or just temporarily hidden. ([Need to Know Briefing — August 3, 2026: Companies are rehiring the workers they cut for AI](https://www.kellyservices.com/insights/need-to-know-briefing-august-3-2026)) (3 August 2026)"
+      ]
+    },
+    {
+      "date": "2026-08-07",
+      "bullets": [
+        "- **Second Talent extended its AI-native engineer marketplace into India — its tenth Asian market — promising pre-vetted engineers backed by contracts, payroll and compliance within 24 hours.** As AI build plans stall on scarce technical talent, vetted cross-border marketplaces are maturing into a faster alternative to a traditional req-to-hire cycle; worth piloting for hard-to-source AI engineering roles. ([Second Talent Expands Into India, Opening Its Market for Tech Talent Hiring](https://www.einpresswire.com/article/931855510/second-talent-expands-into-india-opening-its-market-for-tech-talent-hiring)) (5 August 2026)",
+        "- **Bloomberg reports the administrative core of HR — screening, benefits, payroll — is automating fast, even as strategic, human-judgment work grows in value; SHRM's president warned an Orlando audience of 20,000 that the profession's livelihoods are \"in danger.\"** The move for TA leaders is to reposition recruiting roles toward the judgment-heavy work AI can't do, rather than defend the transactional tasks it is already absorbing. ([AI Is Replacing HR Tasks Across Corporate America](https://www.bloomberg.com/news/articles/2026-08-04/ai-is-replacing-hr-tasks-across-corporate-america)) (4 August 2026)"
       ]
     }
   ]
