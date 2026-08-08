@@ -1,11 +1,9 @@
-# Daily AI Recruitment Briefing — 7 August 2026
+# Daily AI Recruitment Briefing — 8 August 2026
+
+## Claude & Anthropic in TA
+- Anthropic opened a public beta of **self-hosted environments for Claude Code**, letting Team and Enterprise customers run agent sessions inside their own network — next to internal services, databases, and security controls — instead of on Anthropic-hosted compute (off by default). For TA teams wiring Claude agents into sourcing, screening, or ATS workflows that touch candidate PII, it's the deployment lever to weigh when data residency or compliance rules out cloud execution. ([Self-hosted environments for Claude Code](https://claude.com/blog/run-claude-code-sessions-on-your-own-compute)) (6 August 2026)
 
 ## AI in Recruitment — What's New
+- Agentic staffing platform **Ceipal partnered with Vidle Housing** to fold mid-term furnished housing directly into its healthcare-staffing workflows — a signal that AI recruiting platforms are extending past sourcing and screening into end-to-end candidate logistics. If you run high-volume or travel-based hiring, watch whether your ATS vendor is bundling adjacent services that quietly widen its footprint across the candidate journey. ([Ceipal and Vidle Housing Announce Strategic Partnership](https://www.prnewswire.com/news-releases/ceipal-and-vidle-housing-announce-strategic-partnership-to-bring-mid-term-furnished-housing-into-healthcare-staffing-workflows-302842504.html)) (4 August 2026)
 
-- **Second Talent extended its AI-native engineer marketplace into India — its tenth Asian market — promising pre-vetted engineers backed by contracts, payroll and compliance within 24 hours.** As AI build plans stall on scarce technical talent, vetted cross-border marketplaces are maturing into a faster alternative to a traditional req-to-hire cycle; worth piloting for hard-to-source AI engineering roles. ([Second Talent Expands Into India, Opening Its Market for Tech Talent Hiring](https://www.einpresswire.com/article/931855510/second-talent-expands-into-india-opening-its-market-for-tech-talent-hiring)) (5 August 2026)
-
-## Worth Reading
-
-- **Bloomberg reports the administrative core of HR — screening, benefits, payroll — is automating fast, even as strategic, human-judgment work grows in value; SHRM's president warned an Orlando audience of 20,000 that the profession's livelihoods are "in danger."** The move for TA leaders is to reposition recruiting roles toward the judgment-heavy work AI can't do, rather than defend the transactional tasks it is already absorbing. ([AI Is Replacing HR Tasks Across Corporate America](https://www.bloomberg.com/news/articles/2026-08-04/ai-is-replacing-hr-tasks-across-corporate-america)) (4 August 2026)
-
-**Bottom line:** AI is hollowing out transactional recruiting work at the same moment global marketplaces make scarce AI-skilled talent easier to source — so plan to shift your team's headcount and skills toward judgment while testing new channels for the technical hires everyone is chasing.
+**Bottom line:** As recruiting AI both moves onto infrastructure you control and stretches into services beyond hiring itself, the decisions that matter now are governance ones — where your agents run, what data they touch, and how far your vendor's footprint reaches into the candidate experience.
