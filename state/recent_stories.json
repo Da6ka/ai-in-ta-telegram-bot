@@ -1,20 +1,6 @@
 {
   "entries": [
     {
-      "date": "2026-07-26",
-      "bullets": [
-        "- Anthropic upgraded Claude's voice mode to route queries through its Sonnet and Opus models by default instead of the smaller Haiku, so spoken interactions can now handle far more complex, multi-step requests. For TA teams piloting voice-based screening, scheduling, or candidate Q&A on Claude, the capability ceiling just rose — worth re-testing conversational flows that previously broke down on nuance. ([Anthropic updates Claude voice mode with more capable models](https://techcrunch.com/2026/07/23/anthropic-updates-claude-voice-mode-with-more-capable-models/)) (23 July 2026)",
-        "- A new Resume Genius survey of 1,500 US hiring managers found 87% now use AI in at least one stage of recruitment, but 86% expect AI to make verifying candidate authenticity harder over the next year — 58% have already seen AI-generated resumes and 17% have caught deepfakes in video interviews. The takeaway for TA leaders: adoption is effectively universal, so the near-term investment shifts from \"should we use AI\" to building identity-verification and fraud-detection into the funnel. ([Workspan Daily News Bytes for July 24, 2026](https://worldatwork.org/publications/workspan-daily/workspan-daily-news-bytes-for-july-24-2026)) (24 July 2026)"
-      ]
-    },
-    {
-      "date": "2026-07-27",
-      "bullets": [
-        "- Gallup's latest workforce data shows more than half of US employees (52%) now use AI at work — the first time adoption has crossed 50% — but engagement gains only materialize where managers actively guide that use (48% engaged vs. 30% without support). For TA, it reframes the near-term hire from \"can they use AI\" to \"can they enable a team to,\" and makes manager AI-coaching a screenable competency. ([U.S. News](https://www.usnews.com/news/national-news/articles/2026-07-21/survey-more-than-half-of-u-s-employees-now-use-ai-at-work)) (21 July)",
-        "- The SANS 2026 Cybersecurity Workforce Survey found demand for specialists in newly emerging AI-security roles more than doubled over the past year, even as hiring for established security skills also rose. If you staff security, the signal is to open reqs against roles that didn't exist last cycle rather than backfill the old org chart. ([Help Net Security](https://www.helpnetsecurity.com/2026/07/22/cybersecurity-workforce-trends-report/)) (22 July)"
-      ]
-    },
-    {
       "date": "2026-07-28",
       "bullets": [
         "- Cognizant became one of a handful of **Global Premier Partners in Anthropic's Claude network**, with 30,000+ associates now Claude-certified (targeting its full 350,000+ headcount) under a new \"Frontier Certified\" workforce model as it embeds Claude across client platforms in manufacturing, life sciences, and insurance. For TA leaders, it's a concrete signal that vendor-issued model certifications are becoming a hiring and internal-mobility credential worth tracking in your skills taxonomy. ([Expanding our partnership with Cognizant](https://www.anthropic.com/news/cognizant-anthropic)) (27 July)",
@@ -86,6 +72,13 @@
       "bullets": [
         "- Anthropic opened a public beta of **self-hosted environments for Claude Code**, letting Team and Enterprise customers run agent sessions inside their own network — next to internal services, databases, and security controls — instead of on Anthropic-hosted compute (off by default). For TA teams wiring Claude agents into sourcing, screening, or ATS workflows that touch candidate PII, it's the deployment lever to weigh when data residency or compliance rules out cloud execution. ([Self-hosted environments for Claude Code](https://claude.com/blog/run-claude-code-sessions-on-your-own-compute)) (6 August 2026)",
         "- Agentic staffing platform **Ceipal partnered with Vidle Housing** to fold mid-term furnished housing directly into its healthcare-staffing workflows — a signal that AI recruiting platforms are extending past sourcing and screening into end-to-end candidate logistics. If you run high-volume or travel-based hiring, watch whether your ATS vendor is bundling adjacent services that quietly widen its footprint across the candidate journey. ([Ceipal and Vidle Housing Announce Strategic Partnership](https://www.prnewswire.com/news-releases/ceipal-and-vidle-housing-announce-strategic-partnership-to-bring-mid-term-furnished-housing-into-healthcare-staffing-workflows-302842504.html)) (4 August 2026)"
+      ]
+    },
+    {
+      "date": "2026-08-10",
+      "bullets": [
+        "- **Europe's tightest talent squeeze is now technical labor** — WorldatWork's 7 August briefing flags technical roles as the continent's most in-demand professional group, citing north of 730,000 open vacancies. For any TA leader sourcing engineering or skilled-technical talent into EMEA, treat this as a signal to widen pipelines and lean on reskilling now rather than assuming AI tooling alone will close the gap. ([Workspan Daily News Bytes for Aug. 7, 2026](https://worldatwork.org/publications/workspan-daily/workspan-daily-news-bytes-for-aug-7-2026)) (7 August)",
+        "- **Bullhorn promoted four senior leaders to accelerate AI-powered product development and international growth**, elevating Jon Novich to CTO and Tamar Epstein to EVP of product. It's an inside-baseball move, but it signals one of the largest staffing-CRM/ATS vendors is reorganizing squarely around agentic hiring — worth watching if your agency or high-volume stack runs on Bullhorn and you're weighing its AI roadmap. ([Bullhorn promotes four executives to drive AI innovation, accelerate global growth](https://www.globenewswire.com/news-release/2026/08/06/3340441/0/en/Bullhorn-promotes-four-executives-to-drive-AI-innovation-accelerate-global-growth.html)) (6 August)"
       ]
     }
   ]

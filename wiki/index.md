@@ -11,6 +11,7 @@ A persistent, compounding view of AI-in-recruitment news. Read `CLAUDE.md` for t
 ## Vendors
 
 - [[anthropic]] — Claude across the stack: agents, governance, partnerships, and workforce development
+- [[bullhorn]] — Large staffing-CRM/ATS vendor pivoting toward agentic hiring at scale
 - [[clearco]] — Multi-agent suite for the full talent lifecycle with low-code governance
 - [[cognizant]] — Services giant building AI-native workforce pipelines through certifications and campus hiring
 - [[eightfold]] — Agent-driven end-to-end evaluation and workforce analytics
