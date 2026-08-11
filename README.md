@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/Da6ka/ai-in-ta-telegram-bot/actions/workflows/ci.yml/badge.svg)](https://github.com/Da6ka/ai-in-ta-telegram-bot/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/Da6ka/ai-in-ta-telegram-bot)](https://github.com/Da6ka/ai-in-ta-telegram-bot/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 A Telegram bot that sends a **daily briefing on AI in recruitment** — the latest news, tools, and research from the past day or two, researched and written by Claude Code and delivered straight to your chat.
 
@@ -33,6 +34,7 @@ Subscribers tap `/subscribe` and get the briefing every morning at **09:05 UTC /
 - [Staging environment](#staging-environment-optional)
 - [Secrets, scopes & rotation](#secrets-scopes--rotation)
 - [Releasing](#releasing)
+- [License](#license)
 
 ---
 
@@ -292,3 +294,9 @@ Least-privilege scope for each credential:
   2. Bump the version + date in [`docs/technical-spec.md`](docs/technical-spec.md)'s header (`Version: x.y.z · Status: describes the deployed system as of YYYY-MM-DD`). Nothing automates this and nothing fails when it's missed, so it silently goes stale — it sat at 1.4.0 through three releases until v1.6.0. It's the line that tells a reader whether the spec they're about to trust describes what's actually deployed.
   3. Tag it: `git tag vX.Y.Z && git push origin vX.Y.Z`, then `gh release create vX.Y.Z` (the README Release badge reads the latest **GitHub Release**, not the tag, so publishing the release is what updates it).
   4. **Deploy the Worker — this is a separate, manual step.** There is no CI/CD deploy: merging, tagging, and publishing a release do **not** ship the code. Run `cd worker && npx wrangler deploy` to push it live to the production bot. Verify with `npx wrangler deployments list` (newest entry at 100%) and `curl -s https://ai-in-ta-telegram-bot.ai-in-ta-bot.workers.dev` (returns `ok`).
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE). Use it, fork it, run your own briefing bot; just keep the copyright notice. The bot's own output (briefings assembled from third-party news) is not covered by this license — those stories belong to their original publishers.
