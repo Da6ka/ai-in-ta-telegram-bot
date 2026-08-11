@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+### The repo is now MIT licensed
+
+Public with no LICENSE file means "all rights reserved": people could read the
+code but had no right to fork, run, or adapt it -- which is the opposite of
+what a repo with a full setup guide and a public spec page is for. MIT grants
+those rights and carries the warranty disclaimer, which matters here because
+the quickstart invites strangers to deploy their own Worker against their own
+Anthropic and Telegram credentials.
+
+The license covers this repo's code, not the bot's output: a briefing is
+assembled from third-party news, and those stories stay with their publishers.
+That distinction is stated in the README's License section so nobody reads the
+MIT grant as covering the editions.
+
 ### The wiki now fills itself from each sent edition
 
 Stage 1 gave the corpus a home (`wiki/sources/`) but no writer and no reader --
