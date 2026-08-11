@@ -1,14 +1,6 @@
 {
   "entries": [
     {
-      "date": "2026-07-28",
-      "bullets": [
-        "- Cognizant became one of a handful of **Global Premier Partners in Anthropic's Claude network**, with 30,000+ associates now Claude-certified (targeting its full 350,000+ headcount) under a new \"Frontier Certified\" workforce model as it embeds Claude across client platforms in manufacturing, life sciences, and insurance. For TA leaders, it's a concrete signal that vendor-issued model certifications are becoming a hiring and internal-mobility credential worth tracking in your skills taxonomy. ([Expanding our partnership with Cognizant](https://www.anthropic.com/news/cognizant-anthropic)) (27 July)",
-        "- **Major employers are reversing AI-driven hiring freezes**, resuming entry-level recruitment as the limits of agents become apparent; Lattice CEO Sarah Franklin notes many clients have restarted junior hiring because \"just because you have coding agents doesn't mean you're not hiring engineers.\" The near-term planning move is to reopen early-career pipelines around AI-native skills rather than assume agents backfill headcount. ([AI's Rising Costs and Limits Are Forcing Employers to Hire Humans Back](https://www.ibtimes.co.uk/us-employers-reassess-ai-resume-hiring-1810927)) (27 July)",
-        "- New ManpowerGroup Talent Solutions research (with Everest Group) found **only 3% of organizations say their leaders are highly prepared to manage AI-enabled ways of working**, even as 78% report employee anxiety about AI's impact on their jobs. The gap reframes the near-term hire and promotion decision toward managers who can guide teams through AI change, not just individual tool users. ([AI Adoption Is Outpacing Leadership Readiness](https://www.prnewswire.com/news-releases/ai-adoption-is-outpacing-leadership-readiness-as-new-research-finds-only-3-of-organizations-say-their-leaders-are-fully-prepared-to-lead-ai-enabled-teams-302831661.html)) (22 July)"
-      ]
-    },
-    {
       "date": "2026-07-29",
       "bullets": [
         "- Anthropic detailed bringing the **MCP 2026-07-28 spec** — the largest revision of the Model Context Protocol yet — to Claude, aligning connector authorization with OAuth 2.1/OIDC so MCP servers plug into enterprise identity systems like Entra or Okta without workarounds. For teams wiring Claude into ATS and sourcing connectors (Workable, Greenhouse, RocketReach), this is the governance layer that finally lets candidate-data access inherit your existing identity controls — re-check any assistant-to-pipeline integration against it. ([MCP 2026-07-28 spec: stateless core, coming to Claude](https://claude.com/blog/bringing-mcp-2026-07-28-to-claude)) (28 July 2026)",
@@ -79,6 +71,13 @@
       "bullets": [
         "- **Europe's tightest talent squeeze is now technical labor** — WorldatWork's 7 August briefing flags technical roles as the continent's most in-demand professional group, citing north of 730,000 open vacancies. For any TA leader sourcing engineering or skilled-technical talent into EMEA, treat this as a signal to widen pipelines and lean on reskilling now rather than assuming AI tooling alone will close the gap. ([Workspan Daily News Bytes for Aug. 7, 2026](https://worldatwork.org/publications/workspan-daily/workspan-daily-news-bytes-for-aug-7-2026)) (7 August)",
         "- **Bullhorn promoted four senior leaders to accelerate AI-powered product development and international growth**, elevating Jon Novich to CTO and Tamar Epstein to EVP of product. It's an inside-baseball move, but it signals one of the largest staffing-CRM/ATS vendors is reorganizing squarely around agentic hiring — worth watching if your agency or high-volume stack runs on Bullhorn and you're weighing its AI roadmap. ([Bullhorn promotes four executives to drive AI innovation, accelerate global growth](https://www.globenewswire.com/news-release/2026/08/06/3340441/0/en/Bullhorn-promotes-four-executives-to-drive-AI-innovation-accelerate-global-growth.html)) (6 August)"
+      ]
+    },
+    {
+      "date": "2026-08-11",
+      "bullets": [
+        "- **Match2's Connected Talent Solutions is now live on the SAP Store**, plugging a portable \"universal candidate profile\" and AI-powered matching into SAP SmartRecruiters and SAP SuccessFactors so employers can convert career-site traffic into opted-in, reusable talent networks instead of one-and-done applications. If your stack runs on SAP's TA suite, evaluate whether a consent-based portable profile lifts re-engagement of past applicants before you pay to re-source them. ([Connected Talent Solutions from Match2 Now Available on SAP Store](https://www.globenewswire.com/news-release/2026/08/05/3339192/0/en/connected-talent-solutions-from-match2-now-available-on-sap-store.html)) (5 August 2026)",
+        "- **Refer, a Palo Alto startup with a candidate-pays model, raised $7.5M** (Canary-led, ~$10M total) for an AI agent called \"Lia\" that makes warm introductions between tech workers and hiring managers — free to employers, with workers paying 20% of their first paycheck; it has already set up nearly 6,000 interviews at 2,000+ companies. It's a signal to watch candidate-pays marketplaces as a low-cost sourcing channel, while scrutinizing how the incentive structure affects candidate quality and disclosure. ([Refer, a startup that charges workers for placement, raises $7.5M](https://www.staffingindustry.com/news/global-daily-news/refer-a-startup-that-charges-workers-for-placement-raises-75m)) (4 August 2026)"
       ]
     }
   ]
