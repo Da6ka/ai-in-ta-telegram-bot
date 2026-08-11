@@ -1,8 +1,6 @@
-# Daily AI Recruitment Briefing — 10 August 2026
+# Daily AI Recruitment Briefing — 11 August 2026
 
-## AI in Recruitment — What's New
+## Claude & Anthropic in TA
+- Anthropic is making Claude Code's **auto mode the default** for Pro, Max, and Team accounts starting 14 August, letting the agent proceed automatically unless an action is judged "irreversible, destructive, or aimed outside your environment." For any TA team wiring Claude agents into sourcing, screening, or ATS workflows, the default is shifting toward autonomous execution — review your human-in-the-loop checkpoints and approval gates before the change lands. ([Anthropic is turning Claude Code's auto mode on by default](https://techcrunch.com/2026/08/09/anthropic-is-turning-claude-codes-auto-mode-on-by-default/)) (9 August 2026)
 
-- **Europe's tightest talent squeeze is now technical labor** — WorldatWork's 7 August briefing flags technical roles as the continent's most in-demand professional group, citing north of 730,000 open vacancies. For any TA leader sourcing engineering or skilled-technical talent into EMEA, treat this as a signal to widen pipelines and lean on reskilling now rather than assuming AI tooling alone will close the gap. ([Workspan Daily News Bytes for Aug. 7, 2026](https://worldatwork.org/publications/workspan-daily/workspan-daily-news-bytes-for-aug-7-2026)) (7 August)
-- **Bullhorn promoted four senior leaders to accelerate AI-powered product development and international growth**, elevating Jon Novich to CTO and Tamar Epstein to EVP of product. It's an inside-baseball move, but it signals one of the largest staffing-CRM/ATS vendors is reorganizing squarely around agentic hiring — worth watching if your agency or high-volume stack runs on Bullhorn and you're weighing its AI roadmap. ([Bullhorn promotes four executives to drive AI innovation, accelerate global growth](https://www.globenewswire.com/news-release/2026/08/06/3340441/0/en/Bullhorn-promotes-four-executives-to-drive-AI-innovation-accelerate-global-growth.html)) (6 August)
-
-**Bottom line:** With technical talent scarce in Europe and vendors like Bullhorn retooling leadership around agentic hiring, the near-term move is to pair sourcing/reskilling plans for hard-to-fill technical roles with a clear-eyed read on where your ATS vendor's AI roadmap is actually heading.
+**Bottom line:** Agent autonomy is becoming the default rather than the opt-in — audit where a human sign-off must sit in any Claude-driven recruiting workflow before the setting flips next week.
