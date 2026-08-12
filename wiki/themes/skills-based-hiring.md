@@ -68,6 +68,8 @@ Resumes and credentials are losing signal. AI screening is pushing organizations
 
 - **5 Aug 2026** — Second Talent extended its AI-native engineer marketplace into India, its tenth Asian market, with pre-vetted engineers backed by contracts, payroll, and compliance support delivered within 24 hours. As AI build plans stall on scarce technical talent, vetted cross-border marketplaces are maturing as faster alternatives to traditional req-to-hire cycles; worth piloting for hard-to-source AI engineering roles. — [Second Talent Expands Into India, Opening Its Market for Tech Talent Hiring](https://www.einpresswire.com/article/931855510/second-talent-expands-into-india-opening-its-market-for-tech-talent-hiring)
 
+- **10 Aug 2026** — The durable value is shifting to the judgment, relationship, and adaptability skills AI can't replicate — a prompt to rewrite hiring rubrics around what the model still can't do. — [HR Dive](https://www.hrdive.com/news/the-skills-ai-cant-replace/827426/)
+
 ## Open questions
 
 - Which "skills" are actually job-predictive, and which are just current-fad proxies that will fade as AI fluency becomes baseline?

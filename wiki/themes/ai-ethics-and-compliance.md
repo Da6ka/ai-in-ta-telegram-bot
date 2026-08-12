@@ -54,6 +54,8 @@ Legal and regulatory pressure on AI hiring is accelerating, though federal enfor
 
 - **3 Aug 2026** — Companies are quietly rehiring the workers they cut for AI — a roundup of reversals (Commonwealth Bank walking back customer-service layoffs after its voice bot raised call volume; IBM automating HR then moving to triple U.S. entry-level hiring) that reframes the "AI replaces headcount" narrative as an expensive round-trip. Before you freeze a pipeline on automation projections, pressure-test whether the work AI is displacing is genuinely gone or just temporarily hidden. — [Need to Know Briefing — August 3, 2026: Companies are rehiring the workers they cut for AI](https://www.kellyservices.com/insights/need-to-know-briefing-august-3-2026)
 
+- **10 Aug 2026** — AI/R launched AI/Cockpit One, a platform to centralize AI access, security, observability, and governance across an enterprise's AI usage. As TA wires hiring agents into sourcing and screening workflows that touch candidate PII, an org-level observability and control layer is the kind of governance infrastructure to evaluate before scaling agents past pilot. — [GlobeNewswire](https://www.globenewswire.com/news-release/2026/08/10/3342167/0/en/ai-r-launches-unified-platform-for-enterprise-ai-governance.html)
+
 ## Open questions
 
 - Which state AIs acts will survive preemption challenges or federal harmonization attempts?
