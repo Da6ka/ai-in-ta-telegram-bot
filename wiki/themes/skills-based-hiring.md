@@ -70,6 +70,8 @@ Resumes and credentials are losing signal. AI screening is pushing organizations
 
 - **10 Aug 2026** — The durable value is shifting to the judgment, relationship, and adaptability skills AI can't replicate — a prompt to rewrite hiring rubrics around what the model still can't do. — [HR Dive](https://www.hrdive.com/news/the-skills-ai-cant-replace/827426/)
 
+- **11 Aug 2026** — Staffing Industry Analysts reports that redeployment — reassigning existing talent rather than sourcing anew — is becoming staffing firms' core growth strategy as AI match algorithms infer how a worker's past roles map to new competencies, with cost-to-redeploy running roughly a quarter to 40% of fresh sourcing costs. For TA leaders, the strategic move is to build redeployment into the pipeline before assignments end, rather than treating it as exit-stage afterthought. — [The redeployment mindset: Betting on talent transitions](https://www.staffingindustry.com/news/global-daily-news/the-redeployment-mindset-betting-on-talent-transitions)
+
 ## Open questions
 
 - Which "skills" are actually job-predictive, and which are just current-fad proxies that will fade as AI fluency becomes baseline?

@@ -1,12 +1,9 @@
-# Daily AI Recruitment Briefing — 12 August 2026
+# Daily AI Recruitment Briefing — 13 August 2026
+
+## Claude & Anthropic in TA
+- Anthropic pushed Claude Cowork out of preview and into the enterprise, unifying its agentic sessions across the Chrome side panel, desktop, web and mobile — Cowork is now included in Enterprise plans with admin controls, usage analytics and OpenTelemetry observability. For TA teams, Cowork is the agentic surface where recruiting skills and connectors actually run; the cross-device continuity plus enterprise governance is what makes an assistant-to-ATS workflow portable and auditable instead of stranded in a single browser tab. ([Anthropic expands Claude Cowork to web and mobile as enterprise use broadens](https://www.infoworld.com/article/4194472/anthropic-expands-claude-cowork-to-web-and-mobile-as-enterprise-use-broadens.html)) (12 August 2026)
 
 ## AI in Recruitment — What's New
+- Staffing Industry Analysts argues redeployment — reassigning existing talent rather than sourcing anew — is becoming staffing firms' core growth strategy as AI reshapes the labor market, with AI match algorithms now inferring how a worker's past roles map to new competencies and cost-to-redeploy running roughly a quarter to 40% of the cost of a fresh source. The move for TA and staffing leaders is to build redeployment into the pipeline before assignments end, not treat it as an exit-stage afterthought. ([The redeployment mindset: Betting on talent transitions](https://www.staffingindustry.com/news/global-daily-news/the-redeployment-mindset-betting-on-talent-transitions)) (11 August 2026)
 
-- **AI is pushing down the cost of outplacement**, with tools now automating résumé optimization, interview prep, and job matching — cheap enough that employers can extend transition support to all affected staff, not just senior roles ([ERE](https://www.ere.net/articles/ai-is-driving-down-the-cost-of-outplacement), 5 August 2026). If you're planning reductions or redeployment, revisit outplacement budgets: the per-person cost that once forced tiered coverage has dropped.
-- **AI/R launched AI/Cockpit One**, a platform to centralize AI access, security, observability, and governance across an enterprise's AI usage ([GlobeNewswire](https://www.globenewswire.com/news-release/2026/08/10/3342167/0/en/ai-r-launches-unified-platform-for-enterprise-ai-governance.html), 10 August 2026). As TA wires hiring agents into sourcing and screening workflows that touch candidate PII, an org-level observability and control layer is the kind of governance infrastructure to evaluate before scaling agents past pilot.
-
-## Worth Reading
-
-- **A useful counterweight to automation planning**: HR Dive's weekly roundup argues the durable value is shifting to the judgment, relationship, and adaptability skills AI can't replicate — a prompt to rewrite hiring rubrics around what the model still can't do ([HR Dive](https://www.hrdive.com/news/the-skills-ai-cant-replace/827426/), 10 August 2026).
-
-**Bottom line:** On a quiet news day the signal is consistent — AI is cutting the cost of TA's transactional work (outplacement, screening) while raising the bar on human judgment, so spend this week hardening governance over your hiring agents and re-scoping where automation ends and recruiter judgment begins.
+**Bottom line:** As AI simultaneously automates the recruiting surface (Claude's agentic workspace going enterprise) and tightens the labor market, the durable TA plays are to make your AI workflows governable and auditable, and to redeploy talent you already have before paying to re-source it.

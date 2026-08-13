@@ -66,6 +66,8 @@ Anthropic is shipping Claude across every layer of the recruiting tech stack and
 
 - **6 Aug 2026** — Anthropic opened a public beta of **self-hosted environments for Claude Code**, letting Team and Enterprise customers run agent sessions inside their own network — next to internal services, databases, and security controls — instead of on Anthropic-hosted compute (off by default). For TA teams wiring Claude agents into sourcing, screening, or ATS workflows that touch candidate PII, it's the deployment lever to weigh when data residency or compliance rules out cloud execution. — [Self-hosted environments for Claude Code](https://claude.com/blog/run-claude-code-sessions-on-your-own-compute)
 
+- **12 Aug 2026** — Anthropic pushed Claude Cowork out of preview and into Enterprise plans with admin controls, usage analytics, and OpenTelemetry observability, unifying agentic sessions across the Chrome side panel, desktop, web and mobile. For TA teams running recruiting assistants end-to-end, this is the governance tier that makes recruiting-agent workflows auditable and cost-bounded across devices. — [Anthropic expands Claude Cowork to web and mobile as enterprise use broadens](https://www.infoworld.com/article/4194472/anthropic-expands-claude-cowork-to-web-and-mobile-as-enterprise-use-broadens.html)
+
 ## Open questions
 
 - As Claude becomes ubiquitous via partnerships (UST, LTM) and integrations (Azure, Foundry, Slack), how do TA leaders differentiate hiring for "Claude fluency" from hiring for underlying problem-solving?
