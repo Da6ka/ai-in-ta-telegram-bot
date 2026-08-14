@@ -68,6 +68,8 @@ Anthropic is shipping Claude across every layer of the recruiting tech stack and
 
 - **12 Aug 2026** — Anthropic pushed Claude Cowork out of preview and into Enterprise plans with admin controls, usage analytics, and OpenTelemetry observability, unifying agentic sessions across the Chrome side panel, desktop, web and mobile. For TA teams running recruiting assistants end-to-end, this is the governance tier that makes recruiting-agent workflows auditable and cost-bounded across devices. — [Anthropic expands Claude Cowork to web and mobile as enterprise use broadens](https://www.infoworld.com/article/4194472/anthropic-expands-claude-cowork-to-web-and-mobile-as-enterprise-use-broadens.html)
 
+- **9 Aug 2026** — Anthropic is making **auto mode the default in Claude Code** for Pro, Max, and Team accounts, letting agents proceed without step-by-step approval unless an action is "irreversible, destructive, or aimed outside your environment" — the company cites a study where auto mode caught a planted dangerous command 89% of the time versus 13.6% for humans. If you're wiring Claude agents into sourcing, screening, or ATS workflows, revisit your approval gates and network isolation now: the safe-by-default assumption is shifting toward autonomous execution. — [Anthropic is turning Claude Code's auto mode on by default](https://techcrunch.com/2026/08/09/anthropic-is-turning-claude-codes-auto-mode-on-by-default/)
+
 ## Open questions
 
 - As Claude becomes ubiquitous via partnerships (UST, LTM) and integrations (Azure, Foundry, Slack), how do TA leaders differentiate hiring for "Claude fluency" from hiring for underlying problem-solving?
