@@ -82,16 +82,18 @@ const MAX_USERS = 30
 // waiting on the owner) never trips it.
 const MAX_PENDING = 50
 
-// Storage-limitation retention: the per-user last_seen activity log is pruned
-// to entries from the last RETENTION_DAYS. Access/subscription state is kept
-// as long as the user is a user (erased on /forgetme or owner /removeuser).
+// Storage-limitation retention: the per-user last_seen activity log -- and the
+// usernames map kept in lockstep with it -- is pruned to entries from the last
+// RETENTION_DAYS. Access/subscription state is kept as long as the user is a
+// user (erased on /forgetme or owner /removeuser).
 const RETENTION_DAYS = 90
 
 const PRIVACY_TEXT =
   "<b>Privacy notice — AI in TA News</b>\n\n" +
   "<b>What we store</b>\n" +
   "- Your Telegram user ID — to control access and deliver the briefing\n" +
-  "- Your name and @username — shown to the owner when you request access\n" +
+  "- Your @username — kept alongside your activity log so the owner can tell who's who; auto-deleted after 90 days of inactivity\n" +
+  "- Your name — shown to the owner at the moment you request access, not kept after approval\n" +
   "- The date you last used the bot — an activity log, auto-deleted after 90 days\n\n" +
   "We never read or store your ordinary messages — only slash commands are processed.\n\n" +
   "<b>Why</b>\n" +
@@ -112,6 +114,7 @@ const DEFAULT_USAGE = {
   briefing_history: [],
   command_counts: {},
   last_seen: {},
+  usernames: {},
 }
 
 // Durable Object: single source of truth for access/subscribers/dedup so
@@ -387,15 +390,28 @@ export class BotState extends DurableObject {
   // last_seen), so both updates share a single read-modify-write here rather
   // than two — halving the per-command KV round-trips and removing the window
   // where a bump and a touch could interleave against each other.
-  async recordCommand(senderId, name) {
+  async recordCommand(senderId, name, username) {
     return this.withUsageLock(async () => {
       const stats = await getJSON(this.env, 'usage_stats', DEFAULT_USAGE)
       const prev = Object.hasOwn(stats.command_counts, name) ? stats.command_counts[name] : 0
       stats.command_counts[name] = prev + 1
       stats.last_seen[senderId] = todayUTC()
+      // Persist the @username next to the activity log so the owner can resolve
+      // an id -> handle after the fact -- Telegram's Bot API offers no id-to-
+      // username lookup, so if we don't capture it here it's unrecoverable. A
+      // now-absent handle (user cleared theirs) drops the stale one rather than
+      // keeping a name that no longer exists.
+      if (!stats.usernames) stats.usernames = {}
+      if (username) stats.usernames[senderId] = username
+      else delete stats.usernames[senderId]
       const cutoff = new Date(Date.now() - RETENTION_DAYS * 86400000).toISOString().slice(0, 10)
       for (const [id, date] of Object.entries(stats.last_seen)) {
         if (typeof date === 'string' && date < cutoff) delete stats.last_seen[id]
+      }
+      // Retention parity: a stored username must never outlive its activity-log
+      // entry, so prune any handle whose last_seen was just dropped.
+      for (const id of Object.keys(stats.usernames)) {
+        if (!(id in stats.last_seen)) delete stats.usernames[id]
       }
       await putJSON(this.env, 'usage_stats', stats)
     })
@@ -407,8 +423,11 @@ export class BotState extends DurableObject {
   async purgeUsageStats(id) {
     return this.withUsageLock(async () => {
       const stats = await getJSON(this.env, 'usage_stats', DEFAULT_USAGE)
-      if (stats.last_seen && id in stats.last_seen) {
-        delete stats.last_seen[id]
+      const hadSeen = Boolean(stats.last_seen && id in stats.last_seen)
+      const hadName = Boolean(stats.usernames && id in stats.usernames)
+      if (hadSeen) delete stats.last_seen[id]
+      if (hadName) delete stats.usernames[id]
+      if (hadSeen || hadName) {
         await putJSON(this.env, 'usage_stats', stats)
         return true
       }
@@ -832,6 +851,11 @@ const COMMAND_HANDLERS = {
     }
     lines.push(`Allowlisted: ${access.allowFrom.includes(senderId) ? 'yes' : 'no'}`)
     lines.push(`Subscribed to daily briefing: ${subs.subscribers.includes(senderId) ? 'yes' : 'no'}`)
+    // Pending users already see their username above (from the request record);
+    // for an approved user it now lives in usage_stats instead.
+    if (!pending && stats.usernames?.[senderId]) {
+      lines.push(`Username on file: @${escapeHtml(stats.usernames[senderId])}`)
+    }
     lines.push(`Last active: ${stats.last_seen?.[senderId] ?? '—'}`)
     lines.push('\nTo erase all of this, send /forgetme. See /privacy for how it\'s used.')
     await reply(env, senderId, lines.join('\n'), { parse_mode: 'HTML', link_preview_options: { is_disabled: true } })
@@ -909,13 +933,18 @@ const COMMAND_HANDLERS = {
   async listusers(env, message, gated) {
     const { access, senderId, stub } = gated
     const subs = await stub.getSubscribers()
+    // Handles captured on use (usage_stats.usernames) so the owner can read the
+    // list as people, not bare ids. Absent for anyone who hasn't run a command
+    // since the feature shipped, or who has no Telegram @username.
+    const stats = await getJSON(env, 'usage_stats', DEFAULT_USAGE)
     const lines = access.allowFrom.map(id => {
       const tags = []
       if (id === access.ownerChatId) tags.push('[owner]')
       if (access.adminIds.includes(id)) tags.push('[admin]')
       if (subs.subscribers.includes(id)) tags.push('[subscribed]')
       if (tags.length === 0) tags.push('[allowed]')
-      return `${id} — ${tags.join('')}`
+      const handle = stats.usernames?.[id]
+      return `${id}${handle ? ' @' + handle : ''} — ${tags.join('')}`
     })
     await reply(env, senderId,
       `Users (${access.allowFrom.length})\n\n${lines.join('\n')}\n\n/adduser <id> to add · /removeuser <id> to remove`)
@@ -1146,7 +1175,7 @@ async function handleMessage(env, stub, message) {
   }
 
   const argStr = m[2]
-  await stub.recordCommand(gated.senderId, cmd)
+  await stub.recordCommand(gated.senderId, cmd, message.from.username)
 
   const args = (argStr ?? '').split(/\s+/).filter(Boolean)
   await handler(env, message, gated, args, text)

@@ -9,7 +9,7 @@ import { applyBriefingToUsageStats } from '../shared/telegram.mjs'
 const path = 'state/usage_stats.json'
 const existing = existsSync(path)
   ? JSON.parse(readFileSync(path, 'utf8'))
-  : { briefings_sent: 0, last_briefing_at: null, briefing_history: [], command_counts: {}, last_seen: {} }
+  : { briefings_sent: 0, last_briefing_at: null, briefing_history: [], command_counts: {}, last_seen: {}, usernames: {} }
 
 // BRIEFING_DATE_ISO is set once per job by the workflow's "Pin today's date"
 // step, so last_briefing_at can't disagree with the title date or

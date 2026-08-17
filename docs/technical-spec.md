@@ -163,6 +163,7 @@ usage_stats:
   briefings_sent: <int>
   last_briefing_at: <YYYY-MM-DD>
   last_seen: { <chat_id>: <YYYY-MM-DD> }
+  usernames: { <chat_id>: <telegram handle, no @> }  # pruned in lockstep with last_seen
 ```
 
 `today_briefing_date` and `last_delivered_date` are **not** interchangeable: an

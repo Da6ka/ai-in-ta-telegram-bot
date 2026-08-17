@@ -67,7 +67,7 @@ if (process.env.MARK_DELIVERED === 'true') {
 const existingRaw = await kvGet('usage_stats')
 const existing = existingRaw
   ? JSON.parse(existingRaw)
-  : { briefings_sent: 0, last_briefing_at: null, briefing_history: [], command_counts: {}, last_seen: {} }
+  : { briefings_sent: 0, last_briefing_at: null, briefing_history: [], command_counts: {}, last_seen: {}, usernames: {} }
 existing.briefings_sent = (existing.briefings_sent ?? 0) + 1
 existing.last_briefing_at = today
 existing.briefing_history = [
