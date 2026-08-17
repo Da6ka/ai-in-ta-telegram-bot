@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-08-17
+
 ### The repo is now MIT licensed
 
 Public with no LICENSE file means "all rights reserved": people could read the
