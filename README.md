@@ -110,7 +110,7 @@ To stop: **`/unsubscribe`** ends the daily send but keeps your access; **`/forge
 | `/admin`                   | Admin panel / usage stats                  |
 | `/pending`                 | Review and approve access requests         |
 | `/adduser` · `/removeuser` | Add or remove someone directly             |
-| `/listusers`               | List everyone the bot knows                |
+| `/listusers`               | List everyone the bot knows, with @handles |
 | `/broadcast`               | Send a one-off message to every subscriber |
 
 **Owner-only**
@@ -149,6 +149,10 @@ The redundancy is real but not absolute: all three ride GitHub's scheduler, and 
 1. `briefing-prompt.md` is handed to `claude -p`, which searches the web, composes the briefing, and writes it to `state/today_briefing.md` (plus `state/usage_stats.json` for the idempotency check above).
 2. `scripts/send-briefing.mjs` sends the result to every subscriber in the bot's live list (the `subscribers` KV key).
 3. The workflow commits the updated `state/` files back to the repo.
+
+**The self-filling wiki:**
+
+Every edition that reaches a subscriber is appended to an append-only corpus under `wiki/sources/` by `scripts/append-wiki-sources.mjs` (both the daily and on-demand flows). Daily only, a Haiku `claude -p` pass folds the pending records into per-vendor and per-theme pages under `wiki/vendors/` and `wiki/themes/`. The ingest is `continue-on-error`, gated behind the send checks, and capped at 25 records per run, so it can never delay or block a briefing. There's no query surface yet — a bot-facing `/wiki` is deliberately unbuilt.
 
 Trigger a run manually any time from the **Actions** tab ("Run workflow"), or:
 
