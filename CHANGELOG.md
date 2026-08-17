@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### README now documents the self-filling wiki, and the @handle roster
+
+The daily/on-demand corpus (`wiki/sources/` + the Haiku ingest into
+`wiki/vendors/` and `wiki/themes/`) shipped in v1.7.0 but was absent from the
+README's "How it works" — the one behavior with no user-facing surface was also
+the one with no docs. Adds a short "self-filling wiki" note covering the
+append, the daily-only ingest, its `continue-on-error`/send-gated safety, the
+25-record cap, and that a bot-facing `/wiki` is deliberately unbuilt. Also
+updates the `/listusers` command row to say it now renders each stored `@handle`
+next to its id. Docs only.
+
 ## [1.7.0] - 2026-08-17
 
 ### The repo is now MIT licensed
