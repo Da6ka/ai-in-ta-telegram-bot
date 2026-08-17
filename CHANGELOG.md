@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.7.1] - 2026-08-17
+
 ### README now documents the self-filling wiki, and the @handle roster
 
 The daily/on-demand corpus (`wiki/sources/` + the Haiku ingest into
