@@ -16,6 +16,24 @@ assembled from third-party news, and those stories stay with their publishers.
 That distinction is stated in the README's License section so nobody reads the
 MIT grant as covering the editions.
 
+### The bot now remembers each user's @username
+
+Telegram's Bot API has no id-to-username lookup: once someone is approved, the
+handle from their access request is discarded and only the numeric id remains,
+so the owner is left staring at a list of ids with no way to tell who is who.
+The bot now captures `from.username` on every command it handles and stores it
+in `usage_stats.usernames`, alongside the existing `last_seen` activity log.
+`/listusers` now renders each stored `@handle` inline next to its id, so the
+owner reads the roster as people instead of bare numbers, and `/mydata` shows
+an approved user their own stored handle. A handle only appears once that user
+has run a command since this shipped — the map starts empty on deploy.
+
+It's held to the same privacy contract as the rest of the activity log: the
+`/privacy` notice now names the stored @username explicitly, it's pruned on the
+same 90-day inactivity cutoff as `last_seen` (a handle can never outlive its
+activity entry), it's erased by `/forgetme`, and a user who has since cleared
+their Telegram username has the stale handle dropped rather than kept.
+
 ### The wiki now fills itself from each sent edition
 
 Stage 1 gave the corpus a home (`wiki/sources/`) but no writer and no reader --

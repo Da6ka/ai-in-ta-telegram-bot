@@ -1055,3 +1055,35 @@ test('briefing heartbeat cron', async (t) => {
     assert.equal(sends().length, 0, 'and sends no heartbeat alert')
   })
 })
+
+// =============== username capture & retention ===============
+test('username capture', async (t) => {
+  await t.test('F30 @username is captured on command, shown in /mydata, purged on /forgetme', async () => {
+    resetState({ allowFrom: [OWNER, '990'], subscribers: [OWNER] })
+    const who = { id: 990, first_name: 'Kosmo', username: 'K0cmoCtac' }
+    await send(upd('990', '/status', { from: who }))
+    let stats = JSON.parse(kv.map.get('usage_stats'))
+    assert.equal(stats.usernames?.['990'], 'K0cmoCtac', 'handle captured next to last_seen')
+    fetchLog = []
+    await send(upd('990', '/mydata', { from: who }))
+    assert.ok(sends()[0].body.text.includes('Username on file: @K0cmoCtac'), '/mydata surfaces the stored handle')
+    fetchLog = []
+    await send(upd('990', '/forgetme', { from: who }))
+    stats = JSON.parse(kv.map.get('usage_stats'))
+    assert.ok(!('990' in (stats.usernames ?? {})), 'handle erased on /forgetme, not left behind')
+  })
+  await t.test('F31 a user with no @username stores none, and clears a stale one', async () => {
+    resetState({ allowFrom: [OWNER, '991'], subscribers: [OWNER] })
+    await send(upd('991', '/status', { from: { id: 991, first_name: 'Anon', username: 'oldhandle' } }))
+    assert.equal(JSON.parse(kv.map.get('usage_stats')).usernames?.['991'], 'oldhandle')
+    await send(upd('991', '/status', { from: { id: 991, first_name: 'Anon' } }))
+    assert.ok(!('991' in (JSON.parse(kv.map.get('usage_stats')).usernames ?? {})), 'cleared handle is dropped, not kept')
+  })
+  await t.test('F32 /listusers renders the stored @handle next to the id', async () => {
+    resetState({ allowFrom: [OWNER, '992'], subscribers: [OWNER] })
+    await send(upd('992', '/status', { from: { id: 992, first_name: 'Zed', username: 'zed_h' } }))
+    fetchLog = []
+    await send(upd(OWNER, '/listusers'))
+    assert.ok(sends()[0].body.text.includes('992 @zed_h — [allowed]'), 'handle inline in the roster')
+  })
+})

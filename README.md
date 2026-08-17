@@ -101,6 +101,8 @@ To stop: **`/unsubscribe`** ends the daily send but keeps your access; **`/forge
 | `/mydata`   | See everything stored about you  |
 | `/forgetme` | Erase all your data from the bot |
 
+> **What's kept:** your Telegram ID, your @username, and the date you last used the bot. The @username is stored so the owner can tell whose ID is whose — Telegram's Bot API has no ID-to-handle lookup, so if the bot doesn't capture it on use, it's gone. Your username and last-active date are auto-deleted after 90 days of inactivity, and everything goes immediately on `/forgetme`. Full detail lives in `/privacy`.
+
 **Owner and delegated admins**
 
 | Command                    | What it does                               |
