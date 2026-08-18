@@ -19,6 +19,7 @@ A persistent, compounding view of AI-in-recruitment news. Read `CLAUDE.md` for t
 - [[icims]] — High-volume hiring with AI-powered apply experiences and embedded analytics
 - [[psymetrics]] — AI Test Architect for auto-generated, psychometric-anchored assessments
 - [[urecruits]] — Recruiter-first platform with human approval on every hiring decision
+- [[workday]] — Core HCM platform with Paradox AI recruiting suite; vendor liability exposure from AI bias litigation and ownership risk from Silver Lake takeover bid
 
 ## Coverage notes
 

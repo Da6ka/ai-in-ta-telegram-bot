@@ -70,6 +70,8 @@ Anthropic is shipping Claude across every layer of the recruiting tech stack and
 
 - **9 Aug 2026** — Anthropic is making **auto mode the default in Claude Code** for Pro, Max, and Team accounts, letting agents proceed without step-by-step approval unless an action is "irreversible, destructive, or aimed outside your environment" — the company cites a study where auto mode caught a planted dangerous command 89% of the time versus 13.6% for humans. If you're wiring Claude agents into sourcing, screening, or ATS workflows, revisit your approval gates and network isolation now: the safe-by-default assumption is shifting toward autonomous execution. — [Anthropic is turning Claude Code's auto mode on by default](https://techcrunch.com/2026/08/09/anthropic-is-turning-claude-codes-auto-mode-on-by-default/)
 
+- **13 Aug 2026** — Anthropic is in talks to buy Israeli AI-infrastructure startup Decart for about $6 billion — its largest acquisition to date — to help its compute stack absorb surging enterprise demand. For TA teams running Claude in sourcing or screening, this is a capacity-and-latency signal worth tracking: Anthropic is buying infrastructure to keep pace as more workflows move onto its models. — [Bloomberg](https://www.bloomberg.com/news/articles/2026-08-13/anthropic-said-in-talks-to-buy-ai-startup-decart-for-6-billion)
+
 ## Open questions
 
 - As Claude becomes ubiquitous via partnerships (UST, LTM) and integrations (Azure, Foundry, Slack), how do TA leaders differentiate hiring for "Claude fluency" from hiring for underlying problem-solving?
