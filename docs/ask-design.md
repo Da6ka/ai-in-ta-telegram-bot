@@ -196,9 +196,12 @@ access. Two distinct exposures, both real.
 **Shell injection into the workflow.** Interpolating
 `${{ github.event.client_payload.question }}` directly into a `run:` block is
 the textbook GitHub Actions script-injection bug — the payload is attacker-
-controlled text being spliced into a shell command. It must reach the job as an
-**environment variable**, and the prompt file must be assembled by a Node script
-reading `process.env`, never by shell interpolation.
+controlled text being spliced into a shell command. The obvious fix — pass it
+as step `env:` — trades the injection for a log leak: Actions prints every
+step's env block into the human-readable log (the first live run proved it).
+The question must instead be read from **`GITHUB_EVENT_PATH`** — the event
+payload on the runner's disk — by a Node script that assembles the prompt
+file. Never shell interpolation, never step env.
 
 **Prompt injection into the model.** A question is data, not instruction. The
 prompt wraps it in an explicit delimiter and states that text inside is a query
@@ -246,11 +249,13 @@ text." It is a rule about what *persists*, drawn at each hop:
   without it. This is the one place the text exists, and it lives only in the
   workflow run's event context — subject to GitHub's Actions log retention
   (default 90 days on this repo), then purged by GitHub. Nothing re-persists it.
-- **Workflow step logs.** The plaintext reaches the job as an environment
-  variable and is written straight to the prompt file by a Node script. **No
-  step ever echoes it.** The question does not appear in the human-readable step
-  output — so a run someone opens later shows the hash in the dispatch context,
-  not the text in the logs.
+- **Workflow step logs.** The plaintext never appears in them. It is read from
+  `GITHUB_EVENT_PATH` (the event payload on the runner's disk) by a Node script
+  and written straight to the prompt file; no step echoes it, **and it is not
+  passed as step `env:` either** — Actions prints every step's env block into
+  the human-readable log, a leak the first live run (32394955358) caught before
+  the env-var approach could ship. A run someone opens later shows nothing of
+  the question in the log text.
 - **The answer.** Delivered to the requester and never stored. It is not written
   to `wiki/`, `state/`, or KV, and the `send-answer.mjs` step is the last thing
   that touches it.
@@ -330,8 +335,9 @@ Implementation outline
    into KV/DO (see Privacy).
 3. `.github/workflows/ask.yml`, modeled on `on-demand-briefing.yml`: dispatch
    idempotency via `scripts/check-dispatch-once.mjs`, credit precheck, prompt
-   built by a Node script reading `process.env.QUESTION` (never shell
-   interpolation, and no step echoes it — see Privacy), `claude -p` with
+   built by a Node script reading the question from `GITHUB_EVENT_PATH` (never
+   shell interpolation, never step `env:`, no step echoes it — see Privacy),
+   `claude -p` with
    `--allowedTools "Read,Grep,Glob"`, `--setting-sources user` (the
    `.claude/settings.json` Stop hook otherwise runs `npm test` and eats the
    output — the 2026-07-14 outage), and a modest `--max-budget-usd`.
