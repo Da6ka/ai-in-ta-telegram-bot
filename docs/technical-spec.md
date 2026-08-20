@@ -1,6 +1,6 @@
 # AI-in-TA Telegram Bot — Technical Specification
 
-Version: 1.6.0 · Status: describes the deployed system as of 2026-07-16
+Version: 1.8.0 · Status: describes the deployed system as of 2026-08-20
 
 > This is the interface/requirements-level companion to [`design.md`](./design.md).
 > `design.md` explains _why_ the system is shaped the way it is (narrative,
@@ -96,20 +96,36 @@ generation-side record. `scripts/sync-kv.mjs` is the one-way bridge
 - Removing a user (`/removeuser` or their own `/forgetme`) also revokes any
   admin status they held.
 
-### 3.3 Anthropic API (generation)
+### 3.3 Anthropic API
 
-- Invoked as `claude -p <prompt>` from Actions, model **`claude-opus-4-8`**,
-  `--allowedTools WebSearch`, `--max-budget-usd 4` per run.
+Always `claude -p <prompt>` from Actions, never from the Worker. Three
+invocations with deliberately different models, tools, and budgets — the
+tool allowlist is the enforcement, not just the prompt:
+
+| Job | Model | `--allowedTools` | Budget |
+| --- | --- | --- | --- |
+| Briefing generation | `claude-opus-4-8` | `WebSearch` | $4 |
+| Wiki ingest (daily only) | `claude-haiku-4-5-20251001` | `Read Write Edit Glob Grep` | $1 |
+| `/ask` answer | `claude-sonnet-5` | `Read Grep Glob` | $1 |
+
 - Prompts: [`briefing-prompt.md`](../briefing-prompt.md) (daily),
-  [`briefing-prompt-ondemand.md`](../briefing-prompt-ondemand.md) (on-demand).
-  Editorial rules (sourcing, no repeated domains, news-not-evergreen, 48-hour
-  window) live in those prompts by design.
+  [`briefing-prompt-ondemand.md`](../briefing-prompt-ondemand.md) (on-demand),
+  [`wiki-ingest-prompt.md`](../wiki-ingest-prompt.md) (ingest),
+  [`ask-prompt.md`](../ask-prompt.md) (`/ask`). Editorial rules (sourcing, no
+  repeated domains, news-not-evergreen, 48-hour window) live in those prompts
+  by design.
+- **Only the briefing gets `WebSearch`.** The ingest and `/ask` are confined to
+  what the bot has already published; withholding the tool is what makes that a
+  guarantee rather than an instruction. `/ask` additionally gets no write tools,
+  so a query can never mutate the wiki.
 
 ### 3.4 GitHub `repository_dispatch` (Worker → Actions)
 
 - `daily-briefing-trigger` → `daily-briefing.yml`
 - on-demand trigger → `on-demand-briefing.yml`
 - broadcast trigger → `broadcast.yml`
+- `ask` → `ask.yml` (payload carries `chat_id` **and the question text** — the
+  job cannot answer a hashed question; see §7 for what that means for retention)
 - Auth: fine-grained PAT (`GITHUB_TOKEN` Worker secret), this repo only,
   `Contents: write`.
 
@@ -119,8 +135,9 @@ generation-side record. `scripts/sync-kv.mjs` is the one-way bridge
 
 ### 4.1 `BotState` Durable Object (source of truth)
 
-Single instance, DO storage only. These four keys and no others — the DO is the
-authority for *access and coordination* state, not for briefing content:
+Single instance, DO storage only. These five keys and no others — the DO is the
+authority for *access and coordination* state, not for briefing content, and
+never for message or question text:
 
 ```
 access:
@@ -134,6 +151,11 @@ briefing_rate:                  # generation rate limiting (§6.2)
   date:           <YYYY-MM-DD>  # UTC day the counters below belong to
   counts:         { <id>: <int> }  # per-user daily cap
   total:          <int>         # global daily cap
+ask_rate:                       # /ask rate limiting (§6.3) -- same shape as
+  lastDispatchAt: <epoch_ms>    # briefing_rate, deliberately separate counters
+  date:           <YYYY-MM-DD>  # so questions and briefings never draw down
+  counts:         { <id>: <int> }  # each other's allowance. No question text.
+  total:          <int>
 seen_updates:  [<int>, ...]     # capped ring of handled Telegram update_ids,
                                 # so a Telegram redelivery can't re-run a
                                 # non-idempotent command (e.g. /broadcast)
@@ -218,7 +240,17 @@ generation, works while a generation run is in flight.
 daily cap (§6.2); during cooldown the user still gets the cached copy rather
 than an error.
 
-### 5.4 Broadcast
+### 5.4 `/ask` (query the wiki)
+
+`/ask <question>` → Worker validates (3–300 chars) and reserves an `ask_rate`
+slot → `repository_dispatch` (`ask`) → `ask.yml` reads the question from the
+runner's event file, builds the prompt, and runs a read-only `claude -p` over
+`wiki/` → `send-answer.mjs` delivers to the requester alone. **Accept:** the
+answer cites dated, linked claims from `wiki/` or says the corpus doesn't cover
+it; never web content; never a broadcast; the wiki is not mutated; an ask is not
+blocked by a briefing generation (separate concurrency group).
+
+### 5.5 Broadcast
 
 `/broadcast <msg>` (owner/admin) → Worker validates → `broadcast.yml` →
 `broadcast.mjs` paces + retries delivery on the runner, then reports to owner.
@@ -238,8 +270,12 @@ per-invocation subrequest cap that silently dropped recipients past ~45).
 | Generation dispatch cooldown | **60 min**, **5 min** for the owner               | Worker, before `/newbriefing` dispatch                              |
 | Generation daily cap         | **3/day per user** (`DAILY_DISPATCH_CAP`)         | Worker (`briefing_rate.counts`)                                     |
 | Generation daily cap, shared | **5/day total** (`GLOBAL_DAILY_DISPATCH_CAP`)     | Worker (`briefing_rate.total`)                                      |
-| Per-run LLM spend            | **$4** (`--max-budget-usd`)                       | Actions                                                             |
-| Briefing model               | `claude-opus-4-8`                                 | Actions                                                             |
+| `/ask` cooldown              | **30 s** (`ASK_COOLDOWN_MS`)                      | Worker, before `ask` dispatch                                       |
+| `/ask` daily cap             | **10/day per user** (`ASK_DAILY_CAP`)             | Worker (`ask_rate.counts`)                                          |
+| `/ask` daily cap, shared     | **40/day total** (`ASK_GLOBAL_DAILY_CAP`)         | Worker (`ask_rate.total`)                                           |
+| `/ask` question length       | **3–300 chars**                                   | Worker, before dispatch                                             |
+| Per-run LLM spend            | **$4** briefing, **$1** ingest, **$1** `/ask`     | Actions                                                             |
+| Models                       | see §3.3                                          | Actions                                                             |
 | Briefing window              | last 48 hours                                     | prompt                                                              |
 
 ### 6.2 How the generation limits compose
@@ -260,6 +296,21 @@ one wins:
 A user refused by any of the three is served the cached edition where one exists,
 never a bare error, and the daily scheduled send is unaffected by all three.
 
+### 6.3 Why `/ask` has its own counters
+
+`ask_rate` deliberately mirrors `briefing_rate`'s shape while staying a separate
+key. A briefing generation is a paid WebSearch agent loop under a $4 cap whose
+output is *shared* — one `today_briefing` for everyone — which is why its
+cooldown is global and its caps are tight. An ask is a grep over `wiki/` with a
+private, single-recipient answer. Sharing one counter would let a few questions
+consume a user's briefing allowance for the day: the wrong resource spent on the
+wrong thing. Hence 10/day and 30 s rather than 3/day and 60 min, and no owner
+cooldown exception — 30 s is already short enough that shaving it buys nothing.
+
+Unlike the generation limits, a refused ask has no cached fallback to serve —
+there is no such thing as a stale answer to a question nobody asked — so it
+returns a message naming the limit and when it resets.
+
 ---
 
 ## 7. Non-functional requirements
@@ -277,6 +328,17 @@ never a bare error, and the daily scheduled send is unaffected by all three.
   - access/subscription state) — as of 2026-07-16, 5 subscribed. Any future
     export/debug tooling must not dump raw user ids
     carelessly.
+- **Question retention (`/ask`):** a question is the first free text a user
+  writes that the bot has to move through its own machinery, and it is never
+  persisted in readable form. The Worker logs `sha256(question)` truncated to
+  16 hex plus the length — enough to correlate a failure report, useless as a
+  record of what someone asked. Nothing question-shaped reaches KV or the DO,
+  so `/mydata` has nothing to show and `/forgetme` has nothing extra to erase.
+  The plaintext exists in exactly one place: the `repository_dispatch` payload
+  in the run's event context, which ages out on GitHub's Actions retention.
+  It reaches the job via `GITHUB_EVENT_PATH`, never as step `env:` — Actions
+  prints every step's env block into the run log, which leaked a question once
+  (run 32394955358) before this was tightened.
 - **Observability:** Worker `console.log/error` persisted to Workers Logs
   (`[observability] enabled`), queryable via dashboard / `wrangler tail`.
 
@@ -436,6 +498,14 @@ Staging is at migration tag **v3** for this reason; prod stays at **v1**.
 - The daily and on-demand generation paths are near-duplicates
 (`daily-briefing.yml` vs `on-demand-briefing.yml` + `sync-kv.mjs`); kept
 separate today for simplicity, could converge if the prompts diverge further.
+- `/ask` retrieval is grep over `wiki/` inside the Actions checkout, which is
+  right while the corpus is ~64k tokens. Revisit at roughly 100k tokens (about
+  two years at current volume) or ~100 pages — and revisit with a *measured*
+  recall problem, not a thin answer, which at this size is a synthesis problem
+  rather than a retrieval one. A vector store buys nothing before then.
+- `/ask` answers are single-shot: no conversation state, so no follow-ups.
+  That is a privacy choice as much as a scope one — threading means storing
+  questions, which §7 rules out.
 </content>
 
 </invoke>

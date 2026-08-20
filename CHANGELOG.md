@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-08-20
+
 ### `/ask` — question the archive
 
 The wiki has held a persistent corpus since v1.7.0, but nothing could query it
