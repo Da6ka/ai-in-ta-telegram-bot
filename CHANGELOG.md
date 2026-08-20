@@ -12,6 +12,14 @@ linked citations. No web access, so an answer can only contain what the bot has
 published; a question the corpus doesn't cover gets an explicit "not in the
 archive" rather than an invented one.
 
+`/start` now introduces `/ask` with a worked example rather than leaving users
+to find it in `/help`: a new command nobody knows about is a command nobody
+uses, and the welcome message previously named only `/briefing` and
+`/subscribe`. The example question is aimed at the deepest part of the corpus
+(interview cheating spans three pages), since a first answer drawn from a thin
+page reads as a broken feature even when the bot is correctly reporting a gap.
+Pending users now see `/ask` listed among what approval unlocks.
+
 The model landed on Sonnet the hard way: it shipped on Haiku, following the
 wiki ingest's precedent, and the first two live answers read thin. Folding a
 bullet onto the right page is bookkeeping; answering a question across months
