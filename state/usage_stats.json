@@ -1,11 +1,7 @@
 {
-  "briefings_sent": 38,
-  "last_briefing_at": "2026-08-19",
+  "briefings_sent": 39,
+  "last_briefing_at": "2026-08-20",
   "briefing_history": [
-    {
-      "date": "2026-07-14",
-      "recipients": 5
-    },
     {
       "date": "2026-07-15",
       "recipients": 5
@@ -120,6 +116,10 @@
     },
     {
       "date": "2026-08-19",
+      "recipients": 5
+    },
+    {
+      "date": "2026-08-20",
       "recipients": 5
     }
   ]

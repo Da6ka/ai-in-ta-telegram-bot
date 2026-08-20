@@ -74,6 +74,8 @@ Anthropic is shipping Claude across every layer of the recruiting tech stack and
 
 - **13 Aug 2026** — Anthropic is in talks to buy Israeli AI-infrastructure startup Decart for about $6 billion — its largest acquisition to date — to help its compute stack absorb surging enterprise demand. For TA teams running Claude in sourcing or screening, this is a capacity-and-latency signal worth tracking: Anthropic is buying infrastructure to keep pace as more workflows move onto its models. — [Bloomberg](https://www.bloomberg.com/news/articles/2026-08-13/anthropic-said-in-talks-to-buy-ai-startup-decart-for-6-billion)
 
+- **19 Aug 2026** — Anthropic shipped a batch of enterprise-governance updates to Claude Developer Platform: Admin API user management (members, invites, groups, custom roles) is now generally available for Claude Enterprise organizations, alongside a GA Files API, new Managed Agents controls for web access, self-hosted sandbox memory stores, and a redesigned Console session viewer with richer observability. For TA teams running Claude agents against sourcing and screening data, these are the provisioning and audit controls to wire in before scaling agents past pilot. — [Claude updates by Anthropic — August 2026](https://releasebot.io/updates/anthropic/claude)
+
 ## Open questions
 
 - As Claude becomes ubiquitous via partnerships (UST, LTM) and integrations (Azure, Foundry, Slack), how do TA leaders differentiate hiring for "Claude fluency" from hiring for underlying problem-solving?

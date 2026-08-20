@@ -72,6 +72,8 @@ AI-powered agents are automating recruitment workflows end-to-end: sourcing, scr
 
 - **11 Aug 2026** — **Staffing-software group zvoove acquired the IP behind Pixi**, an AI-powered, WhatsApp-based onboarding and support agent for temporary workers, adding another agent to its platform. It's a small deal but a clear signal that staffing-tech consolidation is now buying agentic capability for the post-offer, onboarding stretch — worth watching whether your platform vendor is quietly bundling agents across the full candidate journey. — [zvoove acquires onboarding and support agent Pixi](https://www.staffingindustry.com/news/global-daily-news/zvoove-acquires-onboarding-and-support-agent-pixi)
 
+- **17 Aug 2026** — AI sourcing vendor Juicebox was named "Talent Acquisition Company of the Year" in the 2026 HR Tech Breakthrough Awards, one more data point that autonomous, always-on sourcing agents are moving from novelty to category. Treat it as a market signal rather than a buying recommendation, but worth noting which sourcing-agent vendors are accumulating third-party validation as you shortlist. — [Juicebox Named "Talent Acquisition Company of the Year" in 2026 HR Tech Breakthrough Awards Program](https://www.businesswire.com/news/home/20260817862718/en/Juicebox-Named-Talent-Acquisition-Company-of-the-Year-in-2026-HR-Tech-Breakthrough-Awards-Program)
+
 ## Open questions
 
 - How do multi-agent systems distribute decision authority between agents, between agents and humans, and across orgs? Who is liable when an agent makes an adverse-impact decision?
