@@ -1087,3 +1087,88 @@ test('username capture', async (t) => {
     assert.ok(sends()[0].body.text.includes('992 @zed_h — [allowed]'), 'handle inline in the roster')
   })
 })
+
+// =============== /ask (wiki query) ===============
+test('ask and rate limiting', async (t) => {
+  const Q = 'what have we seen about AI interview cheating?'
+
+  await t.test('K1 /ask <question> -> dispatch(ask) with question in payload + ack', async () => {
+    resetState({ allowFrom: [OWNER, '222'], subscribers: [] })
+    await send(upd('222', `/ask ${Q}`))
+    const d = ghDispatches()
+    assert.equal(d.length, 1, 'one dispatch')
+    assert.equal(d[0].body.event_type, 'ask', 'event type is ask')
+    assert.equal(d[0].body.client_payload.question, Q, 'question carried verbatim')
+    assert.ok(d[0].body.client_payload.dispatch_id, 'dispatch_id present for idempotency')
+    assert.match(sends().at(-1).body.text, /archive/i, 'requester acknowledged')
+    assert.equal(doStorage.map.get('ask_rate').total, 1, 'ask slot recorded')
+  })
+
+  await t.test('K2 bare /ask -> usage hint, no dispatch', async () => {
+    resetState({ allowFrom: [OWNER, '222'], subscribers: [] })
+    await send(upd('222', '/ask'))
+    assert.equal(ghDispatches().length, 0, 'no dispatch')
+    assert.match(sends().at(-1).body.text, /ask a question/i)
+  })
+
+  await t.test('K3 too-short and too-long questions refused, no dispatch', async () => {
+    resetState({ allowFrom: [OWNER, '222'], subscribers: [] })
+    await send(upd('222', '/ask hi')) // 2 chars < ASK_MIN_LEN
+    assert.equal(ghDispatches().length, 0, 'short: no dispatch')
+    assert.match(sends().at(-1).body.text, /too short/i)
+    fetchLog = []
+    await send(upd('222', '/ask ' + 'x'.repeat(301)))
+    assert.equal(ghDispatches().length, 0, 'long: no dispatch')
+    assert.match(sends().at(-1).body.text, /bit long/i)
+  })
+
+  await t.test('K4 unapproved user refused, no dispatch', async () => {
+    resetState({ allowFrom: [OWNER], subscribers: [] })
+    await send(upd('999', '/ask a genuine archive question'))
+    assert.equal(ghDispatches().length, 0)
+    assert.match(sends().at(-1).body.text, /approved first/i)
+  })
+
+  await t.test('K5 cooldown: 2nd ask within 30s refused', async () => {
+    resetState({ allowFrom: [OWNER, '222'], subscribers: [] })
+    await send(upd('222', '/ask first real question here'))
+    fetchLog = []
+    await send(upd('222', '/ask second real question here'))
+    assert.equal(ghDispatches().length, 0, 'cooldown blocks the 2nd dispatch')
+    assert.match(sends().at(-1).body.text, /one question at a time/i)
+  })
+
+  await t.test('K6 daily cap: 10 dispatches, 11th refused even past cooldown', async () => {
+    resetState({ allowFrom: [OWNER, '222'], subscribers: [] })
+    for (let i = 0; i < 10; i++) {
+      const rl = doStorage.map.get('ask_rate')
+      if (rl) { rl.lastDispatchAt = 0; doStorage.map.set('ask_rate', rl) }
+      await send(upd('222', `/ask archive question number ${i}`))
+    }
+    assert.equal(doStorage.map.get('ask_rate').counts['222'], 10, '10 recorded')
+    const rl = doStorage.map.get('ask_rate'); rl.lastDispatchAt = 0; doStorage.map.set('ask_rate', rl)
+    fetchLog = []
+    await send(upd('222', '/ask one question too many now'))
+    assert.equal(ghDispatches().length, 0, '11th refused')
+    assert.match(sends().at(-1).body.text, /today's limit/i)
+  })
+
+  await t.test('K7 /ask does not draw down the briefing allowance', async () => {
+    resetState({ allowFrom: [OWNER, '222'], subscribers: [] })
+    await send(upd('222', '/ask a genuine archive question'))
+    assert.equal(doStorage.map.get('briefing_rate'), undefined, 'briefing_rate untouched by /ask')
+    assert.equal(doStorage.map.get('ask_rate').total, 1)
+  })
+
+  await t.test('K8 failed GitHub dispatch -> rollback + user informed', async () => {
+    resetState({ allowFrom: [OWNER, '222'], subscribers: [] })
+    fetchOverride = (url) => url.includes('api.github.com') ? new Response('boom', { status: 500 }) : null
+    await send(upd('222', '/ask a question that fails to dispatch'))
+    const rl = doStorage.map.get('ask_rate')
+    assert.equal(rl.total, 0, 'global slot refunded')
+    assert.equal(rl.counts['222'], 0, 'per-user slot refunded')
+    assert.equal(rl.lastDispatchAt, 0, 'cooldown rolled back')
+    assert.ok(sends().some(c => /couldn't start/i.test(c.body.text)), 'user told about failure')
+    fetchOverride = null
+  })
+})

@@ -77,6 +77,7 @@ generation-side record. `scripts/sync-kv.mjs` is the one-way bridge
 | `/start`                                                      | anyone         | Worker → DO      | Add sender to `pending`; enforce `MAX_USERS`                                        |
 | `/briefing`                                                   | allowlisted    | Worker → KV      | Serve cached `today_briefing_md`, no generation                                     |
 | `/newbriefing`                                                | allowlisted    | Worker → Actions | `repository_dispatch` → `on-demand-briefing.yml`; subject to dispatch limits (§6.2) |
+| `/ask <question>`                                             | allowlisted    | Worker → Actions | Validate + rate-limit, then `repository_dispatch` → `ask.yml`; read-only query over `wiki/` (own `ask_rate` limits) |
 | `/subscribe`, `/unsubscribe`                                  | allowlisted    | Worker → DO      | Mutate `subscribers`                                                                |
 | `/status`, `/help`                                            | allowlisted    | Worker           | Read-only                                                                           |
 | `/privacy`, `/mydata`, `/forgetme`                            | allowlisted    | Worker → DO      | Data-subject rights over DO-held data                                               |
