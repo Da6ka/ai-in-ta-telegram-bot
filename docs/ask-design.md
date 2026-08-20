@@ -82,9 +82,11 @@ ask than full-corpus loading, and unlike full-corpus loading it does not have a
 ceiling — grep over a few hundred markdown files stays fast long after the
 corpus outgrows a prompt.
 
-This is the same reasoning that put the ingest on Haiku with a $1 cap: reading
-text that is already researched and written is bookkeeping, not the WebSearch
-agent loop that generation runs.
+This is about *retrieval*, and it is the same reasoning that keeps the whole
+path cheap: reading text that is already researched and written costs nothing
+like the WebSearch agent loop generation runs, which is why the $1 cap holds
+comfortably. Note it does not settle the *model* — finding the right pages is
+bookkeeping, but writing the answer over them is not (see Open questions).
 
 ---
 
@@ -315,9 +317,11 @@ Future-proofing
 - **If page count passes ~100**: `index.md` becomes the bottleneck, not the
   pages. Split it by type before touching retrieval.
 - **If answers get thin**: escalate the model before adding retrieval
-  machinery. Haiku over 26k characters of curated text is the cheap hypothesis;
-  Sonnet is the next rung. Reach for embeddings only when a *measured* recall
-  problem exists.
+  machinery. This already happened once — Haiku shipped first and the first two
+  live answers graded thin, so the command runs on Sonnet (see Open questions).
+  Opus is the next rung if it ever needs one. Reach for embeddings only when a
+  *measured* recall problem exists; a thin answer over a corpus this small is a
+  synthesis problem, not a retrieval one.
 - **Conversational follow-ups**: deliberately out of scope, and the reason is
   privacy, not difficulty. Revisit only with a retention answer in hand.
 
@@ -411,13 +415,18 @@ Open questions
 ---
 
 Question retention — the one that constrained the others — is settled above:
-hash-and-length, no persisted plaintext. What remains is product judgment, not
-architecture, and none of it blocks writing code:
+hash-and-length, no persisted plaintext. The rest were product judgment, and
+all three are now decided:
 
-1. **Build now, or wait for the October trigger?** The corpus is at 1.6 of the
-   3 months stage 3 was gated on.
-2. **Haiku or Sonnet?** Haiku first, on the ingest's precedent. The manual
-   grading pass above is what decides it.
-3. **Allowlist-wide, or owner-only for a first run?** Owner-only would let
-   answer quality be judged before subscribers form an opinion, at the cost of
-   a slower feedback loop.
+1. **Build now, or wait for the October trigger?** ~~Corpus at 1.6 of 3
+   months.~~ **Built now** — the pages were good enough to query early.
+2. **Haiku or Sonnet?** ~~Haiku first, on the ingest's precedent.~~
+   **Sonnet** (`claude-sonnet-5`). Haiku shipped first and the manual grading
+   pass went against it: the two live answers read thin. The ingest precedent
+   turned out not to transfer — folding a bullet onto the right page is
+   bookkeeping, but answering a question across months of pages is synthesis,
+   and that is where the tiers actually differ. Cost is a non-issue at this
+   corpus size; the run stays far inside the $1 ceiling either way.
+3. **Allowlist-wide, or owner-only for a first run?** **Allowlist-wide** — no
+   `COMMAND_ROLES` entry. Reverting to owner-only is a one-line change if
+   answer quality disappoints in the wild.

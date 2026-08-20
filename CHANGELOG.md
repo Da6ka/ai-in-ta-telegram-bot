@@ -7,10 +7,16 @@
 The wiki has held a persistent corpus since v1.7.0, but nothing could query it
 from Telegram. `/ask <question>` closes that: the Worker validates and
 rate-limits the question, then `repository_dispatch`es it to a new `ask.yml`,
-where a read-only Haiku `claude -p` reads `wiki/` and answers with dated,
+where a read-only Sonnet `claude -p` reads `wiki/` and answers with dated,
 linked citations. No web access, so an answer can only contain what the bot has
 published; a question the corpus doesn't cover gets an explicit "not in the
 archive" rather than an invented one.
+
+The model landed on Sonnet the hard way: it shipped on Haiku, following the
+wiki ingest's precedent, and the first two live answers read thin. Folding a
+bullet onto the right page is bookkeeping; answering a question across months
+of pages is synthesis, and the tiers differ exactly there. At this corpus size
+the cost difference is immaterial — a run stays far inside the same $1 ceiling.
 
 No vector store — the whole corpus is ~64k tokens and grep over `wiki/` inside
 the checkout beats embeddings at this size. `/ask` gets its own rate-limit
