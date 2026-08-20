@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+### Plain text now points at `/ask`
+
+A user sent the bot a question as ordinary text and was told the bot only
+takes `/help` and `/briefing`. That is what the catch-all nudge said, and
+shipping `/ask` never updated it — so `/start` invited people to "ask about
+anything covered in past briefings" and the very next message contradicted it.
+
+The nudge now leads with `/ask` and shows the prefix in place, for allowlisted
+users only (advertising it to someone still awaiting approval would just be
+noise). It stays a fixed string: the user's text is never echoed back, because
+`/privacy` promises ordinary messages aren't processed and the reply shouldn't
+quietly break that.
+
 ## [1.8.0] - 2026-08-20
 
 ### `/ask` — question the archive

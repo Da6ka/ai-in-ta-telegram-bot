@@ -1196,3 +1196,35 @@ test('ask is discoverable from the start', async (t) => {
     assert.match(sends()[0].body.text, /\/ask —/, '/ask has its own help line')
   })
 })
+
+// =============== plain-text nudge points at /ask ===============
+test('plain text nudges toward /ask', async (t) => {
+  await t.test('K12 approved user sending plain text is told about /ask', async () => {
+    resetState({ allowFrom: [OWNER, '222'], subscribers: [] })
+    await send(upd('222', 'what have we seen about AI interview cheating?'))
+    const text = sends()[0].body.text
+    assert.match(text, /\/ask/, 'names /ask — the whole point of the nudge')
+    assert.ok(text.includes('/briefing'), 'still offers the briefing')
+  })
+
+  await t.test('K13 the nudge never echoes the user text back', async () => {
+    resetState({ allowFrom: [OWNER, '222'], subscribers: [] })
+    const secret = 'zzz-unique-user-phrase-zzz'
+    await send(upd('222', secret))
+    assert.ok(!sends()[0].body.text.includes(secret), 'fixed string, message content not reflected')
+  })
+
+  await t.test('K14 a Cyrillic question also gets the /ask nudge, not silence', async () => {
+    resetState({ allowFrom: [OWNER, '222'], subscribers: [] })
+    await send(upd('222', 'что нового про ИИ в найме?'))
+    assert.match(sends()[0].body.text, /\/ask/)
+  })
+
+  await t.test('K15 unapproved user still gets the access nudge, not /ask', async () => {
+    resetState({ allowFrom: [OWNER], subscribers: [] })
+    await send(upd('888', 'hello?'))
+    const text = sends()[0].body.text
+    assert.match(text, /\/start/, 'points at access request')
+    assert.ok(!text.includes('/ask'), 'no point advertising /ask to someone who cannot use it')
+  })
+})

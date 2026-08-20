@@ -1276,7 +1276,16 @@ async function handleMessage(env, stub, message) {
   const handler = cmd && Object.hasOwn(COMMAND_HANDLERS, cmd) ? COMMAND_HANDLERS[cmd] : null
   if (!handler) {
     await reply(env, gated.senderId, gated.isAllowed
-      ? "I only understand commands. Tap /briefing for today's digest, or /help to see everything I can do."
+      // Names /ask first: a plain-text message is usually someone asking a
+      // question, and /start invites exactly that ("ask about anything covered
+      // in past briefings"). Before this, the nudge listed only /briefing and
+      // /help -- so the bot invited a question and then told the user it
+      // didn't take them (reported by a live user, 2026-08-20). Still a fixed
+      // string: their text is never echoed back (see the note above).
+      ? "I only understand commands — but I can answer questions about past briefings.\n\n" +
+        "Just put /ask in front:\n" +
+        "/ask what have we seen about AI interview cheating?\n\n" +
+        "Or tap /briefing for today's digest, or /help to see everything I can do."
       : "I only understand commands. Send /start to request access.")
     return
   }
