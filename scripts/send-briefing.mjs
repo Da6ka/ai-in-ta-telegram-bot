@@ -9,6 +9,7 @@
 import { readFileSync, appendFileSync } from 'node:fs'
 import { mdToHtml } from '../shared/telegram-markdown.mjs'
 import { sendHtmlToMany } from '../shared/telegram.mjs'
+import { isPermanentlyUnreachable, recordBlocked } from '../shared/blocked-subscribers.mjs'
 
 const token = process.env.TELEGRAM_BOT_TOKEN
 const { CF_ACCOUNT_ID, CF_API_TOKEN, CF_KV_NAMESPACE_ID } = process.env
@@ -59,9 +60,28 @@ if (!md.includes(today)) {
 // sendHtmlToMany chunks each message, retries 429/5xx (honoring Retry-After),
 // and paces sends under Telegram's ~30 msg/s ceiling so large subscriber lists
 // don't silently drop recipients to rate limiting.
+const blocked = []
 const { total, failed } = await sendHtmlToMany(token, chatIds, mdToHtml(md), {
-  onError: async (chatId, res) => console.error(`Failed to send to ${chatId}: ${res.status} ${await res.text()}`),
+  onError: async (chatId, res) => {
+    // Read the body once: res is consumed here, so capture status first.
+    const status = res.status
+    console.error(`Failed to send to ${chatId}: ${status} ${await res.text()}`)
+    // A 403 means blocked/deactivated -- permanent, not worth retrying tomorrow.
+    if (isPermanentlyUnreachable(status)) blocked.push(chatId)
+  },
 })
+
+// Queue them for the Worker to unsubscribe (see shared/blocked-subscribers.mjs
+// for why the runner cannot do it directly). Never fail the send over this --
+// the briefing already reached everyone reachable.
+if (blocked.length > 0) {
+  try {
+    await recordBlocked(blocked, { accountId: CF_ACCOUNT_ID, apiToken: CF_API_TOKEN, namespaceId: CF_KV_NAMESPACE_ID })
+    console.log(`Queued ${blocked.length} blocked subscriber(s) for unsubscribe: ${blocked.join(', ')}`)
+  } catch (err) {
+    console.error('Failed to queue blocked subscribers (they stay on the list for now):', err)
+  }
+}
 
 console.log(failed === 0
   ? `Sent briefing to ${total} subscriber(s).`
