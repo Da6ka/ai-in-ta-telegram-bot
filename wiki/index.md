@@ -13,13 +13,9 @@ A persistent, compounding view of AI-in-recruitment news. Read `CLAUDE.md` for t
 
 - [[anthropic]] — Claude across the stack: agents, governance, partnerships, and workforce development
 - [[bullhorn]] — Large staffing-CRM/ATS vendor pivoting toward agentic hiring at scale
-- [[clearco]] — Multi-agent suite for the full talent lifecycle with low-code governance
 - [[cognizant]] — Services giant building AI-native workforce pipelines through certifications and campus hiring
 - [[eightfold]] — Agent-driven end-to-end evaluation and workforce analytics
-- [[hirevue]] — Voice-based conversational AI interviewer pushing evaluation earlier in the funnel
 - [[icims]] — High-volume hiring with AI-powered apply experiences and embedded analytics
-- [[psymetrics]] — AI Test Architect for auto-generated, psychometric-anchored assessments
-- [[urecruits]] — Recruiter-first platform with human approval on every hiring decision
 - [[workday]] — Core HCM platform with Paradox AI recruiting suite; vendor liability exposure from AI bias litigation and ownership risk from Silver Lake takeover bid
 
 ## Coverage notes
@@ -31,3 +27,4 @@ A persistent, compounding view of AI-in-recruitment news. Read `CLAUDE.md` for t
 - HR Path (RPO/outsourcing consolidation) mentioned once; insufficient coverage for a dedicated vendor page. Its funding round is recorded on [[vendor-consolidation]].
 - Mercor (AI talent marketplace/labeling platform) mentioned once with governance concerns; insufficient coverage for a dedicated vendor page. Valuation and self-dealing disclosure are recorded on [[vendor-consolidation]], governance implications on [[ai-ethics-and-compliance]].
 - Korn Ferry and AMS appear only as parties to the RPO acquisition on [[vendor-consolidation]]; neither has a second independent mention, so neither has a vendor page.
+- Folded back into themes by the 2026-08-20 lint: ClearCo, HireVue, PsyMetrics and uRecruits each had a page built on a single press release, which the creation bar in `CLAUDE.md` calls noise — a vendor page needs a second *independent* mention. uRecruits looked like two until the lint found the pair was one launch re-reported by the same wire service. Their stories live on [[agentic-recruiting]] and [[skills-based-hiring]]; if any of them earns a genuine second mention, a page can be created then.

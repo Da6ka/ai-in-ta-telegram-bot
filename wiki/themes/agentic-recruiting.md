@@ -74,10 +74,12 @@ AI-powered agents are automating recruitment workflows end-to-end: sourcing, scr
 
 - **17 Aug 2026** — AI sourcing vendor Juicebox was named "Talent Acquisition Company of the Year" in the 2026 HR Tech Breakthrough Awards, one more data point that autonomous, always-on sourcing agents are moving from novelty to category. Treat it as a market signal rather than a buying recommendation, but worth noting which sourcing-agent vendors are accumulating third-party validation as you shortlist. — [Juicebox Named "Talent Acquisition Company of the Year" in 2026 HR Tech Breakthrough Awards Program](https://www.businesswire.com/news/home/20260817862718/en/Juicebox-Named-Talent-Acquisition-Company-of-the-Year-in-2026-HR-Tech-Breakthrough-Awards-Program)
 
+- **25 Jun 2026** — uRecruits launched 2.0, a recruiter-first platform with seven connected capabilities and "uR Agent" AI that drafts jobs, sends pre-screens, coordinates interviews, and ranks candidates — but explicitly makes no automated advancement, rejection, or hire decisions, keeping every call human-approved. It pitches "a human in every decision" as its answer to tightening AI hiring laws, making human-in-the-loop a compliance selling point worth pressing your own vendors on. — [PR Newswire](https://www.prnewswire.com/news-releases/urecruits-launches-2-0-with-7-connected-hiring-capabilities-and-recruiter-controlled-ai-agents-302810515.html)
+
 ## Open questions
 
 - How do multi-agent systems distribute decision authority between agents, between agents and humans, and across orgs? Who is liable when an agent makes an adverse-impact decision?
 - What audit trails and bias-testing approaches actually scale to agentic systems with feedback loops?
 - How do recruiting agents handle edge cases — unusual backgrounds, career pivots, protected-class scenarios — without built-in bias from their training data?
 
-Related: [[ai-ethics-and-compliance]], [[skills-based-hiring]], [[hirevue]], [[eightfold]], [[clearco]], [[icims]], [[urecruits]]
+Related: [[ai-ethics-and-compliance]], [[skills-based-hiring]], [[vendor-consolidation]], [[eightfold]], [[icims]]
