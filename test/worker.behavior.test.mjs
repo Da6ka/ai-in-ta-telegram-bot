@@ -1196,3 +1196,55 @@ test('ask is discoverable from the start', async (t) => {
     assert.match(sends()[0].body.text, /\/ask —/, '/ask has its own help line')
   })
 })
+
+// =============== plain-text nudge points at /ask ===============
+test('plain text nudges toward /ask', async (t) => {
+  await t.test('K12 approved user sending plain text is told about /ask', async () => {
+    resetState({ allowFrom: [OWNER, '222'], subscribers: [] })
+    await send(upd('222', 'what have we seen about AI interview cheating?'))
+    const text = sends()[0].body.text
+    assert.match(text, /\/ask/, 'names /ask — the whole point of the nudge')
+    assert.ok(text.includes('/briefing'), 'still offers the briefing')
+  })
+
+  await t.test('K13 the nudge never echoes the user text back', async () => {
+    resetState({ allowFrom: [OWNER, '222'], subscribers: [] })
+    const secret = 'zzz-unique-user-phrase-zzz'
+    await send(upd('222', secret))
+    assert.ok(!sends()[0].body.text.includes(secret), 'fixed string, message content not reflected')
+  })
+
+  await t.test('K14 a Cyrillic question also gets the /ask nudge, not silence', async () => {
+    resetState({ allowFrom: [OWNER, '222'], subscribers: [] })
+    await send(upd('222', 'что нового про ИИ в найме?'))
+    assert.match(sends()[0].body.text, /\/ask/)
+  })
+
+  await t.test('K15 unapproved user still gets the access nudge, not /ask', async () => {
+    resetState({ allowFrom: [OWNER], subscribers: [] })
+    await send(upd('888', 'hello?'))
+    const text = sends()[0].body.text
+    assert.match(text, /\/start/, 'points at access request')
+    assert.ok(!text.includes('/ask'), 'no point advertising /ask to someone who cannot use it')
+  })
+})
+
+// =============== /ask suggestions aim at the deep corpus ===============
+test('ask suggestions are corpus-aware', async (t) => {
+  await t.test('K16 bare /ask suggests questions, not the thin Workday page', async () => {
+    resetState({ allowFrom: [OWNER, '222'], subscribers: [] })
+    await send(upd('222', '/ask'))
+    const text = sends().at(-1).body.text
+    assert.ok(text.includes('/ask '), 'shows the prefix in a worked example')
+    assert.ok(!/Workday/i.test(text), 'no suggestion pointed at a 3-entry vendor page')
+    assert.equal(ghDispatches().length, 0, 'still no dispatch for a bare /ask')
+  })
+
+  await t.test('K17 /help carries a worked /ask example', async () => {
+    resetState({ allowFrom: [OWNER, '222'], subscribers: [] })
+    await send(upd('222', '/help'))
+    const text = sends()[0].body.text
+    assert.match(text, /\/ask —/, 'still listed among the commands')
+    assert.match(text, /Example:[\s\S]*\/ask \w+/, 'and shown in use, since /ask takes an argument')
+  })
+})

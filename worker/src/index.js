@@ -857,7 +857,12 @@ const COMMAND_HANDLERS = {
       "/status — check your access status\n" +
       "/privacy — how your data is handled\n" +
       "/mydata — see what's stored about you\n" +
-      "/forgetme — erase your data")
+      "/forgetme — erase your data\n\n" +
+      // The list teaches every other command fine, because the command IS the
+      // whole action. /ask is the one that takes an argument, and a bare name
+      // doesn't convey that it wants a natural sentence rather than a keyword.
+      "Example:\n" +
+      "/ask what have we seen about AI interview cheating?")
   },
 
   async status(env, message, gated) {
@@ -994,10 +999,17 @@ const COMMAND_HANDLERS = {
     const question = (rawText ?? '').trim().replace(/^\/ask(@\S+)?\s*/i, '').trim()
     if (!question) {
       await reply(env, senderId,
+        // Both examples deliberately aim at the deepest theme pages
+        // (interview cheating spans skills-based-hiring + ai-ethics-and-
+        // compliance; the legal thread has 27 timeline entries). The corpus is
+        // lopsided -- four pages carry 27-36 entries and the rest have 1-4 --
+        // so a suggestion pointed at a thin page returns a correct but one-line
+        // answer, which reads as a broken feature on first contact. An earlier
+        // example here asked about Workday specifically: 3 entries.
         "Ask a question about anything the bot has covered, and I'll answer from past briefings.\n\n" +
         "For example:\n" +
         "/ask what have we seen about AI interview cheating?\n" +
-        "/ask how has Workday's legal exposure changed since June?")
+        "/ask how has the legal picture for AI hiring changed since June?")
       return
     }
     if (question.length < ASK_MIN_LEN) {
@@ -1276,7 +1288,16 @@ async function handleMessage(env, stub, message) {
   const handler = cmd && Object.hasOwn(COMMAND_HANDLERS, cmd) ? COMMAND_HANDLERS[cmd] : null
   if (!handler) {
     await reply(env, gated.senderId, gated.isAllowed
-      ? "I only understand commands. Tap /briefing for today's digest, or /help to see everything I can do."
+      // Names /ask first: a plain-text message is usually someone asking a
+      // question, and /start invites exactly that ("ask about anything covered
+      // in past briefings"). Before this, the nudge listed only /briefing and
+      // /help -- so the bot invited a question and then told the user it
+      // didn't take them (reported by a live user, 2026-08-20). Still a fixed
+      // string: their text is never echoed back (see the note above).
+      ? "I only understand commands — but I can answer questions about past briefings.\n\n" +
+        "Just put /ask in front:\n" +
+        "/ask what have we seen about AI interview cheating?\n\n" +
+        "Or tap /briefing for today's digest, or /help to see everything I can do."
       : "I only understand commands. Send /start to request access.")
     return
   }
