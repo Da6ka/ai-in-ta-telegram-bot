@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+### Spec masthead names both user-facing models
+
+The one-pager's masthead read `model claude-opus-4-8` — true of the briefing,
+but the page documents three `claude -p` invocations now, so its most prominent
+claim implied one model runs everything. Split into `briefing opus-4-8` and
+`/ask sonnet-5`. The ingest's Haiku stays out: it's internal bookkeeping nobody
+interacts with, and §3.3 carries all three with their tool allowlists and
+budgets.
+
+A seventh chip doesn't fit the 1080px column, so `runtimes Worker + Actions`
+wraps to its own line. Kept rather than dropping a chip for spacing — `.chips`
+sets `flex-wrap`, so the layout was built for it. README covers re-rendered
+from the same file, and the live page redeployed to match.
+
 ## [1.8.1] - 2026-08-20
 
 ### Plain text now points at `/ask`
