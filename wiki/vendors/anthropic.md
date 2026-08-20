@@ -82,4 +82,4 @@ Anthropic is shipping Claude across every layer of the recruiting tech stack and
 - Which Claude features (extended context, vision, tool use) will recruiting vendors bake into standard workflows, and which will remain power-user territory?
 - Will the Claude Partners Network create a new service-vendor layer that fragments recruiting tool implementation?
 
-Related: [[agentic-recruiting]], [[ai-talent-war]], [[ode]]
+Related: [[agentic-recruiting]], [[skills-based-hiring]]

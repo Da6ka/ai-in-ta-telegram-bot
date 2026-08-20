@@ -78,4 +78,4 @@ Resumes and credentials are losing signal. AI screening is pushing organizations
 - How do you assess AI-augmented judgment in practice (i.e., the ability to prompt well and interpret model output), rather than just testing raw AI knowledge?
 - Do assessments designed around demonstrated ability scale to high-volume hiring without ballooning recruiter workload?
 
-Related: [[agentic-recruiting]], [[ai-talent-war]], [[staffing-industry-shifts]]
+Related: [[agentic-recruiting]], [[vendor-consolidation]]
