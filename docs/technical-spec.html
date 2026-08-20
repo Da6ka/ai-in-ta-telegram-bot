@@ -23,13 +23,9 @@
         --green: #1f7a52;
         --green-wash: #dcefe4;
         --red: #b23a30;
-        --shadow:
-          0 1px 2px rgba(19, 24, 32, 0.05),
-          0 8px 24px -12px rgba(19, 24, 32, 0.18);
-        --mono:
-          ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
-        --sans:
-          -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+        --shadow: 0 1px 2px rgba(19, 24, 32, 0.05), 0 8px 24px -12px rgba(19, 24, 32, 0.18);
+        --mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+        --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
         --maxw: 1080px;
       }
       @media (prefers-color-scheme: dark) {
@@ -51,11 +47,10 @@
           --green: #4cc088;
           --green-wash: #123528;
           --red: #e0685e;
-          --shadow:
-            0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 30px -14px rgba(0, 0, 0, 0.6);
+          --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 30px -14px rgba(0, 0, 0, 0.6);
         }
       }
-      :root[data-theme="light"] {
+      :root[data-theme='light'] {
         --ground: #eef1f4;
         --surface: #ffffff;
         --surface-2: #f6f8fa;
@@ -73,11 +68,9 @@
         --green: #1f7a52;
         --green-wash: #dcefe4;
         --red: #b23a30;
-        --shadow:
-          0 1px 2px rgba(19, 24, 32, 0.05),
-          0 8px 24px -12px rgba(19, 24, 32, 0.18);
+        --shadow: 0 1px 2px rgba(19, 24, 32, 0.05), 0 8px 24px -12px rgba(19, 24, 32, 0.18);
       }
-      :root[data-theme="dark"] {
+      :root[data-theme='dark'] {
         --ground: #0c1015;
         --surface: #141a22;
         --surface-2: #10161d;
@@ -95,8 +88,7 @@
         --green: #4cc088;
         --green-wash: #123528;
         --red: #e0685e;
-        --shadow:
-          0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 30px -14px rgba(0, 0, 0, 0.6);
+        --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 30px -14px rgba(0, 0, 0, 0.6);
       }
 
       * {
@@ -150,13 +142,7 @@
       /* ---------- masthead ---------- */
       header.masthead {
         border-bottom: 1px solid var(--line);
-        background:
-          radial-gradient(
-            120% 140% at 88% -10%,
-            var(--accent-wash) 0%,
-            transparent 52%
-          ),
-          var(--surface);
+        background: radial-gradient(120% 140% at 88% -10%, var(--accent-wash) 0%, transparent 52%), var(--surface);
       }
       .masthead-inner {
         padding: 56px 0 44px;
@@ -177,7 +163,7 @@
         box-shadow: 0 0 0 0 var(--green);
       }
       .livedot::after {
-        content: "";
+        content: '';
         position: absolute;
         inset: -5px;
         border-radius: 50%;
@@ -331,7 +317,7 @@
         position: relative;
       }
       .runtime li::before {
-        content: "";
+        content: '';
         position: absolute;
         left: 0;
         top: 0.62em;
@@ -344,11 +330,7 @@
       .boundary {
         position: relative;
         width: 1px;
-        background: repeating-linear-gradient(
-          to bottom,
-          var(--line-strong) 0 6px,
-          transparent 6px 12px
-        );
+        background: repeating-linear-gradient(to bottom, var(--line-strong) 0 6px, transparent 6px 12px);
       }
       .boundary span {
         position: absolute;
@@ -665,11 +647,7 @@
         .boundary {
           width: auto;
           height: 1px;
-          background: repeating-linear-gradient(
-            to right,
-            var(--line-strong) 0 6px,
-            transparent 6px 12px
-          );
+          background: repeating-linear-gradient(to right, var(--line-strong) 0 6px, transparent 6px 12px);
         }
         .boundary span {
           writing-mode: horizontal-tb;
@@ -701,33 +679,22 @@
       <div class="wrap masthead-inner">
         <div class="kicker-row">
           <span class="livedot" aria-hidden="true"></span>
-          <span class="eyebrow">Technical Specification · v1.6.0 · live</span>
+          <span class="eyebrow">Technical Specification · v1.8.0 · live</span>
         </div>
         <h1>
           AI-in-TA Telegram Bot
           <span class="thin"
-            >A private, self-running daily briefing on AI in recruitment —
-            researched by Claude, delivered every morning, operated by two
-            runtimes split along a latency boundary.</span
+            >A private, self-running daily briefing on AI in recruitment — researched by Claude, delivered every
+            morning, operated by two runtimes split along a latency boundary.</span
           >
         </h1>
         <div class="chips">
-          <span class="chip"
-            ><span class="k">model</span> <b>claude-opus-4-8</b></span
-          >
-          <span class="chip"
-            ><span class="k">schedule</span> <b>09:05 UTC</b> daily</span
-          >
-          <span class="chip"
-            ><span class="k">window</span> last <b>48h</b></span
-          >
-          <span class="chip"
-            ><span class="k">access</span> <b>allowlist-gated</b></span
-          >
+          <span class="chip"><span class="k">model</span> <b>claude-opus-4-8</b></span>
+          <span class="chip"><span class="k">schedule</span> <b>09:05 UTC</b> daily</span>
+          <span class="chip"><span class="k">window</span> last <b>48h</b></span>
+          <span class="chip"><span class="k">access</span> <b>allowlist-gated</b></span>
           <span class="chip"><span class="k">cap</span> <b>30 users</b></span>
-          <span class="chip"
-            ><span class="k">runtimes</span> Worker <b>+</b> Actions</span
-          >
+          <span class="chip"><span class="k">runtimes</span> Worker <b>+</b> Actions</span>
         </div>
       </div>
     </header>
@@ -739,11 +706,9 @@
           <span class="eyebrow">01 · System context</span>
           <h2>Two runtimes, one latency boundary</h2>
           <p>
-            Generation needs <code>claude -p</code> running for tens of seconds
-            with web search; live commands must answer Telegram in milliseconds.
-            Splitting them means a slow generation run can never make
-            <code>/briefing</code> feel slow, and a webhook hiccup can never
-            affect the scheduled send.
+            Generation needs <code>claude -p</code> running for tens of seconds with web search; live commands must
+            answer Telegram in milliseconds. Splitting them means a slow generation run can never make
+            <code>/briefing</code> feel slow, and a webhook hiccup can never affect the scheduled send.
           </p>
         </div>
 
@@ -759,17 +724,10 @@
               <h3>Cloudflare Worker</h3>
               <p class="role">Webhook + cron · always on · milliseconds</p>
               <ul>
-                <li>
-                  Validates <code>X-Telegram-Bot-Api-Secret-Token</code> on
-                  every request
-                </li>
+                <li>Validates <code>X-Telegram-Bot-Api-Secret-Token</code> on every request</li>
                 <li>Serves <code>/briefing</code> from KV — no generation</li>
-                <li>
-                  Mutates access &amp; subscriptions in the Durable Object
-                </li>
-                <li>
-                  Cron Trigger <code>5 9 * * *</code> → dispatches the daily run
-                </li>
+                <li>Mutates access &amp; subscriptions in the Durable Object</li>
+                <li>Cron Trigger <code>5 9 * * *</code> → dispatches the daily run</li>
               </ul>
             </div>
             <div class="boundary" aria-hidden="true">
@@ -779,19 +737,10 @@
               <h3>GitHub Actions</h3>
               <p class="role">Generation + fan-out · on demand · minutes</p>
               <ul>
-                <li>
-                  <code>claude -p</code> + WebSearch composes the briefing
-                </li>
-                <li>
-                  <code>send-briefing.mjs</code> delivers to every subscriber
-                </li>
-                <li>
-                  <code>broadcast.mjs</code> fans out on the runner, paced +
-                  retried
-                </li>
-                <li>
-                  <code>sync-kv.mjs</code> bridges the result back into KV
-                </li>
+                <li><code>claude -p</code> + WebSearch composes the briefing</li>
+                <li><code>send-briefing.mjs</code> delivers to every subscriber</li>
+                <li><code>broadcast.mjs</code> fans out on the runner, paced + retried</li>
+                <li><code>sync-kv.mjs</code> bridges the result back into KV</li>
               </ul>
             </div>
           </div>
@@ -800,23 +749,17 @@
             <div class="store truth">
               <div class="tag">source of truth</div>
               <div class="name">BotState · DO</div>
-              <div class="desc">
-                Strongly-consistent access list, subscribers, usage stats.
-              </div>
+              <div class="desc">Strongly-consistent access list, subscribers, usage stats.</div>
             </div>
             <div class="store">
               <div class="tag">read mirror</div>
               <div class="name">BOT_STATE · KV</div>
-              <div class="desc">
-                Cheap Worker reads — cached briefing, live subscriber list.
-              </div>
+              <div class="desc">Cheap Worker reads — cached briefing, live subscriber list.</div>
             </div>
             <div class="store">
               <div class="tag">generation record</div>
               <div class="name">state/ · git</div>
-              <div class="desc">
-                What a given day produced; holds the idempotency marker.
-              </div>
+              <div class="desc">What a given day produced; holds the idempotency marker.</div>
             </div>
           </div>
 
@@ -834,10 +777,8 @@
           <span class="eyebrow">02 · Command contract</span>
           <h2>What each command does, and who may call it</h2>
           <p>
-            Access is enforced by <code>chat_id</code> checks in the Worker —
-            never by message content. Owner-gated commands pass
-            <code>isOwnerOrAdmin()</code>; managing admins stays keyed to the
-            owner alone.
+            Access is enforced by <code>chat_id</code> checks in the Worker — never by message content. Owner-gated
+            commands pass <code>isOwnerOrAdmin()</code>; managing admins stays keyed to the owner alone.
           </p>
         </div>
         <div class="table-scroll">
@@ -853,25 +794,22 @@
               <tr>
                 <td><span class="cmd">/start</span></td>
                 <td><span class="pill any">anyone</span></td>
-                <td>
-                  Request access — adds sender to <code>pending</code>; enforces
-                  the 30-user cap
-                </td>
+                <td>Request access — adds sender to <code>pending</code>; enforces the 30-user cap</td>
               </tr>
               <tr>
                 <td><span class="cmd">/briefing</span></td>
                 <td><span class="pill allow">allowlisted</span></td>
-                <td>
-                  Serves the cached copy from KV, sub-second, no generation
-                </td>
+                <td>Serves the cached copy from KV, sub-second, no generation</td>
               </tr>
               <tr>
                 <td><span class="cmd">/newbriefing</span></td>
                 <td><span class="pill allow">allowlisted</span></td>
-                <td>
-                  Dispatches a fresh generation run; honors the cooldown &amp;
-                  daily cap
-                </td>
+                <td>Dispatches a fresh generation run; honors the cooldown &amp; daily cap</td>
+              </tr>
+              <tr>
+                <td><span class="cmd">/ask</span></td>
+                <td><span class="pill allow">allowlisted</span></td>
+                <td>Answers a question from past briefings, cited and dated; read-only over the wiki, no web access</td>
               </tr>
               <tr>
                 <td><span class="cmd">/subscribe · /unsubscribe</span></td>
@@ -896,34 +834,28 @@
               <tr>
                 <td><span class="cmd">/broadcast &lt;msg&gt;</span></td>
                 <td><span class="pill admin">owner / admin</span></td>
-                <td>
-                  Validated by the Worker, fanned out on the Actions runner
-                </td>
+                <td>Validated by the Worker, fanned out on the Actions runner</td>
               </tr>
               <tr>
                 <td><span class="cmd">/addadmin · /removeadmin</span></td>
                 <td><span class="pill owner">owner only</span></td>
-                <td>
-                  Delegate / revoke admin — target must already be allowlisted
-                </td>
+                <td>Delegate / revoke admin — target must already be allowlisted</td>
               </tr>
             </tbody>
           </table>
         </div>
         <ul class="rules">
           <li>
-            <b>An admin can't escalate.</b> Admin management is keyed to
-            <code>ownerChatId</code> alone — a delegated admin can't grant
-            themselves more privilege or demote a peer.
+            <b>An admin can't escalate.</b> Admin management is keyed to <code>ownerChatId</code> alone — a delegated
+            admin can't grant themselves more privilege or demote a peer.
           </li>
           <li>
-            <b>The owner is protected.</b> Can't be removed, can't unsubscribe,
-            can't erase their own data — each checks
+            <b>The owner is protected.</b> Can't be removed, can't unsubscribe, can't erase their own data — each checks
             <code>ownerChatId</code> directly.
           </li>
           <li>
-            <b>Removal is complete.</b> <code>/removeuser</code> (or a user's
-            own <code>/forgetme</code>) also revokes any admin status they held.
+            <b>Removal is complete.</b> <code>/removeuser</code> (or a user's own <code>/forgetme</code>) also revokes
+            any admin status they held.
           </li>
         </ul>
       </section>
@@ -934,10 +866,9 @@
           <span class="eyebrow">03 · Constraints</span>
           <h2>Hard limits, enforced in code</h2>
           <p>
-            Three limits guard generation, and the strictest one wins: a shared
-            cooldown (shorter for the owner), a per-user daily cap that bounds
-            hogging, and a global daily cap that bounds cost. A refused request
-            still gets the cached edition — never a bare error.
+            Three limits guard generation, and the strictest one wins: a shared cooldown (shorter for the owner), a
+            per-user daily cap that bounds hogging, and a global daily cap that bounds cost. A refused request still
+            gets the cached edition — never a bare error.
           </p>
         </div>
         <div class="grid cols-3">
@@ -945,65 +876,62 @@
             <div class="val">30</div>
             <div class="lbl">Maximum users</div>
             <div class="sub">
-              <code>MAX_USERS</code> — checked atomically in the DO so two
-              concurrent approvals can't both slip past.
+              <code>MAX_USERS</code> — checked atomically in the DO so two concurrent approvals can't both slip past.
             </div>
           </div>
           <div class="card tile limit">
             <div class="val">50</div>
             <div class="lbl">Pending queue cap</div>
             <div class="sub">
-              <code>MAX_PENDING</code> — bounds the access-request queue, capped
-              independently of the user allowlist.
+              <code>MAX_PENDING</code> — bounds the access-request queue, capped independently of the user allowlist.
             </div>
           </div>
           <div class="card tile limit">
             <div class="val">60<span class="u">min</span></div>
             <div class="lbl">Generation cooldown</div>
             <div class="sub">
-              Global and role-dependent — <b>5 min</b> for the owner. During it,
-              users still get the cached briefing rather than an error.
+              Global and role-dependent — <b>5 min</b> for the owner. During it, users still get the cached briefing
+              rather than an error.
             </div>
           </div>
           <div class="card tile limit">
             <div class="val">3<span class="u">/day</span></div>
             <div class="lbl">Per-user dispatch cap</div>
             <div class="sub">
-              <code>DAILY_DISPATCH_CAP</code> — bounds one user hogging
-              <code>/newbriefing</code>; scales with the allowlist, so it
-              doesn't cap cost alone.
+              <code>DAILY_DISPATCH_CAP</code> — bounds one user hogging <code>/newbriefing</code>; scales with the
+              allowlist, so it doesn't cap cost alone.
             </div>
           </div>
           <div class="card tile limit">
             <div class="val">5<span class="u">/day</span></div>
             <div class="lbl">Global dispatch cap</div>
             <div class="sub">
-              <code>GLOBAL_DAILY_DISPATCH_CAP</code> — the real cost ceiling,
-              since every dispatch is a paid Actions + Claude run.
+              <code>GLOBAL_DAILY_DISPATCH_CAP</code> — the real cost ceiling, since every dispatch is a paid Actions +
+              Claude run.
+            </div>
+          </div>
+          <div class="card tile limit">
+            <div class="val">10<span class="u">/day</span></div>
+            <div class="lbl">Per-user <code>/ask</code> cap</div>
+            <div class="sub">
+              <code>ASK_DAILY_CAP</code>, on its own counter with a 30 s cooldown and a 40/day shared ceiling — a grep
+              over the wiki is not a paid search loop, so questions never spend the briefing allowance.
             </div>
           </div>
           <div class="card tile limit">
             <div class="val">$4</div>
             <div class="lbl">Per-run LLM budget</div>
-            <div class="sub">
-              <code>--max-budget-usd</code> caps spend on any single generation
-              run.
-            </div>
+            <div class="sub"><code>--max-budget-usd</code> caps spend on any single generation run.</div>
           </div>
           <div class="card tile">
             <div class="val">48<span class="u">h</span></div>
             <div class="lbl">News window</div>
-            <div class="sub">
-              Every edition looks back exactly two days — freshness over recall.
-            </div>
+            <div class="sub">Every edition looks back exactly two days — freshness over recall.</div>
           </div>
           <div class="card tile">
             <div class="val">&lt;1<span class="u">s</span></div>
             <div class="lbl">Live command latency</div>
-            <div class="sub">
-              KV- and DO-backed replies answer in milliseconds, independent of
-              generation.
-            </div>
+            <div class="sub">KV- and DO-backed replies answer in milliseconds, independent of generation.</div>
           </div>
         </div>
       </section>
@@ -1014,11 +942,9 @@
           <span class="eyebrow">04 · Reliability</span>
           <h2>Layered triggers, plus a heartbeat outside GitHub</h2>
           <p>
-            Three triggers race each morning; an idempotency marker
-            (<code>last_briefing_at</code>) makes it safe for more than one to
-            fire — only the first to actually run does the work. But two of the
-            three ride GitHub's scheduler, so a Cloudflare-side heartbeat is the
-            only detection that survives a GitHub-wide bad morning.
+            Three triggers race each morning; an idempotency marker (<code>last_briefing_at</code>) makes it safe for
+            more than one to fire — only the first to actually run does the work. But two of the three ride GitHub's
+            scheduler, so a Cloudflare-side heartbeat is the only detection that survives a GitHub-wide bad morning.
           </p>
         </div>
         <div class="timeline">
@@ -1028,11 +954,9 @@
               <span class="rank p">primary</span>
               <h4>Cloudflare Worker Cron Trigger</h4>
               <p>
-                Fires <code>scheduled()</code> →
-                <code>repository_dispatch</code> to
-                <code>daily-briefing.yml</code> (PR&nbsp;#43); the minute offset
-                dodges GitHub's top-of-hour congestion. Best-effort too — it and
-                the backup missed together on 2026-07-16 (issue&nbsp;#61).
+                Fires <code>scheduled()</code> → <code>repository_dispatch</code> to
+                <code>daily-briefing.yml</code> (PR&nbsp;#43); the minute offset dodges GitHub's top-of-hour congestion.
+                Best-effort too — it and the backup missed together on 2026-07-16 (issue&nbsp;#61).
               </p>
             </div>
           </div>
@@ -1042,9 +966,8 @@
               <span class="rank b">backup</span>
               <h4>GitHub Actions schedule</h4>
               <p>
-                Fires the same workflow independently. Best-effort by GitHub's
-                own docs — observed 1–4h late or skipped entirely
-                (issue&nbsp;#17), so it's a backstop, not the plan.
+                Fires the same workflow independently. Best-effort by GitHub's own docs — observed 1–4h late or skipped
+                entirely (issue&nbsp;#17), so it's a backstop, not the plan.
               </p>
             </div>
           </div>
@@ -1055,8 +978,8 @@
               <h4>Stale-check fallback</h4>
               <p>
                 If <code>last_briefing_at</code> still isn't today,
-                <code>daily-briefing-watchdog.yml</code> re-dispatches the run
-                and alerts the owner — but it too runs on GitHub's scheduler.
+                <code>daily-briefing-watchdog.yml</code> re-dispatches the run and alerts the owner — but it too runs on
+                GitHub's scheduler.
               </p>
             </div>
           </div>
@@ -1066,10 +989,9 @@
               <span class="rank p">heartbeat</span>
               <h4>Cloudflare-side heartbeat</h4>
               <p>
-                <code>briefingHeartbeat</code> alerts the owner if KV's
-                <code>last_delivered_date</code> isn't today. Detection only, no
-                dispatch — but the only layer outside GitHub's scheduler, so it
-                catches an account-wide Actions failure the others would miss.
+                <code>briefingHeartbeat</code> alerts the owner if KV's <code>last_delivered_date</code> isn't today.
+                Detection only, no dispatch — but the only layer outside GitHub's scheduler, so it catches an
+                account-wide Actions failure the others would miss.
               </p>
             </div>
           </div>
@@ -1082,56 +1004,40 @@
           <span class="eyebrow">05 · Security &amp; privacy</span>
           <h2>Least privilege, per credential</h2>
           <p>
-            Every secret carries the narrowest scope that still works; the
-            allowlist holds real third-party personal data, so data-subject
-            rights are first-class, not an afterthought.
+            Every secret carries the narrowest scope that still works; the allowlist holds real third-party personal
+            data, so data-subject rights are first-class, not an afterthought.
           </p>
         </div>
         <div class="kv">
           <div class="kv-row">
-            <span class="cred">Webhook secret</span
-            ><span class="held">Worker secret</span
-            ><span class="scope"
-              >Validates every inbound webhook is really Telegram</span
-            >
+            <span class="cred">Webhook secret</span><span class="held">Worker secret</span
+            ><span class="scope">Validates every inbound webhook is really Telegram</span>
           </div>
           <div class="kv-row">
-            <span class="cred">CI dispatch token</span
-            ><span class="held">Worker secret</span
-            ><span class="scope"
-              >Fine-grained PAT — single repo,
-              <code>Contents: write</code></span
-            >
+            <span class="cred">CI dispatch token</span><span class="held">Worker secret</span
+            ><span class="scope">Fine-grained PAT — single repo, <code>Contents: write</code></span>
           </div>
           <div class="kv-row">
-            <span class="cred">LLM API key</span
-            ><span class="held">repo secret</span
+            <span class="cred">LLM API key</span><span class="held">repo secret</span
             ><span class="scope">Spend-capped workspace key</span>
           </div>
           <div class="kv-row">
-            <span class="cred">KV storage token</span
-            ><span class="held">repo secret</span
-            ><span class="scope"
-              ><code>Workers KV Storage: Edit</code> — nothing more</span
-            >
+            <span class="cred">KV storage token</span><span class="held">repo secret</span
+            ><span class="scope"><code>Workers KV Storage: Edit</code> — nothing more</span>
           </div>
           <div class="kv-row">
-            <span class="cred">Bot API token</span
-            ><span class="held">repo + Worker</span
+            <span class="cred">Bot API token</span><span class="held">repo + Worker</span
             ><span class="scope">Full bot control — rotated on any leak</span>
           </div>
           <div class="kv-row">
-            <span class="cred">Owner identifier</span
-            ><span class="held">repo variable</span
+            <span class="cred">Owner identifier</span><span class="held">repo variable</span
             ><span class="scope">Not sensitive — the owner's own chat id</span>
           </div>
         </div>
         <div class="note">
-          <b>Environments are fully isolated.</b> Production and staging run
-          distinct Workers, distinct bots, distinct KV namespaces, and distinct
-          webhook secrets — a staging change is exercised end-to-end with zero
-          chance of touching prod state or prod subscribers.
-          <code>wrangler deploy</code> targets prod;
+          <b>Environments are fully isolated.</b> Production and staging run distinct Workers, distinct bots, distinct
+          KV namespaces, and distinct webhook secrets — a staging change is exercised end-to-end with zero chance of
+          touching prod state or prod subscribers. <code>wrangler deploy</code> targets prod;
           <code>--env staging</code> is required to touch staging.
         </div>
       </section>
@@ -1139,9 +1045,9 @@
       <footer>
         <span class="mono">AI-in-TA Telegram Bot</span>
         <span>·</span>
-        <span>Specification reflects the deployed system as of 2026-07-16</span>
+        <span>Specification reflects the deployed system as of 2026-08-20</span>
         <span>·</span>
-        <span class="mono">v1.6.0</span>
+        <span class="mono">v1.8.0</span>
       </footer>
     </main>
   </body>

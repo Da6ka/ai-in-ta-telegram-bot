@@ -42,6 +42,7 @@ Subscribers tap `/subscribe` and get the briefing every morning at **09:05 UTC /
 
 - 📰 **Daily briefing** — every morning, Claude searches the web for what's new in AI-for-recruitment, writes a concise briefing, and sends it to every subscriber.
 - 🤖 **On-demand** — subscribers can pull a fresh or cached briefing any time with a command, no waiting for the morning run.
+- 💬 **Ask the archive** — `/ask` answers questions across every briefing ever sent ("what have we seen about AI interview cheating?"), citing dates and sources. It reads only what the bot has published, so it will tell you the archive is thin on something rather than invent an answer.
 - 📣 **Owner tools** — broadcast a message to everyone, manage the subscriber list, check who's on it.
 - 🔒 **Runs itself** — a Cloudflare Worker kicks off the daily run (Cron Trigger) and handles live commands; GitHub Actions does the heavy lifting (research, generation, delivery) and doubles as a scheduling backup. Nothing depends on a personal machine being online.
 
@@ -91,6 +92,8 @@ To stop: **`/unsubscribe`** ends the daily send but keeps your access; **`/forge
 | `/unsubscribe` | Stop the daily briefing                     |
 | `/status`      | Check your access status                    |
 | `/help`        | List available commands                     |
+
+> **`/ask` has its own, looser limits** — 10 questions per person per day, 40 across everyone, and 30 seconds between them. Separate counters from the briefing ones on purpose: answering a question is a search over files the bot already wrote, not a paid web-research run, so questions never eat into your `/newbriefing` allowance.
 
 > **`/newbriefing` is rate-limited.** A fresh briefing is delivered only to you, but each run is a paid generation that overwrites the one shared cached edition `/briefing` serves everyone — so three limits apply: a 60-minute cooldown between runs (5 minutes for the owner), global because the cache and the cost are shared (back-to-back regenerations would just re-spend to overwrite the same copy); a cap of 3 per person per day, so no single user hogs it; and 5 across all users per day, the actual cost ceiling. Hit any of them and you get today's cached copy instead of an error — and the morning briefing is never affected by these limits.
 
