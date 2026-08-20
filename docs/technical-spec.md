@@ -1,6 +1,6 @@
 # AI-in-TA Telegram Bot — Technical Specification
 
-Version: 1.8.0 · Status: describes the deployed system as of 2026-08-20
+Version: 1.8.1 · Status: describes the deployed system as of 2026-08-20
 
 > This is the interface/requirements-level companion to [`design.md`](./design.md).
 > `design.md` explains _why_ the system is shaped the way it is (narrative,

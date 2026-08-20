@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.8.1] - 2026-08-20
+
 ### Plain text now points at `/ask`
 
 A user sent the bot a question as ordinary text and was told the bot only
