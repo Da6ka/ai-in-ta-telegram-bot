@@ -20,9 +20,12 @@ so an ask never queues behind a briefing generation.
 
 Privacy: the bot never stores a question's text. The Worker logs a one-way hash
 and length only; the copy in the dispatch payload ages out on GitHub's Actions
-retention. The untrusted question is passed to CI as an environment variable
-(never shell-interpolated) and the answer job's tools are read-only with no
-`WebSearch`. Full design and threat model in `docs/ask-design.md`.
+retention. The untrusted question reaches CI via the runner's event file
+(`GITHUB_EVENT_PATH`) — never shell-interpolated, and never step `env:` either,
+since Actions prints step env blocks into the run log (the first live run
+leaked the plaintext that way; caught in staging testing, fixed before
+release). The answer job's tools are read-only with no `WebSearch`. Full
+design and threat model in `docs/ask-design.md`.
 
 Ships the command handler and `ask_rate` limiter (`worker/src/index.js`),
 `ask.yml`, `ask-prompt.md`, `scripts/build-ask-prompt.mjs`,

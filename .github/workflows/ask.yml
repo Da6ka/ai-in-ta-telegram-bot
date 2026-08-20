@@ -73,14 +73,15 @@ jobs:
         if: steps.balance_check.outputs.low_balance == 'true'
         run: exit 1
 
-      # Compose the prompt from the question WITHOUT shell interpolation: the
-      # question is passed as an env var and read by the Node script, never
-      # spliced into this run block (docs/ask-design.md, Untrusted input). No
-      # step echoes it.
+      # Compose the prompt from the question WITHOUT the question touching a
+      # shell or a step log. Not interpolated into `run:` (script injection),
+      # and NOT passed as step `env:` either -- Actions prints every step's env
+      # block into the human-readable log, which put the plaintext into run
+      # 32394955358's log before this was caught. The script reads it from
+      # GITHUB_EVENT_PATH (the payload on the runner's disk), which is never
+      # logged (docs/ask-design.md, Untrusted input + Privacy).
       - name: Build prompt
         if: steps.dispatch_guard.outputs.duplicate != 'true'
-        env:
-          QUESTION: ${{ github.event.client_payload.question }}
         run: |
           mkdir -p state
           node scripts/build-ask-prompt.mjs
