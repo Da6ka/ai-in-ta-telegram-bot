@@ -72,6 +72,8 @@ Resumes and credentials are losing signal. AI screening is pushing organizations
 
 - **11 Aug 2026** — Staffing Industry Analysts reports that redeployment — reassigning existing talent rather than sourcing anew — is becoming staffing firms' core growth strategy as AI match algorithms infer how a worker's past roles map to new competencies, with cost-to-redeploy running roughly a quarter to 40% of fresh sourcing costs. For TA leaders, the strategic move is to build redeployment into the pipeline before assignments end, rather than treating it as exit-stage afterthought. — [The redeployment mindset: Betting on talent transitions](https://www.staffingindustry.com/news/global-daily-news/the-redeployment-mindset-betting-on-talent-transitions)
 
+- **13 Jul 2026** — PsyMetrics launched "AI Test Architect," a chat tool that turns an uploaded job description into a role-specific pre-employment assessment, pitched as anchoring generative test-building in established psychometric science and compliance. As AI-generated assessments proliferate, this is the direction of travel — but validate that any auto-built test is job-related and defensible before it gates candidates, rather than trusting the "compliance-supportive" label. — [GlobeNewswire](https://www.globenewswire.com/news-release/2026/07/13/3326119/0/en/The-Antidote-to-Hiring-Bias-PsyMetrics-Launches-AI-Test-Architect-to-Anchor-Generative-Assessment-Building-in-30-Years-of-Psychometric-Science.html)
+
 ## Open questions
 
 - Which "skills" are actually job-predictive, and which are just current-fad proxies that will fade as AI fluency becomes baseline?
