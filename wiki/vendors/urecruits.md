@@ -6,7 +6,7 @@ uRecruits is building a recruiter-first platform with an explicit design constra
 
 - **25 Jun 2026** — uRecruits launched 2.0, a recruiter-first platform with seven connected capabilities and "uR Agent" AI that drafts jobs, sends pre-screens, coordinates interviews, and ranks candidates — but explicitly makes no automated advancement, rejection, or hire decisions, keeping every call human-approved. A notable design bet on human-in-the-loop as a compliance and trust differentiator. — [PR Newswire](https://www.prnewswire.com/news-releases/urecruits-launches-2-0-with-7-connected-hiring-capabilities-and-recruiter-controlled-ai-agents-302810515.html)
 
-- **14 Jul 2026** — uRecruits launched version 2.0, explicitly positioning "a human in every decision" as its answer to tightening AI hiring laws — AI scores and organizes candidates across screening and matching, but a recruiter makes each call. Whether or not you use the tool, it's a signal that "human-in-the-loop by design" is becoming a compliance selling point; press your own vendors on where the human review actually sits. — [PR Newswire](https://www.prnewswire.com/news-releases/as-ai-hiring-laws-tighten-urecruits-launches-2-0-with-a-human-in-every-decision-302824964.html)
+_Lint 2026-08-20: the 14 July PR Newswire release covering this same 2.0 launch was removed as a restate (rule 4 — one event, recorded at its first-seen date). Its distinct framing is folded into the entry above: uRecruits pitches "a human in every decision" explicitly as an answer to tightening AI hiring laws, which makes human-in-the-loop a compliance selling point worth pressing your own vendors on._
 
 ## Open questions
 
