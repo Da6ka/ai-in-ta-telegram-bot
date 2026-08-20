@@ -82,7 +82,8 @@ don't cover. If a query surfaces a durable insight the wiki lacks, file it as
 a page edit — that's how the corpus compounds.
 
 **Lint** (monthly, manual). Look for: contradictions between pages, claims
-that later stories overtook, orphan pages nothing links to, timeline entries
+that later stories overtook, orphan pages nothing links to, `[[links]]` that
+point at no page, timeline entries
 with no link or date, vendor pages that never got a second mention (fold them
 back into a theme), and themes grown big enough to split.
 
@@ -97,6 +98,10 @@ back into a theme), and themes grown big enough to split.
 ## Conventions
 
 - `[[wikilinks]]` between pages, matching the operator's personal memory dir.
+  **Only link a page that exists.** A link to a page you think *should* exist
+  is not a placeholder — nothing ever creates it, and the query path follows
+  these links. If the page isn't there, either create it (when it clears the
+  bar above) or link the nearest page that is.
 - Spaces around em-dashes: ` — `, never `word—word`.
 - No emoji.
 - Prose over bullet soup on standing summaries; bullets are for timelines.

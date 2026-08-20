@@ -15,4 +15,4 @@ Workday owns Paradox, an AI-driven recruiting platform that sits at the center o
 - How will Workday's compliance posture and Paradox investment roadmap change under private equity ownership?
 - Will settlements in the Mobley suit reshape how Workday and other vendors approach bias auditing and human oversight?
 
-Related: [[paradox]], [[ai-ethics-and-compliance]]
+Related: [[ai-ethics-and-compliance]], [[agentic-recruiting]], [[vendor-consolidation]]
