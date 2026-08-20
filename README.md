@@ -157,7 +157,7 @@ Every edition that reaches a subscriber is appended to an append-only corpus und
 
 **Asking the archive (`/ask`):**
 
-`/ask <question>` answers from that corpus. The Worker validates and rate-limits the question, then `repository_dispatch`es it to `ask.yml`, where a read-only Haiku `claude -p` reads `wiki/` and answers with dated, linked citations — no web access, so an answer can only contain what the bot has published. The question is never stored: the Worker logs a hash and length only, and the copy in the dispatch payload ages out on GitHub's Actions retention. See [`docs/ask-design.md`](docs/ask-design.md) for the full design and the privacy model.
+`/ask <question>` answers from that corpus. The Worker validates and rate-limits the question, then `repository_dispatch`es it to `ask.yml`, where a read-only Sonnet `claude -p` reads `wiki/` and answers with dated, linked citations — no web access, so an answer can only contain what the bot has published. The question is never stored: the Worker logs a hash and length only, and the copy in the dispatch payload ages out on GitHub's Actions retention. See [`docs/ask-design.md`](docs/ask-design.md) for the full design and the privacy model.
 
 Trigger a run manually any time from the **Actions** tab ("Run workflow"), or:
 

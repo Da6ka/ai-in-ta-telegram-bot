@@ -97,13 +97,19 @@ jobs:
           # is never mutated by a query), no Bash, and no WebSearch (the answer
           # must contain only what the bot published). --max-budget-usd is a
           # hard cost ceiling and timeout-minutes a hard wall-clock ceiling.
-          # --model pins Haiku: this is recall over already-written text, not
-          # the WebSearch agent loop the briefing runs on Opus. --setting-sources
-          # user skips this repo's .claude/settings.json Stop hook (npm test),
-          # which otherwise silently eats the output (the 2026-07-14 outage).
+          # --model pins Sonnet. Haiku shipped first on the ingest's precedent
+          # (recall over already-written text, not the WebSearch agent loop the
+          # briefing runs on Opus), but the two live answers graded thin, so the
+          # open question in docs/ask-design.md is settled the other way: the
+          # synthesis a good answer needs is not the same job as bookkeeping.
+          # Still far cheaper than the WebSearch path -- the whole corpus is
+          # ~26k tokens of pages, so a run stays well inside the $1 ceiling.
+          # --setting-sources user skips this repo's .claude/settings.json Stop
+          # hook (npm test), which otherwise silently eats the output (the
+          # 2026-07-14 outage).
           for attempt in 1 2; do
             if claude -p "$(cat state/ask-input.md)" \
-                --model claude-haiku-4-5-20251001 \
+                --model claude-sonnet-5 \
                 --allowedTools "Read Grep Glob" \
                 --max-budget-usd 1 \
                 --debug-file state/ask_debug.log \
