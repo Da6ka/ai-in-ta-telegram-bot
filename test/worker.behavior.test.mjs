@@ -1172,3 +1172,27 @@ test('ask and rate limiting', async (t) => {
     fetchOverride = null
   })
 })
+
+// =============== /ask discoverability ===============
+test('ask is discoverable from the start', async (t) => {
+  await t.test('K9 /start for an approved user introduces /ask with an example', async () => {
+    resetState({ allowFrom: [OWNER, '222'], subscribers: [] })
+    await send(upd('222', '/start'))
+    const text = sends()[0].body.text
+    assert.match(text, /\/ask /, 'names /ask with a concrete example, not just the bare command')
+    assert.ok(text.includes('/briefing'), 'still leads with the briefing')
+  })
+
+  await t.test('K10 /start for a pending user lists /ask among what approval unlocks', async () => {
+    resetState({ allowFrom: [OWNER], subscribers: [] })
+    await send(upd('777', '/start'))
+    const applicantMsg = sends().at(-1).body.text
+    assert.match(applicantMsg, /\/ask/, '/ask named alongside /briefing and /subscribe')
+  })
+
+  await t.test('K11 /help lists /ask', async () => {
+    resetState({ allowFrom: [OWNER, '222'], subscribers: [] })
+    await send(upd('222', '/help'))
+    assert.match(sends()[0].body.text, /\/ask —/, '/ask has its own help line')
+  })
+})

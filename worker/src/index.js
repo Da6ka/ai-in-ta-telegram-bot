@@ -789,6 +789,8 @@ const COMMAND_HANDLERS = {
       await reply(env, senderId,
         "Welcome to AI in TA News!\n\n" +
         "Tap /briefing to get today's AI recruitment digest, or /subscribe to get it every morning automatically.\n\n" +
+        "You can also ask about anything covered in past briefings — try:\n" +
+        "/ask what have we seen about AI interview cheating?\n\n" +
         "Send /help anytime to see everything the bot can do.")
       return
     }
@@ -830,7 +832,7 @@ const COMMAND_HANDLERS = {
       alreadyPending
         ? `Your access request is still waiting on the owner — no need to send /start again.\n\nYour Telegram ID: <code>${from.id}</code>`
         : `Welcome to AI in TA News!\n\nThis is a private bot. Your access request has been sent to the owner.\n\n` +
-          `Your Telegram ID: <code>${from.id}</code>\n\nYou'll be able to use /briefing and /subscribe once approved.`,
+          `Your Telegram ID: <code>${from.id}</code>\n\nYou'll be able to use /briefing, /ask and /subscribe once approved.`,
       { parse_mode: 'HTML' })
   },
 
