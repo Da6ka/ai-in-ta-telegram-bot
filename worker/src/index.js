@@ -857,7 +857,12 @@ const COMMAND_HANDLERS = {
       "/status — check your access status\n" +
       "/privacy — how your data is handled\n" +
       "/mydata — see what's stored about you\n" +
-      "/forgetme — erase your data")
+      "/forgetme — erase your data\n\n" +
+      // The list teaches every other command fine, because the command IS the
+      // whole action. /ask is the one that takes an argument, and a bare name
+      // doesn't convey that it wants a natural sentence rather than a keyword.
+      "Example:\n" +
+      "/ask what have we seen about AI interview cheating?")
   },
 
   async status(env, message, gated) {
@@ -994,10 +999,17 @@ const COMMAND_HANDLERS = {
     const question = (rawText ?? '').trim().replace(/^\/ask(@\S+)?\s*/i, '').trim()
     if (!question) {
       await reply(env, senderId,
+        // Both examples deliberately aim at the deepest theme pages
+        // (interview cheating spans skills-based-hiring + ai-ethics-and-
+        // compliance; the legal thread has 27 timeline entries). The corpus is
+        // lopsided -- four pages carry 27-36 entries and the rest have 1-4 --
+        // so a suggestion pointed at a thin page returns a correct but one-line
+        // answer, which reads as a broken feature on first contact. An earlier
+        // example here asked about Workday specifically: 3 entries.
         "Ask a question about anything the bot has covered, and I'll answer from past briefings.\n\n" +
         "For example:\n" +
         "/ask what have we seen about AI interview cheating?\n" +
-        "/ask how has Workday's legal exposure changed since June?")
+        "/ask how has the legal picture for AI hiring changed since June?")
       return
     }
     if (question.length < ASK_MIN_LEN) {

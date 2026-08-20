@@ -1228,3 +1228,23 @@ test('plain text nudges toward /ask', async (t) => {
     assert.ok(!text.includes('/ask'), 'no point advertising /ask to someone who cannot use it')
   })
 })
+
+// =============== /ask suggestions aim at the deep corpus ===============
+test('ask suggestions are corpus-aware', async (t) => {
+  await t.test('K16 bare /ask suggests questions, not the thin Workday page', async () => {
+    resetState({ allowFrom: [OWNER, '222'], subscribers: [] })
+    await send(upd('222', '/ask'))
+    const text = sends().at(-1).body.text
+    assert.ok(text.includes('/ask '), 'shows the prefix in a worked example')
+    assert.ok(!/Workday/i.test(text), 'no suggestion pointed at a 3-entry vendor page')
+    assert.equal(ghDispatches().length, 0, 'still no dispatch for a bare /ask')
+  })
+
+  await t.test('K17 /help carries a worked /ask example', async () => {
+    resetState({ allowFrom: [OWNER, '222'], subscribers: [] })
+    await send(upd('222', '/help'))
+    const text = sends()[0].body.text
+    assert.match(text, /\/ask —/, 'still listed among the commands')
+    assert.match(text, /Example:[\s\S]*\/ask \w+/, 'and shown in use, since /ask takes an argument')
+  })
+})
