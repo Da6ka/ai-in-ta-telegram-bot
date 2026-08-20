@@ -240,5 +240,7 @@ Stages
    2026-07-16**, not yet observed on a real run. Watch a week: are pages
    growing sensibly, or is it generating slop? The first ingests drain the
    backfill, so judge quality there before trusting it unattended.
-3. **`/wiki` in the bot.** Only at ~3 months of corpus, only if stage 2's
-   pages are actually worth querying.
+3. **`/ask` in the bot.** Built (see `docs/ask-design.md`). Shipped ahead of
+   the ~3-month guideline because stage 2's pages proved worth querying early;
+   a read-only Haiku `claude -p` over `wiki/`, no vector store. The command is
+   `/ask`, not `/wiki` — it names what the user does, not where the bytes live.

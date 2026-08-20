@@ -1,9 +1,12 @@
 # `/ask` — Design Doc
 
-Status: **proposed, not built (2026-08-20).** This is stage 3 of
-`docs/wiki-design.md` — the bot-facing query surface that doc deliberately
-deferred. Read that one first; this assumes its architecture and only argues
-the query layer.
+Status: **built (2026-08-20).** This is stage 3 of `docs/wiki-design.md` — the
+bot-facing query surface that doc deferred. Read that one first; this assumes
+its architecture and only argues the query layer. Shipped ahead of the
+~3-month corpus guideline because stage 2's pages proved worth querying early.
+One thing landed narrower than first drafted: the question hash is emitted to
+Workers Logs, not persisted in `usage_stats` (see Privacy) — nothing per-user
+is stored at all.
 
 ---
 
@@ -226,11 +229,19 @@ The subtlety is that the answer generation genuinely needs the plaintext — you
 cannot answer a question you have hashed. So this is not "never transmit the
 text." It is a rule about what *persists*, drawn at each hop:
 
-- **Worker state (DO, KV, `usage_stats`).** Records `sha256(question)`
-  truncated to 16 hex chars, plus the character length. Never the text. This is
-  what an operator correlates a failure report against, and it is all
-  `/forgetme` ever has to erase — which it already does, because it clears the
-  user's DO and KV records wholesale.
+- **Worker state (DO, KV, `usage_stats`).** Nothing. Persisting a per-user
+  hash was the first draft; on build it turned out to buy nothing but privacy
+  surface, so the hash goes to logs (next bullet) and no per-user question
+  record is kept at all. `usage_stats` still counts `/ask` like any command
+  (`command_counts.ask`), but that is a tally, not a question. `/forgetme` and
+  `/mydata` therefore stay trivially correct — there is nothing question-shaped
+  to erase or show.
+- **Workers Logs.** The Worker emits one line per ask — `sha256(question)`
+  truncated to 16 hex, plus the character length, never the text — to the
+  observability layer already enabled in `wrangler.toml`. It is what an operator
+  correlates a failure report against, queryable via `wrangler tail` or the
+  dashboard, and it ages out on the observability retention window. Not
+  per-user, not in KV/DO, so outside what `/forgetme` reasons about.
 - **Dispatch payload.** Carries the plaintext, because the job cannot answer
   without it. This is the one place the text exists, and it lives only in the
   workflow run's event context — subject to GitHub's Actions log retention
@@ -314,9 +325,9 @@ Implementation outline
    key `ask_rate`, mirroring the briefing pair at `worker/src/index.js:316`.
 2. `ask` handler in `COMMAND_HANDLERS` (`worker/src/index.js:713`): validate,
    reserve, acknowledge, `dispatchEvent(env, 'ask', {...})`. No entry in
-   `COMMAND_ROLES` — allowlisted, not admin. Any usage the handler records goes
-   in as `sha256(question)` truncated to 16 hex plus length — never the text
-   (see Privacy).
+   `COMMAND_ROLES` — allowlisted, not admin. The handler `console.log`s
+   `sha256(question)` truncated to 16 hex plus length — never the text, never
+   into KV/DO (see Privacy).
 3. `.github/workflows/ask.yml`, modeled on `on-demand-briefing.yml`: dispatch
    idempotency via `scripts/check-dispatch-once.mjs`, credit precheck, prompt
    built by a Node script reading `process.env.QUESTION` (never shell
@@ -379,12 +390,14 @@ Acceptance criteria
 - [ ] `ask.yml` grants no `WebSearch`, no `Bash`, and no write tools.
 - [ ] A failed generation replies to the requester and alerts the owner.
 - [ ] An ask dispatched while a briefing is generating is not blocked by it.
-- [ ] No question plaintext is written to Worker state — a `grep` of the DO/KV
-      records after an ask shows the hash and length, not the text.
+- [ ] No question text or hash is written to Worker state — after an ask,
+      `usage_stats` holds only a bumped `command_counts.ask`, no question record.
+- [ ] The hash+length line is present in Workers Logs (`wrangler tail`), and it
+      is a hash, not the text.
 - [ ] No `ask.yml` step echoes the question; the plaintext appears in the
       dispatch payload only, not in any step's log output.
-- [ ] `/privacy` describes the hash-and-length retention model, and `/forgetme`
-      erases the stored hash, before the command ships.
+- [ ] `/privacy` describes the hash-and-length retention model before the
+      command ships.
 
 ---
 

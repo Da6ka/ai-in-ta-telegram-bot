@@ -51,6 +51,18 @@ const DAILY_DISPATCH_CAP = 3
 // anomalous day; a user who trips it is served the cached edition, not an error.
 const GLOBAL_DAILY_DISPATCH_CAP = 5
 
+// --- /ask (wiki query) ------------------------------------------------------
+// An /ask run is a cheap Haiku grep over wiki/ (docs/ask-design.md), not a
+// paid WebSearch generation, so it gets its own looser counter (`ask_rate`).
+// Sharing briefing_rate would let a few questions burn a user's daily briefing
+// allowance -- the wrong resource spent on the wrong thing. No owner cooldown
+// exception: 30s is already short enough that shaving it buys nothing.
+const ASK_COOLDOWN_MS = 30 * 1000
+const ASK_DAILY_CAP = 10
+const ASK_GLOBAL_DAILY_CAP = 40
+const ASK_MIN_LEN = 3
+const ASK_MAX_LEN = 300
+
 // A generation run (install + claude -p web search + send + KV sync) finishes
 // well within this window. Used only for message wording: if the last dispatch
 // was within it, a run is plausibly still in flight ("being generated"); if it
@@ -96,6 +108,8 @@ const PRIVACY_TEXT =
   "- Your name — shown to the owner at the moment you request access, not kept after approval\n" +
   "- The date you last used the bot — an activity log, auto-deleted after 90 days\n\n" +
   "We never read or store your ordinary messages — only slash commands are processed.\n\n" +
+  "<b>Questions you send with /ask</b>\n" +
+  "To answer, your question is passed to a private automated run and used only to search past briefings. The bot never stores the text of your questions — only a one-way hash and the length, in short-lived logs, for troubleshooting. The automated run holds the question briefly and its logs are purged on the platform's retention schedule (about 90 days). Because that copy isn't part of what the bot stores about you, /forgetme can't reach it — but it clears itself on that schedule.\n\n" +
   "<b>Why</b>\n" +
   "To run the private allowlist and send the daily AI-recruitment briefing you asked for. Legal basis is your consent, which you can withdraw any time.\n\n" +
   "<b>Where</b>\n" +
@@ -363,6 +377,49 @@ export class BotState extends DurableObject {
     await this.ctx.storage.put('briefing_rate', rl)
   }
 
+  // Rate limiting for /ask, structurally the same check-and-record-in-one-
+  // method as reserveBriefingDispatch but on its own counter (`ask_rate`) with
+  // looser caps (ASK_*). Kept separate so questions and briefings never draw
+  // down each other's allowance. Returns retryInSec (not min) since the ask
+  // cooldown is seconds, and has no owner special-case.
+  async reserveAskDispatch(senderId) {
+    const now = Date.now()
+    const today = todayUTC()
+    const rl = (await this.ctx.storage.get('ask_rate')) ?? { lastDispatchAt: 0, date: today, counts: {}, total: 0 }
+    if (rl.date !== today) {
+      rl.date = today
+      rl.counts = {}
+      rl.total = 0
+    }
+    if ((rl.counts[senderId] ?? 0) >= ASK_DAILY_CAP) {
+      return { allowed: false, reason: 'daily_cap' }
+    }
+    if ((rl.total ?? 0) >= ASK_GLOBAL_DAILY_CAP) {
+      return { allowed: false, reason: 'global_daily_cap' }
+    }
+    const elapsed = now - rl.lastDispatchAt
+    if (elapsed < ASK_COOLDOWN_MS) {
+      return { allowed: false, reason: 'cooldown', retryInSec: Math.ceil((ASK_COOLDOWN_MS - elapsed) / 1000) }
+    }
+    const prevLastDispatchAt = rl.lastDispatchAt
+    rl.lastDispatchAt = now
+    rl.counts[senderId] = (rl.counts[senderId] ?? 0) + 1
+    rl.total = (rl.total ?? 0) + 1
+    await this.ctx.storage.put('ask_rate', rl)
+    return { allowed: true, prevLastDispatchAt }
+  }
+
+  // Roll back an ask reservation whose GitHub dispatch failed, so a transient
+  // error doesn't cost the user a slot or hold the 30s cooldown.
+  async rollbackAskDispatch(senderId, prevLastDispatchAt) {
+    const rl = await this.ctx.storage.get('ask_rate')
+    if (!rl) return
+    rl.lastDispatchAt = prevLastDispatchAt ?? 0
+    if (rl.counts[senderId]) rl.counts[senderId] -= 1
+    if (rl.total) rl.total -= 1
+    await this.ctx.storage.put('ask_rate', rl)
+  }
+
   // Telegram redelivers updates it thinks weren't acknowledged. Keep a
   // capped ring of recently-seen update_ids so a redelivery is a no-op
   // instead of re-running a non-idempotent command like /broadcast.
@@ -580,6 +637,21 @@ function dispatchBriefing(env, chatId) {
   return dispatchEvent(env, 'newbriefing', { chat_id: String(chatId) })
 }
 
+// The question rides in the payload because the job can't answer a hashed
+// question -- but it lives only in the run's event context and ages out on
+// GitHub's Actions retention (docs/ask-design.md, Privacy). Nothing persists it.
+function dispatchAsk(env, chatId, question) {
+  return dispatchEvent(env, 'ask', { chat_id: String(chatId), question })
+}
+
+// Hex SHA-256 of a string. Used to log a question by hash+length without ever
+// storing its text: enough for an operator to correlate a failure report
+// against a log line, not the plaintext (docs/ask-design.md, Privacy).
+async function sha256Hex(s) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s))
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('')
+}
+
 // Last-resort fallback for /briefing and /newbriefing: when a *fresh*
 // (today's) briefing can't be produced or served right now -- cooldown with
 // nothing generating, daily cap reached, or a failed dispatch -- send the
@@ -777,6 +849,7 @@ const COMMAND_HANDLERS = {
       "Just tap /briefing anytime to get the latest edition.\n\n" +
       "/briefing — get today's briefing (or resend it if you already have it)\n" +
       "/newbriefing — search for more news beyond what /briefing already sent\n" +
+      "/ask — ask a question and get an answer from past briefings\n" +
       "/subscribe — get the daily briefing every morning\n" +
       "/unsubscribe — stop the daily briefing\n" +
       "/status — check your access status\n" +
@@ -905,6 +978,55 @@ const COMMAND_HANDLERS = {
       return
     }
     await requestGeneration(env, stub, senderId, 'Generating a fresh briefing, this will take a minute...', senderId === access.ownerChatId)
+  },
+
+  // Answer a natural-language question from the published wiki corpus. The
+  // Worker only validates, rate-limits, and dispatches; ask.yml runs a
+  // read-only claude -p over wiki/ and delivers the answer to the requester.
+  async ask(env, message, gated, args, rawText) {
+    const { senderId, isAllowed, stub } = gated
+    if (!isAllowed) {
+      await reply(env, senderId, 'You need to be approved first — send /start to request access.')
+      return
+    }
+    const question = (rawText ?? '').trim().replace(/^\/ask(@\S+)?\s*/i, '').trim()
+    if (!question) {
+      await reply(env, senderId,
+        "Ask a question about anything the bot has covered, and I'll answer from past briefings.\n\n" +
+        "For example:\n" +
+        "/ask what have we seen about AI interview cheating?\n" +
+        "/ask how has Workday's legal exposure changed since June?")
+      return
+    }
+    if (question.length < ASK_MIN_LEN) {
+      await reply(env, senderId, `That question is too short — give me at least ${ASK_MIN_LEN} characters to work with.`)
+      return
+    }
+    if (question.length > ASK_MAX_LEN) {
+      await reply(env, senderId, `That question is a bit long (${question.length} characters) — please keep it under ${ASK_MAX_LEN}. A focused question gets a better answer.`)
+      return
+    }
+    // Hash + length only, never the text: an operator can correlate a failure
+    // report against this line without the question being stored anywhere
+    // readable (docs/ask-design.md, Privacy).
+    console.log(`ask: sender=${senderId} qhash=${(await sha256Hex(question)).slice(0, 16)} qlen=${question.length}`)
+    const r = await stub.reserveAskDispatch(senderId)
+    if (!r.allowed) {
+      if (r.reason === 'daily_cap') {
+        await reply(env, senderId, `You've reached today's limit of ${ASK_DAILY_CAP} questions — it resets at midnight UTC.`)
+      } else if (r.reason === 'global_daily_cap') {
+        await reply(env, senderId, 'The bot has hit its shared daily question limit — please try again tomorrow.')
+      } else {
+        await reply(env, senderId, `One question at a time, please — try again in ${r.retryInSec}s.`)
+      }
+      return
+    }
+    await reply(env, senderId, 'Looking through the archive — one moment.')
+    const dispatched = await dispatchAsk(env, senderId, question)
+    if (!dispatched) {
+      await stub.rollbackAskDispatch(senderId, r.prevLastDispatchAt)
+      await reply(env, senderId, "Couldn't start that lookup just now — please try /ask again shortly.")
+    }
   },
 
   async admin(env, message, gated) {

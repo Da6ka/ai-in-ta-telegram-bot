@@ -86,6 +86,7 @@ To stop: **`/unsubscribe`** ends the daily send but keeps your access; **`/forge
 | `/start`       | Request access / see what the bot is        |
 | `/briefing`    | Get today's briefing (cached copy, instant) |
 | `/newbriefing` | Generate a fresh briefing right now         |
+| `/ask`         | Ask a question, answered from past briefings |
 | `/subscribe`   | Get the daily briefing every morning        |
 | `/unsubscribe` | Stop the daily briefing                     |
 | `/status`      | Check your access status                    |
@@ -152,7 +153,11 @@ The redundancy is real but not absolute: all three ride GitHub's scheduler, and 
 
 **The self-filling wiki:**
 
-Every edition that reaches a subscriber is appended to an append-only corpus under `wiki/sources/` by `scripts/append-wiki-sources.mjs` (both the daily and on-demand flows). Daily only, a Haiku `claude -p` pass folds the pending records into per-vendor and per-theme pages under `wiki/vendors/` and `wiki/themes/`. The ingest is `continue-on-error`, gated behind the send checks, and capped at 25 records per run, so it can never delay or block a briefing. There's no query surface yet — a bot-facing `/wiki` is deliberately unbuilt.
+Every edition that reaches a subscriber is appended to an append-only corpus under `wiki/sources/` by `scripts/append-wiki-sources.mjs` (both the daily and on-demand flows). Daily only, a Haiku `claude -p` pass folds the pending records into per-vendor and per-theme pages under `wiki/vendors/` and `wiki/themes/`. The ingest is `continue-on-error`, gated behind the send checks, and capped at 25 records per run, so it can never delay or block a briefing.
+
+**Asking the archive (`/ask`):**
+
+`/ask <question>` answers from that corpus. The Worker validates and rate-limits the question, then `repository_dispatch`es it to `ask.yml`, where a read-only Haiku `claude -p` reads `wiki/` and answers with dated, linked citations — no web access, so an answer can only contain what the bot has published. The question is never stored: the Worker logs a hash and length only, and the copy in the dispatch payload ages out on GitHub's Actions retention. See [`docs/ask-design.md`](docs/ask-design.md) for the full design and the privacy model.
 
 Trigger a run manually any time from the **Actions** tab ("Run workflow"), or:
 

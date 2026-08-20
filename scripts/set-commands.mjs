@@ -19,6 +19,7 @@ if (!token) throw new Error('TELEGRAM_BOT_TOKEN is not set')
 const PUBLIC_COMMANDS = [
   { command: 'briefing', description: "Get today's AI recruitment briefing" },
   { command: 'newbriefing', description: 'Generate a fresh briefing now' },
+  { command: 'ask', description: 'Ask a question about past briefings' },
   { command: 'subscribe', description: 'Get the briefing every morning' },
   { command: 'unsubscribe', description: 'Stop the daily briefing' },
   { command: 'status', description: 'Check your access status' },

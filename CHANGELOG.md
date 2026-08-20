@@ -2,6 +2,34 @@
 
 ## [Unreleased]
 
+### `/ask` — question the archive
+
+The wiki has held a persistent corpus since v1.7.0, but nothing could query it
+from Telegram. `/ask <question>` closes that: the Worker validates and
+rate-limits the question, then `repository_dispatch`es it to a new `ask.yml`,
+where a read-only Haiku `claude -p` reads `wiki/` and answers with dated,
+linked citations. No web access, so an answer can only contain what the bot has
+published; a question the corpus doesn't cover gets an explicit "not in the
+archive" rather than an invented one.
+
+No vector store — the whole corpus is ~64k tokens and grep over `wiki/` inside
+the checkout beats embeddings at this size. `/ask` gets its own rate-limit
+counter (`ask_rate`: 10/user/day, 40/day global, 30s cooldown) so questions and
+briefings never draw down each other's allowance, and its own concurrency group
+so an ask never queues behind a briefing generation.
+
+Privacy: the bot never stores a question's text. The Worker logs a one-way hash
+and length only; the copy in the dispatch payload ages out on GitHub's Actions
+retention. The untrusted question is passed to CI as an environment variable
+(never shell-interpolated) and the answer job's tools are read-only with no
+`WebSearch`. Full design and threat model in `docs/ask-design.md`.
+
+Ships the command handler and `ask_rate` limiter (`worker/src/index.js`),
+`ask.yml`, `ask-prompt.md`, `scripts/build-ask-prompt.mjs`,
+`scripts/send-answer.mjs`, the `/ask` menu entry, and `/privacy` copy covering
+question handling. Deploy needs `npx wrangler deploy` (Worker) and a re-run of
+`scripts/set-commands.mjs` to surface `/ask` in the menu.
+
 ## [1.7.1] - 2026-08-17
 
 ### README now documents the self-filling wiki, and the @handle roster

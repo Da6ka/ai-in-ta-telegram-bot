@@ -1,0 +1,156 @@
+name: Ask
+
+on:
+  repository_dispatch:
+    types: [ask]
+
+# Read-only: an /ask run only reads wiki/ and sends one Telegram message. It
+# writes nothing to the repo, so it needs no contents:write and joins no
+# briefing state.
+permissions:
+  contents: read
+
+# Its own concurrency group, NOT briefing-generation: an ask touches none of
+# the state those jobs write, so it must never queue behind a briefing
+# generation (docs/ask-design.md).
+concurrency:
+  group: ask-${{ github.event.client_payload.chat_id }}
+  cancel-in-progress: false
+
+jobs:
+  ask:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Same guard as the briefing workflows (#28): the Worker's dispatch retry
+      # can fire this event twice for one /ask if GitHub accepted the original
+      # POST but the response was lost. A duplicate skips the paid generation.
+      - name: Check dispatch idempotency
+        id: dispatch_guard
+        env:
+          DISPATCH_ID: ${{ github.event.client_payload.dispatch_id }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CF_KV_NAMESPACE_ID: ${{ secrets.CF_KV_NAMESPACE_ID }}
+        run: node scripts/check-dispatch-once.mjs
+
+      - name: Install Claude Code
+        if: steps.dispatch_guard.outputs.duplicate != 'true'
+        run: npm install -g @anthropic-ai/claude-code@2.1.209
+
+      # Catch a drained ANTHROPIC_API_KEY with the cheapest possible real
+      # request before making the requester wait on a generation that's already
+      # known to fail -- identical precheck to the briefing workflows.
+      - name: Check API credit balance
+        id: balance_check
+        if: steps.dispatch_guard.outputs.duplicate != 'true'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: node scripts/check-credit-balance.mjs
+
+      - name: Alert owner on low credit balance
+        if: steps.balance_check.outputs.low_balance == 'true'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ vars.OWNER_CHAT_ID }}
+          ALERT_TEXT: '[ai-in-ta] Anthropic API credit balance is too low -- an /ask request just failed because of it. Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}'
+        run: node scripts/send-alert.mjs
+
+      - name: Notify requester on low credit balance
+        if: steps.balance_check.outputs.low_balance == 'true'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ github.event.client_payload.chat_id }}
+          ALERT_TEXT: "Sorry — the bot is temporarily out of API credits, so I couldn't answer just now. The owner has been notified; please try /ask again later."
+        run: node scripts/send-alert.mjs
+
+      - name: Fail job on low credit balance
+        if: steps.balance_check.outputs.low_balance == 'true'
+        run: exit 1
+
+      # Compose the prompt from the question WITHOUT shell interpolation: the
+      # question is passed as an env var and read by the Node script, never
+      # spliced into this run block (docs/ask-design.md, Untrusted input). No
+      # step echoes it.
+      - name: Build prompt
+        if: steps.dispatch_guard.outputs.duplicate != 'true'
+        env:
+          QUESTION: ${{ github.event.client_payload.question }}
+        run: |
+          mkdir -p state
+          node scripts/build-ask-prompt.mjs
+
+      - name: Answer the question
+        id: answer
+        if: steps.dispatch_guard.outputs.duplicate != 'true'
+        timeout-minutes: 5
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          # Read-only tools scoped to reading the repo: no Write/Edit (the wiki
+          # is never mutated by a query), no Bash, and no WebSearch (the answer
+          # must contain only what the bot published). --max-budget-usd is a
+          # hard cost ceiling and timeout-minutes a hard wall-clock ceiling.
+          # --model pins Haiku: this is recall over already-written text, not
+          # the WebSearch agent loop the briefing runs on Opus. --setting-sources
+          # user skips this repo's .claude/settings.json Stop hook (npm test),
+          # which otherwise silently eats the output (the 2026-07-14 outage).
+          for attempt in 1 2; do
+            if claude -p "$(cat state/ask-input.md)" \
+                --model claude-haiku-4-5-20251001 \
+                --allowedTools "Read Grep Glob" \
+                --max-budget-usd 1 \
+                --debug-file state/ask_debug.log \
+                --setting-sources user > state/ask-answer.md 2> state/ask_stderr.log; then
+              break
+            fi
+            echo "Answer attempt $attempt failed. stdout/stderr follow so the cause (rate limit, budget, auth) is visible:"
+            echo "--- stdout (state/ask-answer.md) ---"; cat state/ask-answer.md
+            echo "--- stderr ---"; cat state/ask_stderr.log
+            if grep -qi "Exceeded USD budget" state/ask-answer.md state/ask_stderr.log; then
+              echo "::error::Answer exceeded the --max-budget-usd ceiling -- not retrying (deterministic)."
+              exit 1
+            fi
+            if [ "$attempt" -eq 2 ]; then exit 1; fi
+            sleep 5
+          done
+          # A zero-exit empty answer must not be delivered as a blank message.
+          if [ ! -s state/ask-answer.md ] || ! grep -q '[^[:space:]]' state/ask-answer.md; then
+            echo "::warning::Answer generation exited 0 but produced no content."
+            echo "produced=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "produced=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Send answer to requester
+        if: steps.answer.outputs.produced == 'true'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ github.event.client_payload.chat_id }}
+        run: node scripts/send-answer.mjs
+
+      # Generation exited 0 but produced nothing usable: the requester is still
+      # waiting, and failure() won't fire (no step threw). Close the loop.
+      - name: Notify requester on empty answer
+        if: steps.answer.outputs.produced == 'false'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ github.event.client_payload.chat_id }}
+          ALERT_TEXT: "Sorry — I couldn't put together an answer this time. Please try /ask again, perhaps rephrased."
+        run: node scripts/send-alert.mjs
+
+      # The requester already saw "Looking through the archive..." from the
+      # Worker; on a thrown failure, close the loop instead of silence. Excludes
+      # the low-balance case, which already sent its own message above.
+      - name: Notify requester on failure
+        if: failure() && steps.balance_check.outputs.low_balance != 'true'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ github.event.client_payload.chat_id }}
+          ALERT_TEXT: 'Sorry — something went wrong answering your question. Please try /ask again shortly, or contact the bot owner if this keeps happening.'
+        run: node scripts/send-alert.mjs
