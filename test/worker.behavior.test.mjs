@@ -35,6 +35,9 @@ class FakeKV {
     return type === 'json' ? JSON.parse(v) : v
   }
   async put(k, v) { this.map.set(k, String(v)) }
+  // Real KV bindings expose delete(); the fake needs it too or code that
+  // clears a key looks broken only under test.
+  async delete(k) { this.map.delete(k) }
 }
 
 let fetchLog = []
@@ -1246,5 +1249,68 @@ test('ask suggestions are corpus-aware', async (t) => {
     const text = sends()[0].body.text
     assert.match(text, /\/ask —/, 'still listed among the commands')
     assert.match(text, /Example:[\s\S]*\/ask \w+/, 'and shown in use, since /ask takes an argument')
+  })
+})
+
+// =============== blocked-subscriber prune ===============
+test('blocked-subscriber prune', async (t) => {
+  const CRON = {} // daily cron (not the heartbeat)
+
+  await t.test('L1 a queued blocked id is unsubscribed and the queue cleared', async () => {
+    resetState({ allowFrom: [OWNER, '222'], subscribers: [OWNER, '222'] })
+    kv.map.set('blocked_pending', JSON.stringify(['222']))
+    await worker.default.scheduled(CRON, env, { waitUntil: (p) => p })
+    await new Promise(r => setTimeout(r, 20))
+    assert.ok(!doStorage.map.get('subscribers').subscribers.includes('222'), 'unsubscribed in the DO')
+    assert.equal(kv.map.get('blocked_pending'), undefined, 'queue cleared')
+  })
+
+  await t.test('L2 the prune survives the re-mirror (the whole point)', async () => {
+    resetState({ allowFrom: [OWNER, '222'], subscribers: [OWNER, '222'] })
+    kv.map.set('blocked_pending', JSON.stringify(['222']))
+    await worker.default.scheduled(CRON, env, { waitUntil: (p) => p })
+    await new Promise(r => setTimeout(r, 20))
+    // remirrorSubscribers runs after the prune and rewrites KV from the DO —
+    // if it ran first, or the prune only touched KV, '222' would be back here.
+    const mirrored = JSON.parse(kv.map.get('subscribers')).subscribers.map(String)
+    assert.ok(!mirrored.includes('222'), 'KV mirror reflects the prune, not the pre-prune DO')
+  })
+
+  await t.test('L3 owner is told, and the user keeps allowlist access', async () => {
+    resetState({ allowFrom: [OWNER, '222'], subscribers: [OWNER, '222'] })
+    kv.map.set('blocked_pending', JSON.stringify(['222']))
+    fetchLog = []
+    await worker.default.scheduled(CRON, env, { waitUntil: (p) => p })
+    await new Promise(r => setTimeout(r, 20))
+    assert.ok(sends().some(c => String(c.body.chat_id) === OWNER && /blocked the bot/i.test(c.body.text)), 'owner notified')
+    assert.ok(doStorage.map.get('access').allowFrom.includes('222'), 'still allowlisted — a block is not an erasure request')
+  })
+
+  await t.test('L4 an id that is not subscribed still clears, no owner spam', async () => {
+    resetState({ allowFrom: [OWNER], subscribers: [OWNER] })
+    kv.map.set('blocked_pending', JSON.stringify(['999']))
+    fetchLog = []
+    await worker.default.scheduled(CRON, env, { waitUntil: (p) => p })
+    await new Promise(r => setTimeout(r, 20))
+    assert.equal(kv.map.get('blocked_pending'), undefined, 'queue cleared so it does not retry forever')
+    assert.ok(!sends().some(c => /blocked the bot/i.test(c.body.text)), 'nothing pruned, so no owner message')
+  })
+
+  await t.test('L5 no queue: dispatch still happens, nothing disturbed', async () => {
+    resetState({ allowFrom: [OWNER, '222'], subscribers: [OWNER, '222'] })
+    fetchLog = []
+    await worker.default.scheduled(CRON, env, { waitUntil: (p) => p })
+    await new Promise(r => setTimeout(r, 20))
+    assert.equal(doStorage.map.get('subscribers').subscribers.length, 2, 'subscribers untouched')
+    assert.ok(ghDispatches().length >= 1, 'daily briefing still dispatched')
+  })
+
+  await t.test('L6 a corrupt queue value cannot block the dispatch', async () => {
+    resetState({ allowFrom: [OWNER, '222'], subscribers: [OWNER, '222'] })
+    kv.map.set('blocked_pending', 'not json at all')
+    fetchLog = []
+    await worker.default.scheduled(CRON, env, { waitUntil: (p) => p })
+    await new Promise(r => setTimeout(r, 20))
+    assert.ok(ghDispatches().length >= 1, 'dispatch survived a malformed queue')
   })
 })

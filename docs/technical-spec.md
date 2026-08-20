@@ -197,6 +197,12 @@ Note `usage_stats.last_briefing_at` here is the KV copy, written by `sync-kv.mjs
 on **both** the daily and on-demand paths. It is not the idempotency marker —
 that is the git-versioned copy in §4.3, which only the daily workflow advances.
 
+**`blocked_pending`** — ids the send pipeline found permanently unreachable
+(Telegram `403`), written by the runner and drained by the Worker's daily
+`scheduled` handler through the DO's `unsubscribe()` before the re-mirror. It
+exists because the two runtimes each hold half the problem: only the runner
+sees the 403, only the DO can make a prune stick (§8).
+
 ### 4.3 Git-versioned `state/` (generation record)
 
 `state/today_briefing.md`, `state/usage_stats.json`,
@@ -346,6 +352,14 @@ returns a message naming the limit and when it resets.
 
 ## 8. Reliability & failure handling
 
+- **Blocked subscribers self-prune:** a `403` from Telegram is permanent (the
+  user blocked the bot, or deactivated). The send scripts queue those ids in
+  KV's `blocked_pending`; the daily `scheduled` handler unsubscribes them via
+  the DO, then clears the queue, then re-mirrors. Order matters: the re-mirror
+  rewrites KV from the DO, so a prune applied to KV alone would be undone the
+  next morning. Best-effort throughout — a failed prune logs and never blocks
+  the dispatch. Unsubscribe only; allowlist access is retained, since a block
+  is not an erasure request.
 - **Idempotency:** `last_briefing_at` prevents a duplicate send when
   `daily-briefing.yml` fires more than once in a day.
 - **Concurrency:** a shared `briefing-generation` concurrency group means a

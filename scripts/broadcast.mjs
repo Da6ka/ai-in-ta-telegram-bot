@@ -9,6 +9,7 @@
 // is the live `subscribers` KV key the bot maintains — same source as the daily
 // send — so /unsubscribe and /removeuser take effect immediately.
 import { sendTextToMany, tgRequest } from '../shared/telegram.mjs'
+import { isPermanentlyUnreachable, recordBlocked } from '../shared/blocked-subscribers.mjs'
 
 const token = process.env.TELEGRAM_BOT_TOKEN
 const message = process.env.MESSAGE
@@ -48,9 +49,23 @@ if (chatIds.length === 0) {
   process.exit(0)
 }
 
+const blocked = []
 const { total, failed } = await sendTextToMany(token, chatIds, message, {
-  onError: async (chatId, res) => console.error(`Failed to send to ${chatId}: ${res.status} ${await res.text()}`),
+  onError: async (chatId, res) => {
+    const status = res.status
+    console.error(`Failed to send to ${chatId}: ${status} ${await res.text()}`)
+    if (isPermanentlyUnreachable(status)) blocked.push(chatId)
+  },
 })
+
+if (blocked.length > 0) {
+  try {
+    await recordBlocked(blocked, { accountId: CF_ACCOUNT_ID, apiToken: CF_API_TOKEN, namespaceId: CF_KV_NAMESPACE_ID })
+    console.log(`Queued ${blocked.length} blocked subscriber(s) for unsubscribe: ${blocked.join(', ')}`)
+  } catch (err) {
+    console.error('Failed to queue blocked subscribers (they stay on the list for now):', err)
+  }
+}
 
 const summary = failed === 0
   ? `Broadcast delivered to all ${total} subscriber(s).`

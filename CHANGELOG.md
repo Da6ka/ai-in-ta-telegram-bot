@@ -2,6 +2,31 @@
 
 ## [Unreleased]
 
+### Blocked subscribers now unsubscribe themselves
+
+A subscriber blocked the bot on 2026-07-12. Telegram answers every later send
+to that chat with `403 Forbidden: bot was blocked by the user`, and nothing
+acted on it — so the id stayed on the list and the morning send reported
+"4/5 subscriber(s)" every day for five weeks, a permanent failure line that
+reads like noise.
+
+The send scripts now recognise a 403 as terminal rather than transient and
+queue the id; the Worker's daily `scheduled` handler unsubscribes them through
+the Durable Object just before the next send.
+
+Splitting it across the two runtimes is the point, not an accident. The runner
+is the only place that sees Telegram's 403, but it can only write KV — and
+`scheduled` re-mirrors KV from the DO before every send, so a prune written by
+the runner would be overwritten the next morning. The DO is the only writer
+whose change survives, and the runner is the only observer, so the observation
+travels through KV and the decision happens in the Worker.
+
+It unsubscribes and nothing more: blocking the bot stops delivery but is not a
+request to erase an account, so allowlist access is kept and `/subscribe` still
+works if they unblock. The owner gets a message naming who was pruned, because
+a subscriber quietly disappearing from the daily count should not be
+discoverable only by reading logs.
+
 ### Spec masthead names both user-facing models
 
 The one-pager's masthead read `model claude-opus-4-8` — true of the briefing,

@@ -31,6 +31,7 @@
 
 import { DurableObject } from 'cloudflare:workers'
 import { mdToHtml, chunk, escapeHtml } from '../../shared/telegram-markdown.mjs'
+import { BLOCKED_PENDING_KEY } from '../../shared/blocked-subscribers.mjs'
 
 // Each briefing generation is a paid GitHub Actions + Claude API run, and the
 // result is shared (one today_briefing for everyone) — so the cooldown is
@@ -735,6 +736,65 @@ async function requestGeneration(env, stub, senderId, generatingMsg, isOwner = f
   }
 }
 
+// Unsubscribe anyone the send pipeline found unreachable, then clear the queue.
+// The runner records them (shared/blocked-subscribers.mjs) because it is the
+// only place that sees Telegram's 403; the Worker applies them because the
+// Durable Object is the source of truth and the runner cannot reach it. Runs
+// just before the daily re-mirror, so the very next send already skips them.
+//
+// Unsubscribe only, never removeUser: blocking the bot stops delivery, but it
+// is not a request to erase an account. If they unblock and send /subscribe,
+// they are back with no intervention.
+async function pruneBlockedSubscribers(env, stub) {
+  // Read as text and parse here rather than with KV's 'json' mode: that mode
+  // throws on a malformed value, and a throw would leave the key in place to
+  // fail again every morning -- a permanently wedged queue. Parsing here means
+  // a corrupt value is cleared below like any other handled batch.
+  const text = await env.BOT_STATE.get(BLOCKED_PENDING_KEY)
+  if (text === null || text === undefined) return { pruned: [] }
+  let ids = []
+  try {
+    const parsed = JSON.parse(text)
+    if (Array.isArray(parsed)) ids = [...new Set(parsed.map(String).filter(Boolean))]
+    else console.error('pruneBlockedSubscribers: queue was not an array — discarding it')
+  } catch {
+    console.error('pruneBlockedSubscribers: queue was not valid JSON — discarding it')
+  }
+  if (ids.length === 0) {
+    await env.BOT_STATE.delete(BLOCKED_PENDING_KEY)
+    return { pruned: [] }
+  }
+
+  const pruned = []
+  for (const id of ids) {
+    try {
+      const { wasSubscribed } = await stub.unsubscribe(id)
+      if (wasSubscribed) pruned.push(id)
+    } catch (err) {
+      console.error(`pruneBlockedSubscribers: unsubscribe ${id} failed`, err)
+    }
+  }
+  // Clear the queue even when nothing was subscribed: the ids were handled,
+  // and leaving them behind would re-run this every morning forever.
+  await env.BOT_STATE.delete(BLOCKED_PENDING_KEY)
+  if (pruned.length > 0) {
+    console.log(`pruneBlockedSubscribers: unsubscribed ${pruned.length} blocked subscriber(s): ${pruned.join(', ')}`)
+    // Tell the owner. A subscriber quietly vanishing from the daily count is
+    // exactly the kind of change that should not be discoverable only by
+    // reading logs nobody opens.
+    // Owner comes from the DO, not KV: the DO is the source of truth and the
+    // KV copy is only a seed/mirror that can lag it. briefingHeartbeat resolves
+    // the owner the same way.
+    const owner = (await stub.getAccess()).ownerChatId
+    if (owner) {
+      await reply(env, owner,
+        `Unsubscribed ${pruned.length} subscriber(s) who blocked the bot: ${pruned.join(', ')}.\n\n` +
+        `They keep their access and can /subscribe again if they unblock. This stops the daily send failing for them every morning.`)
+    }
+  }
+  return { pruned }
+}
+
 // External heartbeat: alert the owner when a whole day's briefing never lands.
 // Every in-Actions guard (the workflow's own retries, the 10:30 UTC watchdog) is
 // useless when GitHub Actions is blocked account-wide -- a billing hold or
@@ -1347,6 +1407,15 @@ export default {
     // then just uses whatever KV already holds, exactly as it does today).
     ctx.waitUntil((async () => {
       const stub = env.BOT_DO.get(env.BOT_DO.idFromName('singleton'))
+      // Drain blocked subscribers BEFORE the re-mirror. The runner can only
+      // write KV, and the re-mirror below overwrites KV from the DO -- so a
+      // prune has to go through the DO first or it is undone seconds later.
+      // Best-effort like the mirror: never block the dispatch.
+      try {
+        await pruneBlockedSubscribers(env, stub)
+      } catch (err) {
+        console.error('scheduled: blocked-subscriber prune failed', err)
+      }
       try {
         await stub.remirrorSubscribers()
       } catch (err) {
