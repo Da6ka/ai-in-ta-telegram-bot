@@ -27,7 +27,7 @@
 // completed response can be priced, the money is already spent, and failing
 // then would throw away an edition that was paid for and is probably fine.
 import Anthropic from '@anthropic-ai/sdk'
-import { appendFileSync, readFileSync } from 'node:fs'
+import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { estimateCostUsd, sumUsage, webSearchCount } from '../shared/anthropic-cost.mjs'
 
 const [promptPath, note = ''] = process.argv.slice(2)
@@ -42,6 +42,21 @@ const MAX_SEARCHES = Number(process.env.BRIEFING_MAX_SEARCHES || 12)
 const MAX_TOKENS = Number(process.env.BRIEFING_MAX_TOKENS || 16_000)
 const MAX_USD = Number(process.env.BRIEFING_MAX_USD || 4)
 const COST_LOG = process.env.BRIEFING_COST_LOG || 'state/cost_log.jsonl'
+// 'direct' puts full search results (url, title, page_age) into the model's
+// context, the way the CLI's WebSearch tool did. 'filtered' is the cheaper
+// dynamic-filtering path, where the model writes code that filters results
+// before they reach context. Filtered ran twice on 2026-08-21 and produced the
+// prompt's "nothing usable" fallback both times, at both medium and xhigh
+// effort, with all ten searches billed and succeeding -- so the results
+// arrived and were judged unusable. The prompt drops any story whose publish
+// date it cannot verify, which is exactly what would happen if page_age does
+// not survive filtering. Default is 'direct' until that is settled.
+const SEARCH_MODE = process.env.BRIEFING_SEARCH_MODE || 'direct'
+// When set, each turn's response blocks are dumped here (minus the multi-KB
+// encrypted_content, which is unreadable and not the point). This exists
+// because the first two failures were undiagnosable: with results excluded
+// from the response there was no way to see what the model was given.
+const DEBUG_DIR = process.env.BRIEFING_DEBUG_DIR || ''
 const ENGINE = 'api'
 
 // A paused turn is resumed by sending the assistant message back unchanged.
@@ -54,6 +69,35 @@ const prompt = readFileSync(promptPath, 'utf8')
 const userContent = note ? `${prompt}\n\n${note}` : prompt
 
 const client = new Anthropic() // reads ANTHROPIC_API_KEY
+
+// Search results carry an encrypted_content blob of several KB that has to be
+// echoed back verbatim on later turns but says nothing to a human reading the
+// dump. Everything else -- the queries, and each result's url, title and
+// page_age -- is what a "why did it reject all of this" question needs.
+function dumpTurn(dir, turn, message) {
+  try {
+    mkdirSync(dir, { recursive: true })
+    const blocks = message.content.map((block) => {
+      if (block.type !== 'web_search_tool_result') return block
+      const content = Array.isArray(block.content)
+        ? block.content.map(({ encrypted_content, ...rest }) => rest)
+        : block.content
+      return { ...block, content }
+    })
+    writeFileSync(`${dir}/turn-${turn}.json`, JSON.stringify({ stop_reason: message.stop_reason, usage: message.usage, blocks }, null, 2))
+  } catch (err) {
+    console.error(`Could not write the debug dump: ${err.message}`)
+  }
+}
+
+// response_inclusion 'excluded' only pays off on the filtered path, where the
+// raw blocks are consumed by code execution and nothing downstream reads them.
+// On the direct path those same blocks are the only record of what the model
+// saw, so they stay in.
+const searchTool =
+  SEARCH_MODE === 'filtered'
+    ? { type: 'web_search_20260318', name: 'web_search', max_uses: MAX_SEARCHES, response_inclusion: 'excluded' }
+    : { type: 'web_search_20260318', name: 'web_search', max_uses: MAX_SEARCHES, allowed_callers: ['direct'] }
 
 const messages = [{ role: 'user', content: userContent }]
 const textParts = []
@@ -71,14 +115,7 @@ for (let i = 0; i <= MAX_CONTINUATIONS; i++) {
     max_tokens: MAX_TOKENS,
     thinking: { type: 'adaptive' },
     output_config: { effort: EFFORT },
-    tools: [
-      {
-        type: 'web_search_20260318',
-        name: 'web_search',
-        max_uses: MAX_SEARCHES,
-        response_inclusion: 'excluded',
-      },
-    ],
+    tools: [searchTool],
     messages,
   })
   response = await stream.finalMessage()
@@ -87,6 +124,8 @@ for (let i = 0; i <= MAX_CONTINUATIONS; i++) {
   for (const block of response.content) {
     if (block.type === 'text' && block.text) textParts.push(block.text)
   }
+
+  if (DEBUG_DIR) dumpTurn(DEBUG_DIR, i + 1, response)
 
   if (response.stop_reason !== 'pause_turn') break
 
@@ -113,6 +152,7 @@ const record = {
   engine: ENGINE,
   model: MODEL,
   effort: EFFORT,
+  search_mode: SEARCH_MODE,
   stop_reason: response?.stop_reason ?? null,
   turns,
   duration_ms: durationMs,

@@ -2,6 +2,34 @@
 
 ## [Unreleased]
 
+### Direct search by default, and a way to see why a run failed
+
+Two A/B runs on 2026-08-21 both returned the prompt's "nothing usable"
+fallback: zero items, at `medium` and again at `xhigh` effort, 10 billed
+searches each time. Errored searches are not billed, so all twenty succeeded —
+the results arrived and the model rejected every one of them. Effort was not
+the variable; four times the output tokens reached the same conclusion.
+
+The remaining suspect is dynamic filtering. It runs searches inside code
+execution and the model sees what its own filter kept, and the prompt drops any
+story whose publish date it cannot verify — so results reaching the model
+without `page_age` would produce exactly this. `BRIEFING_SEARCH_MODE` now picks
+between `direct` (full results in context, the way the CLI's WebSearch
+behaved) and `filtered`, and defaults to direct until this is settled. Direct
+costs more input tokens; being right comes first.
+
+Neither failure was diagnosable, which was the real problem.
+`response_inclusion: 'excluded'` had thrown away the only record of what the
+model was given. Generation now takes `BRIEFING_DEBUG_DIR` and dumps each
+turn's blocks there — minus the multi-KB `encrypted_content`, which has to be
+echoed back verbatim but tells a human nothing — and
+`scripts/dump-search-log.mjs` prints the queries with each result's title, url
+and `page_age`. The A/B workflow always sets it, prints the log into the run
+summary, and ships the dump in the artifact. A successful result is a list and
+an error is a single object, so the log distinguishes "the search failed" from
+"the search worked and the model discarded the results" instead of leaving both
+looking like a thin news day.
+
 ### A direct-API generator, behind an A/B
 
 `claude -p` runs an agent loop that carries every web-search result forward in
