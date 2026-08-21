@@ -6,7 +6,7 @@
 
 A Telegram bot that sends a **daily briefing on AI in recruitment** — the latest news, tools, and research from the past day or two, researched and written by Claude Code and delivered straight to your chat.
 
-Subscribers tap `/subscribe` and get the briefing every morning at **09:05 UTC / 12:05 MSK**. No app to install, no laptop to keep awake — everything runs on GitHub Actions and a Cloudflare Worker.
+Subscribers tap `/subscribe` and get the briefing every weekday morning at **09:05 UTC / 12:05 MSK** (Mon-Fri; Monday's edition widens its freshness window to cover the weekend). No app to install, no laptop to keep awake — everything runs on GitHub Actions and a Cloudflare Worker.
 
 <p align="center">
   <a href="https://ai-in-ta-bot-spec.vercel.app/">
@@ -40,7 +40,7 @@ Subscribers tap `/subscribe` and get the briefing every morning at **09:05 UTC /
 
 ## What it does
 
-- 📰 **Daily briefing** — every morning, Claude searches the web for what's new in AI-for-recruitment, writes a concise briefing, and sends it to every subscriber.
+- 📰 **Daily briefing** — every weekday morning, Claude searches the web for what's new in AI-for-recruitment, writes a concise briefing, and sends it to every subscriber.
 - 🤖 **On-demand** — subscribers can pull a fresh or cached briefing any time with a command, no waiting for the morning run.
 - 💬 **Ask the archive** — `/ask` answers questions across every briefing ever sent ("what have we seen about AI interview cheating?"), citing dates and sources. It reads only what the bot has published, so it will tell you the archive is thin on something rather than invent an answer.
 - 📣 **Owner tools** — broadcast a message to everyone, manage the subscriber list, check who's on it.
@@ -73,7 +73,7 @@ If someone's already running the bot and you just want the briefing, the whole f
 
 1. **`/start`** — requests access. Access is allowlist-gated, so this puts you in a queue rather than letting you straight in.
 2. **Wait for approval** — the owner gets your request and approves it. You'll be able to use the commands below once they do.
-3. **`/subscribe`** — now the daily briefing lands in your chat every morning at 09:05 UTC. That's the only step you need for the daily send.
+3. **`/subscribe`** — now the briefing lands in your chat every weekday morning at 09:05 UTC. That's the only step you need for the daily send.
 4. **`/briefing`** any time for today's edition (instant, cached), or **`/newbriefing`** to generate a fresh one on the spot.
 
 To stop: **`/unsubscribe`** ends the daily send but keeps your access; **`/forgetme`** erases everything the bot stores about you. Curious what that is? **`/mydata`** shows it and **`/privacy`** explains how it's handled.
@@ -88,7 +88,7 @@ To stop: **`/unsubscribe`** ends the daily send but keeps your access; **`/forge
 | `/briefing`    | Get today's briefing (cached copy, instant) |
 | `/newbriefing` | Generate a fresh briefing right now         |
 | `/ask`         | Ask a question, answered from past briefings |
-| `/subscribe`   | Get the daily briefing every morning        |
+| `/subscribe`   | Get the briefing every weekday morning      |
 | `/unsubscribe` | Stop the daily briefing                     |
 | `/status`      | Check your access status                    |
 | `/help`        | List available commands                     |
@@ -131,7 +131,7 @@ To stop: **`/unsubscribe`** ends the daily send but keeps your access; **`/forge
 ```
 Cloudflare Worker                            GitHub Actions
    │                                             │
-   │ Cron Trigger (09:05 UTC) ───dispatch───────▶│ 1. claude -p reads
+   │ Cron Trigger (09:05 UTC, Mon-Fri) ─dispatch▶│ 1. claude -p reads
    │                                             │    briefing-prompt.md,
    │ webhook: receives Telegram commands         │    searches web, writes
    │ 24/7, independent of any local machine      │    state/today_briefing.md
@@ -146,7 +146,7 @@ Cloudflare Worker                            GitHub Actions
 
 **The daily run:**
 
-`daily-briefing.yml` is defended in depth rather than by a single trigger: the Cloudflare Worker's Cron Trigger (09:05 UTC — `worker/wrangler.toml` + the `scheduled` handler in `worker/src/index.js`) fires a `repository_dispatch`; GitHub Actions' own `schedule` trigger (09:00 UTC) fires independently as a backup — on its own it has proven to run 1-4h late or skip a day entirely; and `daily-briefing-watchdog.yml` kicks off a fallback run if neither has advanced `state/usage_stats.json`'s `last_briefing_at` by 10:30 UTC. All three are safe to land on the same day — the workflow's own idempotency check means only the first one to actually run does the work.
+`daily-briefing.yml` is defended in depth rather than by a single trigger: the Cloudflare Worker's Cron Trigger (09:05 UTC Mon-Fri — `worker/wrangler.toml` + the `scheduled` handler in `worker/src/index.js`) fires a `repository_dispatch`; GitHub Actions' own `schedule` trigger (09:00 UTC, same days) fires independently as a backup — on its own it has proven to run 1-4h late or skip a day entirely; and `daily-briefing-watchdog.yml` kicks off a fallback run if neither has advanced `state/usage_stats.json`'s `last_briefing_at` by 10:30 UTC. All three are safe to land on the same day — the workflow's own idempotency check means only the first one to actually run does the work.
 
 The redundancy is real but not absolute: all three ride GitHub's scheduler, and the Worker cron and GitHub schedule missed the *same* morning on 2026-07-16 (#61). A separate **Cloudflare heartbeat** (12:00 UTC — the Worker's second cron in `worker/wrangler.toml`) closes that gap: it doesn't generate anything, but it alerts the owner if KV's `last_delivered_date` isn't today, and as the only check running outside GitHub it catches an account-wide Actions failure the other layers would miss.
 

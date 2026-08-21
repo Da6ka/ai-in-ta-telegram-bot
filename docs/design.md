@@ -40,7 +40,7 @@ Two independent runtimes own different halves of the system:
 ```
 GitHub Actions (scheduled + dispatched)       Cloudflare Worker (webhook + cron, 24/7)
    │                                              │
-   │ daily-briefing.yml, triggered by:            │ scheduled() @ 09:05 UTC (PRIMARY)
+   │ daily-briefing.yml, triggered by:            │ scheduled() @ 09:05 UTC Mon-Fri (PRIMARY)
    │  - Worker's Cron Trigger (primary, 09:05)     │  → repository_dispatch
    │  - GitHub schedule (backup, 09:00, often      │    'daily-briefing-trigger'
    │    late/skipped — issue #17)                 │
@@ -100,7 +100,8 @@ reads without going through the DO on every request.
 **GitHub Actions workflows** (`.github/workflows/`)
 
 - `daily-briefing.yml` — has three ways to fire: the Worker's Cron Trigger
-  (primary, via `repository_dispatch` at 09:05 UTC — added 2026-07-13, PR #43),
+  (primary, via `repository_dispatch` at 09:05 UTC Mon-Fri — added 2026-07-13,
+  PR #43; weekday-only since 2026-08-21),
   GitHub's own `schedule` (backup, 09:00 UTC, kept despite being unreliable —
   see below), and the watchdog (backup, see next item). An idempotency check
   (below) makes it safe for more than one of these to fire the same day. Once
@@ -142,7 +143,7 @@ Data flow
 
 **Daily scheduled send**
 
-1. The Worker's Cron Trigger fires `scheduled()` at 09:05 UTC, which
+1. The Worker's Cron Trigger fires `scheduled()` at 09:05 UTC on weekdays, which
    dispatches `daily-briefing-trigger` to `daily-briefing.yml` (primary path).
    GitHub's own 09:00 UTC `schedule` trigger on the same workflow is a backup
    that may fire independently (often late or not at all — issue #17).

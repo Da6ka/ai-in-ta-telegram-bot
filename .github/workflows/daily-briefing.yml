@@ -10,8 +10,14 @@ on:
   # makes it safe for both (plus the watchdog's fallback dispatch) to fire on
   # the same day.
   schedule:
-    # 09:00 UTC == 12:00 MSK, matching the local launchd job it replaces
-    - cron: '0 9 * * *'
+    # 09:00 UTC == 12:00 MSK, matching the local launchd job it replaces.
+    # Mon-Fri only since 2026-08-21: weekend editions were ~28% of all
+    # generations and the single biggest line in the bot's running cost, on
+    # the two days AI-recruitment news is thinnest. Monday's edition widens
+    # its own freshness window to cover the weekend (scripts/build-date-note.mjs).
+    # Keep in step with the Worker's crons (worker/wrangler.toml), the
+    # watchdog's schedule, and HEARTBEAT_CRON in worker/src/index.js.
+    - cron: '0 9 * * 1-5'
   repository_dispatch:
     types: [daily-briefing-trigger]
   workflow_dispatch: {}
@@ -101,7 +107,7 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          NOTE="Today's date (UTC) is ${BRIEFING_DATE_HUMAN}. Use this exact date in the title, and use it to judge which search results are genuinely from the past 24-48 hours."
+          NOTE=$(node scripts/build-date-note.mjs)
           RECENT=$(node scripts/build-recency-note.mjs)
           if [ -n "$RECENT" ]; then
             NOTE="${NOTE}"$'\n\n'"${RECENT}"

@@ -76,7 +76,7 @@ const GENERATION_IN_FLIGHT_MIN = 10
 // heartbeat, fired ~3h after the 09:05 daily dispatch -- long past generation
 // (~10 min) and the 10:30 GitHub watchdog -- so a healthy day has always synced
 // today_briefing_date to KV by the time it runs. See briefingHeartbeat.
-const HEARTBEAT_CRON = '0 12 * * *'
+const HEARTBEAT_CRON = '0 12 * * 1-5'
 
 // Capacity cap for the current private, single-operator deployment. The daily
 // send stays comfortably under Telegram's rate limit at this size, and (on the
@@ -848,7 +848,7 @@ const COMMAND_HANDLERS = {
     if (isAllowed) {
       await reply(env, senderId,
         "Welcome to AI in TA News!\n\n" +
-        "Tap /briefing to get today's AI recruitment digest, or /subscribe to get it every morning automatically.\n\n" +
+        "Tap /briefing to get today's AI recruitment digest, or /subscribe to get it every weekday morning automatically.\n\n" +
         "You can also ask about anything covered in past briefings — try:\n" +
         "/ask what have we seen about AI interview cheating?\n\n" +
         "Send /help anytime to see everything the bot can do.")
@@ -912,7 +912,7 @@ const COMMAND_HANDLERS = {
       "/briefing — get today's briefing (or resend it if you already have it)\n" +
       "/newbriefing — search for more news beyond what /briefing already sent\n" +
       "/ask — ask a question and get an answer from past briefings\n" +
-      "/subscribe — get the daily briefing every morning\n" +
+      "/subscribe — get the briefing every weekday morning\n" +
       "/unsubscribe — stop the daily briefing\n" +
       "/status — check your access status\n" +
       "/privacy — how your data is handled\n" +
@@ -945,8 +945,8 @@ const COMMAND_HANDLERS = {
     }
     const { already } = await stub.subscribe(senderId)
     await reply(env, senderId, already
-      ? "You're already subscribed to the daily AI recruitment briefing. You'll receive it every morning at 9:00 AM UTC."
-      : "You're subscribed! You'll receive the daily AI recruitment briefing every morning at 9:00 AM UTC.\n\n" +
+      ? "You're already subscribed to the AI recruitment briefing. You'll receive it every weekday morning at 9:00 AM UTC (Mon-Fri)."
+      : "You're subscribed! You'll receive the AI recruitment briefing every weekday morning at 9:00 AM UTC (Mon-Fri). Weekends are quiet — /newbriefing still works if you want one.\n\n" +
         "By subscribing you consent to the bot storing your Telegram ID to deliver it. See /privacy for details. Send /unsubscribe to stop, or /forgetme to erase your data.")
   },
 

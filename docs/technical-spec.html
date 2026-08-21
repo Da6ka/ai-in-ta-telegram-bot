@@ -691,8 +691,8 @@
         <div class="chips">
           <span class="chip"><span class="k">briefing</span> <b>opus-4-8</b></span>
           <span class="chip"><span class="k">/ask</span> <b>sonnet-5</b></span>
-          <span class="chip"><span class="k">schedule</span> <b>09:05 UTC</b> daily</span>
-          <span class="chip"><span class="k">window</span> last <b>48h</b></span>
+          <span class="chip"><span class="k">schedule</span> <b>09:05 UTC</b> Mon-Fri</span>
+          <span class="chip"><span class="k">window</span> last <b>48-96h</b></span>
           <span class="chip"><span class="k">access</span> <b>allowlist-gated</b></span>
           <span class="chip"><span class="k">cap</span> <b>30 users</b></span>
           <span class="chip"><span class="k">runtimes</span> Worker <b>+</b> Actions</span>
@@ -728,7 +728,7 @@
                 <li>Validates <code>X-Telegram-Bot-Api-Secret-Token</code> on every request</li>
                 <li>Serves <code>/briefing</code> from KV — no generation</li>
                 <li>Mutates access &amp; subscriptions in the Durable Object</li>
-                <li>Cron Trigger <code>5 9 * * *</code> → dispatches the daily run</li>
+                <li>Cron Trigger <code>5 9 * * 1-5</code> → dispatches the weekday run</li>
               </ul>
             </div>
             <div class="boundary" aria-hidden="true">

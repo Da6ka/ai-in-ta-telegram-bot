@@ -1,4 +1,4 @@
-You are running a daily AI recruitment news briefing. Search the web for the latest content (from the past 24-48 hours where possible).
+You are running a daily AI recruitment news briefing. Search the web for the latest content, as recent as possible -- the note appended below this prompt states the exact freshness window for today's edition, which widens after a weekend or any other gap between editions.
 
 ## Steps
 

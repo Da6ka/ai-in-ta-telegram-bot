@@ -216,7 +216,7 @@ is the idempotency marker.
 
 ### 5.1 Daily scheduled send
 
-1. Worker Cron Trigger (`5 9 * * *`, 09:05 UTC) fires `scheduled()` →
+1. Worker Cron Trigger (`5 9 * * 1-5`, 09:05 UTC Mon-Fri) fires `scheduled()` →
    `repository_dispatch: daily-briefing-trigger`.
 2. `daily-briefing.yml`: idempotency check on `last_briefing_at`; if already
    today, **no-op**. Otherwise `claude -p briefing-prompt.md` → write
@@ -371,6 +371,12 @@ returns a message naming the limit and when it resets.
   3. `daily-briefing-watchdog.yml`, 10:30 UTC — re-dispatches + alerts owner
      (`send-alert.mjs`) if `last_briefing_at` ≠ today.
 
+  All three run **Mon-Fri only** (2026-08-21). Saturday and Sunday were ~28% of
+  all generations and the largest single line in running cost; the watchdog and
+  the Worker heartbeat follow the same days, since on a day with no scheduled
+  briefing they would report a miss that isn't one. On-demand `/newbriefing`
+  is unaffected and still works every day.
+
   Layers 2 and 3 are both GitHub `schedule`, so they share its failure mode:
   a bad morning in GitHub's scheduler can take out the backup trigger and the
   watchdog meant to catch it. On 2026-07-16 layers 1 and 2 missed together
@@ -407,12 +413,13 @@ firing — a deploy that dropped `[triggers]` shows up here:
 GET https://api.cloudflare.com/client/v4/accounts/{account_id}/workers/scripts/ai-in-ta-telegram-bot/schedules
 ```
 
-Expect both `5 9 * * *` (briefing dispatch) and `0 12 * * *` (heartbeat).
+Expect both `5 9 * * 1-5` (briefing dispatch) and `0 12 * * 1-5` (heartbeat).
 `modified_on` tracks the last `wrangler deploy`, not the last fire.
 
 **Did the cron actually fire?** This is the decisive one. A scheduled
-invocation appears as a row at the cron's minute, so its _absence_ at 09:05 is
-positive evidence the Worker never ran — which rules out a failed dispatch,
+invocation appears as a row at the cron's minute, so its _absence_ at 09:05 on a
+weekday is positive evidence the Worker never ran (on a Saturday or Sunday the
+absence is the schedule working as intended) — which rules out a failed dispatch,
 an expired `GITHUB_TOKEN`, and anything else Worker-side:
 
 ```

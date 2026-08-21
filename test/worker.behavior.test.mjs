@@ -17,6 +17,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { register } from 'node:module'
+import { readFileSync } from 'node:fs'
 
 register('./cf-hooks.mjs', import.meta.url)
 const worker = await import('../worker/src/index.js')
@@ -1007,7 +1008,9 @@ test('scheduled cron trigger', async (t) => {
 })
 
 test('briefing heartbeat cron', async (t) => {
-  const HEARTBEAT = '0 12 * * *'
+  // Must match HEARTBEAT_CRON in worker/src/index.js and the second entry in
+  // worker/wrangler.toml -- the 'cron strings agree' test below guards the pair.
+  const HEARTBEAT = '0 12 * * 1-5'
   await t.test("alerts the owner when today's briefing has not landed", async () => {
     resetState()
     kv.map.set('last_delivered_date', '2020-01-01') // stale: nothing delivered today
@@ -1052,7 +1055,7 @@ test('briefing heartbeat cron', async (t) => {
     resetState()
     fetchLog = []
     const waited = []
-    await worker.default.scheduled({ cron: '5 9 * * *' }, env, { waitUntil: (p) => waited.push(p) })
+    await worker.default.scheduled({ cron: '5 9 * * 1-5' }, env, { waitUntil: (p) => waited.push(p) })
     await Promise.all(waited)
     assert.equal(ghDispatches().length, 1, 'the 09:05 cron still dispatches the daily briefing')
     assert.equal(sends().length, 0, 'and sends no heartbeat alert')
@@ -1313,4 +1316,20 @@ test('blocked-subscriber prune', async (t) => {
     await new Promise(r => setTimeout(r, 20))
     assert.ok(ghDispatches().length >= 1, 'dispatch survived a malformed queue')
   })
+})
+
+// The `scheduled` handler tells its two crons apart by string-comparing
+// event.cron against HEARTBEAT_CRON. If wrangler.toml's schedule is edited
+// without the constant (or vice versa), nothing errors -- the 12:00 heartbeat
+// silently falls through to the daily-dispatch branch and fires a second
+// briefing generation every day. Cheap guard against an expensive drift.
+test('worker cron strings agree between wrangler.toml and index.js', async () => {
+  const toml = readFileSync(new URL('../worker/wrangler.toml', import.meta.url), 'utf8')
+  const src = readFileSync(new URL('../worker/src/index.js', import.meta.url), 'utf8')
+  const crons = toml.match(/^crons = \[(.+)\]$/m)?.[1]
+  assert.ok(crons, 'wrangler.toml declares top-level crons')
+  const [dispatchCron, heartbeatCron] = [...crons.matchAll(/"([^"]+)"/g)].map((m) => m[1])
+  const constant = src.match(/const HEARTBEAT_CRON = '([^']+)'/)?.[1]
+  assert.equal(heartbeatCron, constant, 'HEARTBEAT_CRON matches the heartbeat cron in wrangler.toml')
+  assert.notEqual(dispatchCron, heartbeatCron, 'the two crons stay distinguishable')
 })

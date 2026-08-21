@@ -2,6 +2,32 @@
 
 ## [Unreleased]
 
+### The briefing runs Mon-Fri
+
+Weekend editions were about 28% of all generations and the single largest line
+in what the bot costs to run — spent on the two days AI-recruitment news is
+thinnest. The daily send is now Monday to Friday.
+
+Four schedules had to move together, and one of them is a trap: the Worker
+tells its two crons apart by string-comparing `event.cron` against
+`HEARTBEAT_CRON`, so editing `wrangler.toml` without the constant would not
+error, it would quietly turn the 12:00 heartbeat into a second briefing
+dispatch every day. There is now a test asserting the two stay equal. The
+watchdog moved to weekdays for the same reason the heartbeat did: on a Saturday
+it would report a missed run that was never scheduled, and dispatch a fallback
+generation — the exact spend the pause exists to avoid.
+
+Monday's edition would otherwise lose the weekend. The prompt's freshness
+window was a hardcoded "past 24-48 hours", inlined in two workflows; it is now
+derived from the gap since the last edition (`scripts/build-date-note.mjs`,
+48h floor, 96h ceiling), so Monday reaches back 72 hours and a gap left by an
+outage widens the same way instead of silently dropping the days it spans.
+
+`/newbriefing` still works every day — nothing about on-demand generation
+changed. Subscribers are told "every weekday morning" at `/subscribe`, `/start`
+and `/help`, and in the command list; README, both design docs and the live
+one-pager say Mon-Fri.
+
 ### Blocked subscribers now unsubscribe themselves
 
 A subscriber blocked the bot on 2026-07-12. Telegram answers every later send
