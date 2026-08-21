@@ -2,7 +2,7 @@
 // fetch is mocked; paceMs/baseDelayMs are set to 0 so the suite stays fast.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { tgRequest, sendHtml, sendHtmlToMany, sendTextToMany, isValidBriefing, countBriefingItems, MIN_BRIEFING_ITEMS, extractBriefingBullets, pruneRecentStories, RECENT_STORIES_WINDOW_DAYS, recentStoryBullets, MAX_RECENT_STORY_BULLETS, bulletUrlKey, dedupeBullets, normalizeBriefing, isLowBalanceError, applyBriefingToUsageStats, briefingDomain, bulletLooksDated } from './telegram.mjs'
+import { tgRequest, sendHtml, sendHtmlToMany, sendTextToMany, isValidBriefing, countBriefingItems, MIN_BRIEFING_ITEMS, extractBriefingBullets, pruneRecentStories, RECENT_STORIES_WINDOW_DAYS, recentStoryBullets, MAX_RECENT_STORY_BULLETS, bulletUrlKey, dedupeBullets, normalizeBriefing, isLowBalanceError, applyBriefingToUsageStats, briefingDomain, bulletLooksDated, recencyWindowHours, MIN_RECENCY_WINDOW_HOURS, MAX_RECENCY_WINDOW_HOURS } from './telegram.mjs'
 
 const realFetch = globalThis.fetch
 function mockFetch(handler) {
@@ -349,4 +349,22 @@ test('bulletLooksDated recognizes in-window ISO dates, month names, and relative
   assert.equal(bulletLooksDated('- [x](https://a.co) announced in Jul', now), true) // month name
   assert.equal(bulletLooksDated('- [x](https://a.co) shipped today', now), true) // relative
   assert.equal(bulletLooksDated('- [x](https://a.co) with no recognizable signal', now), false)
+})
+
+test('recencyWindowHours: consecutive weekdays keep the 48h floor', () => {
+  assert.equal(recencyWindowHours('2026-08-19', '2026-08-18'), MIN_RECENCY_WINDOW_HOURS)
+})
+
+test('recencyWindowHours: Monday after a Friday edition reaches back 72h', () => {
+  assert.equal(recencyWindowHours('2026-08-24', '2026-08-21'), 72)
+})
+
+test('recencyWindowHours: a long gap is capped, never unbounded', () => {
+  assert.equal(recencyWindowHours('2026-08-24', '2026-07-01'), MAX_RECENCY_WINDOW_HOURS)
+})
+
+test('recencyWindowHours: no history, or a same-day rerun, falls back to the floor', () => {
+  assert.equal(recencyWindowHours('2026-08-19', ''), MIN_RECENCY_WINDOW_HOURS)
+  assert.equal(recencyWindowHours('2026-08-19', '2026-08-19'), MIN_RECENCY_WINDOW_HOURS)
+  assert.equal(recencyWindowHours('2026-08-19', '2026-08-20'), MIN_RECENCY_WINDOW_HOURS)
 })

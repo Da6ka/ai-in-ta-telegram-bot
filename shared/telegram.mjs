@@ -142,6 +142,24 @@ export function recentStoryBullets(entries, todayISO) {
   return sorted.flatMap((e) => e.bullets).slice(-MAX_RECENT_STORY_BULLETS)
 }
 
+// The recency window the generation prompt tells the model to judge freshness
+// against. It was a hardcoded "past 24-48 hours" while the briefing ran seven
+// days a week; with the schedule cut to Mon-Fri (2026-08-21) Monday's edition
+// has to reach back across the weekend or two days of news fall outside the
+// window the prompt asks for -- a silent coverage loss, not a visible failure.
+// Derived from the gap since the last edition rather than hardcoded per
+// weekday, so a gap left by an outage or a paused schedule widens the window
+// the same way a weekend does.
+export const MIN_RECENCY_WINDOW_HOURS = 48
+export const MAX_RECENCY_WINDOW_HOURS = 96
+
+export function recencyWindowHours(todayISO, lastBriefingISO) {
+  if (!lastBriefingISO) return MIN_RECENCY_WINDOW_HOURS
+  const gapDays = (new Date(`${todayISO}T00:00:00Z`) - new Date(`${lastBriefingISO}T00:00:00Z`)) / 86_400_000
+  if (!Number.isFinite(gapDays) || gapDays <= 0) return MIN_RECENCY_WINDOW_HOURS
+  return Math.min(MAX_RECENCY_WINDOW_HOURS, Math.max(MIN_RECENCY_WINDOW_HOURS, Math.round(gapDays) * 24))
+}
+
 // --- Generation-pipeline helpers used by the GitHub Actions delivery scripts.
 // Kept here (unit-tested) rather than inline in the script bodies: the scripts
 // run only in CI, where a regression is invisible until a briefing silently

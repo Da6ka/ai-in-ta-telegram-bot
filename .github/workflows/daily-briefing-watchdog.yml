@@ -8,7 +8,11 @@ name: Daily Briefing Watchdog
 
 on:
   schedule:
-    - cron: '30 10 * * *'
+    # Mon-Fri, matching daily-briefing.yml's schedule since 2026-08-21 --
+    # a watchdog running on a day with no scheduled briefing would report
+    # every Saturday as a missed run and dispatch a fallback generation,
+    # which is exactly the spend the weekend pause exists to avoid.
+    - cron: '30 10 * * 1-5'
   workflow_dispatch: {}
 
 permissions:
