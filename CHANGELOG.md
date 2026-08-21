@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+### A blocked crawler no longer takes the briefing down
+
+The first run against the new allowlist failed before spending a token:
+
+    400 invalid_request_error
+    The following domains are not accessible to our user agent: ['reuters.com']
+
+Reuters blocks Anthropic's crawler. The API does not skip such an entry — it
+rejects the entire request and names it, so one domain in the list is enough to
+mean "no briefing today", and it would happen at 09:05 on whatever morning an
+outlet changes its robots policy.
+
+Reuters is out of the list, with a note saying why so it does not get added
+back. More importantly the failure now self-heals: the 400's message lists the
+offending domains, so generation parses them out, drops them from the
+allowlist, and retries — twice at most, and falling back to an unrestricted
+search rather than sending an empty list. A rejected request costs nothing,
+which is what makes retrying the right move rather than a gamble.
+
 ### Search is restricted to a curated source list
 
 The third candidate run finally said what was wrong, and it was not the engine.

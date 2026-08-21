@@ -29,7 +29,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { estimateCostUsd, sumUsage, webSearchCount } from '../shared/anthropic-cost.mjs'
-import { SOURCE_ALLOWLIST } from '../shared/source-allowlist.mjs'
+import { SOURCE_ALLOWLIST, parseInaccessibleDomains } from '../shared/source-allowlist.mjs'
 
 const [promptPath, note = ''] = process.argv.slice(2)
 if (!promptPath) {
@@ -63,7 +63,7 @@ const DEBUG_DIR = process.env.BRIEFING_DEBUG_DIR || ''
 // inside the freshness window, and that one a banned listicle. A
 // comma-separated value overrides the list for a one-off experiment.
 const DOMAINS = process.env.BRIEFING_ALLOWED_DOMAINS ?? 'allow'
-const allowedDomains =
+let allowedDomains =
   DOMAINS === 'none' ? null : DOMAINS === 'allow' ? SOURCE_ALLOWLIST : DOMAINS.split(',').map((d) => d.trim()).filter(Boolean)
 const ENGINE = 'api'
 
@@ -102,15 +102,36 @@ function dumpTurn(dir, turn, message) {
 // raw blocks are consumed by code execution and nothing downstream reads them.
 // On the direct path those same blocks are the only record of what the model
 // saw, so they stay in.
-const searchTool = {
-  type: 'web_search_20260318',
-  name: 'web_search',
-  max_uses: MAX_SEARCHES,
-  // allowed_domains and blocked_domains cannot both be sent (400), and an
-  // over-long list is rejected as request_too_large -- hence one curated list
-  // rather than a growing blocklist of SEO farms.
-  ...(allowedDomains ? { allowed_domains: allowedDomains } : {}),
-  ...(SEARCH_MODE === 'filtered' ? { response_inclusion: 'excluded' } : { allowed_callers: ['direct'] }),
+// Rebuilt per attempt, because a retry can narrow allowedDomains.
+function buildSearchTool() {
+  return {
+    type: 'web_search_20260318',
+    name: 'web_search',
+    max_uses: MAX_SEARCHES,
+    // allowed_domains and blocked_domains cannot both be sent (400), and an
+    // over-long list is rejected as request_too_large -- hence one curated
+    // list rather than a growing blocklist of SEO farms.
+    ...(allowedDomains ? { allowed_domains: allowedDomains } : {}),
+    ...(SEARCH_MODE === 'filtered' ? { response_inclusion: 'excluded' } : { allowed_callers: ['direct'] }),
+  }
+}
+
+// A domain that blocks Anthropic's crawler is rejected with a 400 naming it,
+// and the API refuses the whole request rather than skipping the entry -- so
+// without this, one newspaper changing its robots policy silently becomes "no
+// briefing today". Dropping the named domains and retrying costs nothing: the
+// request fails before any tokens are billed.
+async function requestWithDomainRecovery(params, attemptsLeft = 2) {
+  try {
+    return await client.messages.stream({ ...params, tools: [buildSearchTool()] }).finalMessage()
+  } catch (err) {
+    const blocked = err?.status === 400 ? parseInaccessibleDomains(err?.error?.error?.message ?? err?.message) : []
+    if (!blocked.length || !attemptsLeft || !allowedDomains) throw err
+    allowedDomains = allowedDomains.filter((d) => !blocked.includes(d))
+    console.error(`Dropped ${blocked.join(', ')} from the search allowlist (not accessible to the crawler) and retrying.`)
+    if (!allowedDomains.length) allowedDomains = null
+    return requestWithDomainRecovery(params, attemptsLeft - 1)
+  }
 }
 
 const messages = [{ role: 'user', content: userContent }]
@@ -124,15 +145,13 @@ for (let i = 0; i <= MAX_CONTINUATIONS; i++) {
   turns = i + 1
   // Streaming, not a plain create: a research turn with a dozen searches runs
   // for minutes, which is exactly the shape that trips request timeouts.
-  const stream = client.messages.stream({
+  response = await requestWithDomainRecovery({
     model: MODEL,
     max_tokens: MAX_TOKENS,
     thinking: { type: 'adaptive' },
     output_config: { effort: EFFORT },
-    tools: [searchTool],
     messages,
   })
-  response = await stream.finalMessage()
   usage = sumUsage(usage, response.usage)
 
   for (const block of response.content) {
