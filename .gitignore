@@ -11,3 +11,4 @@ wiki/.pending.json
 # A/B candidate editions (compare-generators.yml) -- generated per run, never part of state
 state/candidate_briefing.md
 state/candidate_cost_log.jsonl
+state/candidate_debug/

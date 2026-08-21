@@ -24,6 +24,9 @@ on:
       max_searches:
         description: Ceiling on billed web searches
         default: '12'
+      search_mode:
+        description: 'direct (full results in context) | filtered (dynamic filtering)'
+        default: direct
 
 permissions:
   contents: read
@@ -58,14 +61,16 @@ jobs:
           BRIEFING_MODEL: ${{ inputs.model }}
           BRIEFING_EFFORT: ${{ inputs.effort }}
           BRIEFING_MAX_SEARCHES: ${{ inputs.max_searches }}
+          BRIEFING_SEARCH_MODE: ${{ inputs.search_mode }}
           BRIEFING_COST_LOG: state/candidate_cost_log.jsonl
+          BRIEFING_DEBUG_DIR: state/candidate_debug
         run: |
           NOTE=$(node scripts/build-date-note.mjs)
           node scripts/generate-briefing.mjs briefing-prompt.md "$NOTE" > state/candidate_briefing.md
 
       - name: Score the candidate
         run: |
-          echo "### Candidate (${{ inputs.model }}, effort ${{ inputs.effort }})" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Candidate (${{ inputs.model }}, effort ${{ inputs.effort }}, search ${{ inputs.search_mode }})" >> "$GITHUB_STEP_SUMMARY"
           node scripts/score-briefing.mjs state/candidate_briefing.md | tee -a "$GITHUB_STEP_SUMMARY"
 
       # The incumbent is scored from the committed file, so this costs nothing
@@ -74,6 +79,22 @@ jobs:
         run: |
           echo "### Incumbent (claude -p, today's real edition)" >> "$GITHUB_STEP_SUMMARY"
           node scripts/score-briefing.mjs state/today_briefing.md | tee -a "$GITHUB_STEP_SUMMARY"
+
+      # What the model actually searched for and what came back. Without this
+      # a "nothing usable" edition is a dead end: the scores say zero items and
+      # nothing says why.
+      # What the model actually searched for and what came back. Without this
+      # a "nothing usable" edition is a dead end: the scores say zero items and
+      # nothing says why.
+      - name: What the searches returned
+        if: always()
+        run: |
+          {
+            echo '### Searches'
+            echo '```'
+            node scripts/dump-search-log.mjs state/candidate_debug
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: What the candidate cost
         run: |
@@ -94,3 +115,4 @@ jobs:
             state/candidate_briefing.md
             state/today_briefing.md
             state/candidate_cost_log.jsonl
+            state/candidate_debug/
