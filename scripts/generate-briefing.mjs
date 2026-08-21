@@ -29,6 +29,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { estimateCostUsd, sumUsage, webSearchCount } from '../shared/anthropic-cost.mjs'
+import { SOURCE_ALLOWLIST } from '../shared/source-allowlist.mjs'
 
 const [promptPath, note = ''] = process.argv.slice(2)
 if (!promptPath) {
@@ -57,6 +58,13 @@ const SEARCH_MODE = process.env.BRIEFING_SEARCH_MODE || 'direct'
 // because the first two failures were undiagnosable: with results excluded
 // from the response there was no way to see what the model was given.
 const DEBUG_DIR = process.env.BRIEFING_DEBUG_DIR || ''
+// Restricts search to shared/source-allowlist.mjs. 'none' searches the open
+// web, which is what the first three candidate runs did: 85 results, one
+// inside the freshness window, and that one a banned listicle. A
+// comma-separated value overrides the list for a one-off experiment.
+const DOMAINS = process.env.BRIEFING_ALLOWED_DOMAINS ?? 'allow'
+const allowedDomains =
+  DOMAINS === 'none' ? null : DOMAINS === 'allow' ? SOURCE_ALLOWLIST : DOMAINS.split(',').map((d) => d.trim()).filter(Boolean)
 const ENGINE = 'api'
 
 // A paused turn is resumed by sending the assistant message back unchanged.
@@ -94,10 +102,16 @@ function dumpTurn(dir, turn, message) {
 // raw blocks are consumed by code execution and nothing downstream reads them.
 // On the direct path those same blocks are the only record of what the model
 // saw, so they stay in.
-const searchTool =
-  SEARCH_MODE === 'filtered'
-    ? { type: 'web_search_20260318', name: 'web_search', max_uses: MAX_SEARCHES, response_inclusion: 'excluded' }
-    : { type: 'web_search_20260318', name: 'web_search', max_uses: MAX_SEARCHES, allowed_callers: ['direct'] }
+const searchTool = {
+  type: 'web_search_20260318',
+  name: 'web_search',
+  max_uses: MAX_SEARCHES,
+  // allowed_domains and blocked_domains cannot both be sent (400), and an
+  // over-long list is rejected as request_too_large -- hence one curated list
+  // rather than a growing blocklist of SEO farms.
+  ...(allowedDomains ? { allowed_domains: allowedDomains } : {}),
+  ...(SEARCH_MODE === 'filtered' ? { response_inclusion: 'excluded' } : { allowed_callers: ['direct'] }),
+}
 
 const messages = [{ role: 'user', content: userContent }]
 const textParts = []
@@ -153,6 +167,7 @@ const record = {
   model: MODEL,
   effort: EFFORT,
   search_mode: SEARCH_MODE,
+  allowed_domains: allowedDomains?.length ?? 0,
   stop_reason: response?.stop_reason ?? null,
   turns,
   duration_ms: durationMs,

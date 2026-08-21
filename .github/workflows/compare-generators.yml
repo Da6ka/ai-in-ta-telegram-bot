@@ -27,6 +27,9 @@ on:
       search_mode:
         description: 'direct (full results in context) | filtered (dynamic filtering)'
         default: direct
+      domains:
+        description: 'allow (curated source list) | none (open web) | a comma-separated list'
+        default: allow
 
 permissions:
   contents: read
@@ -62,6 +65,7 @@ jobs:
           BRIEFING_EFFORT: ${{ inputs.effort }}
           BRIEFING_MAX_SEARCHES: ${{ inputs.max_searches }}
           BRIEFING_SEARCH_MODE: ${{ inputs.search_mode }}
+          BRIEFING_ALLOWED_DOMAINS: ${{ inputs.domains }}
           BRIEFING_COST_LOG: state/candidate_cost_log.jsonl
           BRIEFING_DEBUG_DIR: state/candidate_debug
         run: |
@@ -70,7 +74,7 @@ jobs:
 
       - name: Score the candidate
         run: |
-          echo "### Candidate (${{ inputs.model }}, effort ${{ inputs.effort }}, search ${{ inputs.search_mode }})" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Candidate (${{ inputs.model }}, effort ${{ inputs.effort }}, search ${{ inputs.search_mode }}, domains ${{ inputs.domains }})" >> "$GITHUB_STEP_SUMMARY"
           node scripts/score-briefing.mjs state/candidate_briefing.md | tee -a "$GITHUB_STEP_SUMMARY"
 
       # The incumbent is scored from the committed file, so this costs nothing
