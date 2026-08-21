@@ -2,6 +2,38 @@
 
 ## [Unreleased]
 
+### Search is restricted to a curated source list
+
+The third candidate run finally said what was wrong, and it was not the engine.
+Ten searches — all six mandatory ones plus all four from the prompt's
+minimum-coverage escalation — returned 85 results. One was inside the
+seven-day window, and that one was a "trends" listicle the prompt bans.
+Twenty results carried no publish date at all. The model looked at that pile,
+found nothing it could legally use, and emitted the fallback exactly as
+instructed.
+
+The decisive detail: the previous day's real edition was built on releasebot.io
+(19 August), staffingindustry.com (18th) and businesswire.com (17th) — all
+still inside the window. Two of those domains never came back to the candidate,
+and staffingindustry.com returned a 2023 article about a funding round instead.
+The API's web search does not rank these queries by recency; Claude Code's
+WebSearch does. Effort, dynamic filtering and the model were never the
+variable — three runs and $2.22 spent fixing the wrong thing.
+
+`shared/source-allowlist.mjs` is the answer to that: 34 domains the search may
+return, passed as `allowed_domains`. It is derived from the archive rather than
+guessed — every domain the briefing has actually cited across 39 editions (180
+links, 73 domains), kept where cited more than once, plus the outlets
+`briefing-prompt.md` names but the archive has not used yet, plus the two
+regulators the compliance beat turns on. The prompt already asked for primary
+sources and named trade press; this makes it structural, because filtering junk
+after the fact cannot recover a story the junk crowded out of the results.
+
+`BRIEFING_ALLOWED_DOMAINS` takes `allow`, `none`, or a one-off list, and the
+A/B workflow exposes it as an input. The tradeoff is real and worth stating: a
+good story from a source outside the list is invisible, so a thin week is a
+reason to check what got excluded rather than to assume the news was quiet.
+
 ### The command menu can be pushed from Actions
 
 `scripts/set-commands.mjs` had no runner. It needs `TELEGRAM_BOT_TOKEN` and,
@@ -16,6 +48,7 @@ pushing a menu to every client is user-facing.
 
 Found while shipping the Mon-Fri change, which edited the `/subscribe`
 description and had no way to deliver it.
+
 
 ### Direct search by default, and a way to see why a run failed
 
