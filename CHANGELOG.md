@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+### The command menu can be pushed from Actions
+
+`scripts/set-commands.mjs` had no runner. It needs `TELEGRAM_BOT_TOKEN` and,
+for the owner-scoped admin menu, three `CF_*` credentials to read
+`ownerChatId` out of KV — so running it locally meant either keeping a fourth
+copy of the bot token on a laptop, or running it without the CF credentials
+and silently registering the public menu while skipping the admin one.
+
+`set-bot-commands.yml` runs it where all four secrets already live. Manual
+dispatch rather than on merge: the command set changes a few times a year, and
+pushing a menu to every client is user-facing.
+
+Found while shipping the Mon-Fri change, which edited the `/subscribe`
+description and had no way to deliver it.
+
 ### Direct search by default, and a way to see why a run failed
 
 Two A/B runs on 2026-08-21 both returned the prompt's "nothing usable"
@@ -76,6 +91,7 @@ paid for and is probably fine.
 First dependency in the repo's life (`@anthropic-ai/sdk`, pinned), so CI now
 runs `npm ci` — with `ci`, not `install`, so a lockfile that has drifted fails
 in CI rather than at 09:05.
+
 
 ### The briefing runs Mon-Fri
 

@@ -1,0 +1,39 @@
+name: Set Bot Commands
+
+# Registers the "/" command menu with Telegram (scripts/set-commands.mjs),
+# which has to be re-run whenever a command or its description changes.
+#
+# It lived only as a local script, and that made it awkward to actually run:
+# the token is a GitHub and Cloudflare secret, so a laptop copy would be a
+# fourth place the token exists. The owner-scoped menu needs three CF_*
+# credentials on top of it, to read ownerChatId out of KV -- so a local run
+# without them silently registers the public menu and skips the admin one.
+# Every one of those secrets is already here.
+#
+# Manual on purpose: the command set changes a few times a year, and pushing
+# a menu is a visible, user-facing action, not something a merge should do.
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  set-commands:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Register the command menu with Telegram
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CF_KV_NAMESPACE_ID: ${{ secrets.CF_KV_NAMESPACE_ID }}
+        run: node scripts/set-commands.mjs
