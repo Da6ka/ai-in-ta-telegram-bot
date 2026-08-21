@@ -2,6 +2,53 @@
 
 ## [Unreleased]
 
+### A direct-API generator, behind an A/B
+
+`claude -p` runs an agent loop that carries every web-search result forward in
+full through every later turn, so a six-search edition re-sends the accumulated
+results five more times. Input tokens grow with the square of the research,
+and that is where the bot's money goes — around 90% of what it costs to run.
+
+`scripts/generate-briefing.mjs` does the same job in one request:
+`web_search_20260318` runs the searches inside a single server-side turn, and
+dynamic filtering puts the results through code before they reach the context
+window, so only what survives is billed. `response_inclusion: 'excluded'` keeps
+the raw result blocks out of the response, since nothing downstream reads them.
+It streams (a dozen searches is exactly the shape that trips a request
+timeout), continues a paused turn up to four times, and treats a refusal, an
+empty response and a `max_tokens` truncation as three different outcomes rather
+than one generic failure.
+
+Nothing is switched over yet. The daily and on-demand sends still run
+`claude -p`; this ships alongside it with `compare-generators.yml`, a manual
+workflow that generates a candidate edition, scores it with the existing
+`score-briefing.mjs`, and scores the edition that actually went out that
+morning next to it. Since the real edition is already committed, the comparison
+costs one generation rather than two. It sends nothing, writes no KV and
+commits nothing. It also deliberately skips the recency note: that note tells
+the model not to repeat recent editions, including the one being compared
+against, which would push the candidate onto second-choice stories and make the
+comparison meaningless.
+
+Every run now prices itself. `shared/anthropic-cost.mjs` turns the API's own
+`usage` into dollars and appends a line per edition to a cost log. This is the
+thing the old path could never answer: per-run spend was only ever inferred
+from a monthly total and from which `--max-budget-usd` ceiling a run had blown
+through — raised 1 to 2 to 4 across three incidents, each time after a failure
+rather than after a measurement. An unpriced model logs `null` instead of a
+guess.
+
+Cost control changes shape along with the engine. `--max-budget-usd` was
+enforced by the CLI mid-run; the pre-emptive limits here are a ceiling on
+billed searches and on `max_tokens`, plus a budget check before continuing a
+paused turn. The final total only warns: once a completed response can be
+priced the money is spent, and failing then would discard an edition that was
+paid for and is probably fine.
+
+First dependency in the repo's life (`@anthropic-ai/sdk`, pinned), so CI now
+runs `npm ci` — with `ci`, not `install`, so a lockfile that has drifted fails
+in CI rather than at 09:05.
+
 ### The briefing runs Mon-Fri
 
 Weekend editions were about 28% of all generations and the single largest line

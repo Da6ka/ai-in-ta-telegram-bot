@@ -7,3 +7,7 @@ state/briefing_debug.log
 
 # Wiki ingest scratch — rewritten each run, never committed
 wiki/.pending.json
+
+# A/B candidate editions (compare-generators.yml) -- generated per run, never part of state
+state/candidate_briefing.md
+state/candidate_cost_log.jsonl

@@ -1,0 +1,94 @@
+name: Compare Generators
+
+# Manual A/B for the direct-API generator (scripts/generate-briefing.mjs)
+# against the `claude -p` path the daily send still uses.
+#
+# It generates a candidate edition and scores it, and does nothing else: no
+# Telegram send, no KV write, no commit back to state/. The day's real edition
+# is already in the checkout at state/today_briefing.md, so the comparison
+# costs one generation rather than two.
+#
+# Deliberately NOT in the `briefing-generation` concurrency group: it shares no
+# state with the real pipeline, so there is nothing to serialise against, and
+# joining that group would leave a manual experiment queued behind a real send.
+
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: Model for the candidate run
+        default: claude-opus-4-8
+      effort:
+        description: 'output_config.effort: low | medium | high | xhigh | max'
+        default: medium
+      max_searches:
+        description: Ceiling on billed web searches
+        default: '12'
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - run: npm ci
+
+      - name: Pin today's date
+        run: |
+          echo "BRIEFING_DATE_ISO=$(date -u +%F)" >> "$GITHUB_ENV"
+          echo "BRIEFING_DATE_HUMAN=$(date -u '+%-d %B %Y')" >> "$GITHUB_ENV"
+
+      # Date note only, no recency note. build-recency-note.mjs tells the model
+      # not to repeat stories from recent editions -- including the one this run
+      # is being compared against, which would handicap the candidate into
+      # hunting for second-choice stories. Without it, both generators face the
+      # same problem, and overlap between them reads as agreement rather than
+      # as a repeat.
+      - name: Generate candidate edition
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          BRIEFING_MODEL: ${{ inputs.model }}
+          BRIEFING_EFFORT: ${{ inputs.effort }}
+          BRIEFING_MAX_SEARCHES: ${{ inputs.max_searches }}
+          BRIEFING_COST_LOG: state/candidate_cost_log.jsonl
+        run: |
+          NOTE=$(node scripts/build-date-note.mjs)
+          node scripts/generate-briefing.mjs briefing-prompt.md "$NOTE" > state/candidate_briefing.md
+
+      - name: Score the candidate
+        run: |
+          echo "### Candidate (${{ inputs.model }}, effort ${{ inputs.effort }})" >> "$GITHUB_STEP_SUMMARY"
+          node scripts/score-briefing.mjs state/candidate_briefing.md | tee -a "$GITHUB_STEP_SUMMARY"
+
+      # The incumbent is scored from the committed file, so this costs nothing
+      # and reflects exactly what subscribers received this morning.
+      - name: Score the edition that actually went out
+        run: |
+          echo "### Incumbent (claude -p, today's real edition)" >> "$GITHUB_STEP_SUMMARY"
+          node scripts/score-briefing.mjs state/today_briefing.md | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: What the candidate cost
+        run: |
+          echo '### Candidate cost' >> "$GITHUB_STEP_SUMMARY"
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          cat state/candidate_cost_log.jsonl >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      # Both editions side by side, for the editorial judgment the scorer
+      # cannot make: is the candidate's selection as good, not just as legal.
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: generator-comparison
+          path: |
+            state/candidate_briefing.md
+            state/today_briefing.md
+            state/candidate_cost_log.jsonl

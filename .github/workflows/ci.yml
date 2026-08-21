@@ -14,6 +14,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      # The repo carried no dependencies until scripts/generate-briefing.mjs
+      # brought in the Anthropic SDK. `npm ci` (not `install`) so a lockfile
+      # that has drifted from package.json fails here rather than in a
+      # briefing run at 09:05.
+      - name: Install dependencies
+        run: npm ci
+
       - name: Syntax-check all sources
         run: |
           for f in scripts/*.mjs shared/*.mjs worker/src/*.js; do
