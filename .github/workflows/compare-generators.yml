@@ -77,10 +77,12 @@ jobs:
 
       - name: What the candidate cost
         run: |
-          echo '### Candidate cost' >> "$GITHUB_STEP_SUMMARY"
-          echo '```json' >> "$GITHUB_STEP_SUMMARY"
-          cat state/candidate_cost_log.jsonl >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo '### Candidate cost'
+            echo '```json'
+            cat state/candidate_cost_log.jsonl
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       # Both editions side by side, for the editorial judgment the scorer
       # cannot make: is the candidate's selection as good, not just as legal.
