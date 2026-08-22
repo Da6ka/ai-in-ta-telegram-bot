@@ -76,6 +76,8 @@ AI-powered agents are automating recruitment workflows end-to-end: sourcing, scr
 
 - **25 Jun 2026** — uRecruits launched 2.0, a recruiter-first platform with seven connected capabilities and "uR Agent" AI that drafts jobs, sends pre-screens, coordinates interviews, and ranks candidates — but explicitly makes no automated advancement, rejection, or hire decisions, keeping every call human-approved. It pitches "a human in every decision" as its answer to tightening AI hiring laws, making human-in-the-loop a compliance selling point worth pressing your own vendors on. — [PR Newswire](https://www.prnewswire.com/news-releases/urecruits-launches-2-0-with-7-connected-hiring-capabilities-and-recruiter-controlled-ai-agents-302810515.html)
 
+- **20 Aug 2026** — **Keyple made its Keyple Intelligence Platform (KIP) generally available to U.S. agencies of every size**, pitching an all-in-one AI recruiting/staffing stack built "agency-first" by founder Adán Iracheta to counter bloated toolsets, unused features, and pricing that penalizes growth. If you run a small or mid-sized agency, treat GA as the cue to benchmark consolidated AI platforms against your current point-solution spend. — [Business Wire](https://www.businesswire.com/news/home/20260820253737/en/Keyple-Makes-the-Keyple-Intelligence-Platform-Generally-Available-Bringing-All-in-One-AI-Recruiting-to-Agencies-of-Every-Size)
+
 ## Open questions
 
 - How do multi-agent systems distribute decision authority between agents, between agents and humans, and across orgs? Who is liable when an agent makes an adverse-impact decision?

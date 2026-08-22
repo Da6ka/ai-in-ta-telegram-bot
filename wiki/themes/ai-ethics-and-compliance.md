@@ -58,6 +58,8 @@ Legal and regulatory pressure on AI hiring is accelerating, though federal enfor
 
 - **10 Aug 2026** — AI/R launched AI/Cockpit One, a platform to centralize AI access, security, observability, and governance across an enterprise's AI usage. As TA wires hiring agents into sourcing and screening workflows that touch candidate PII, an org-level observability and control layer is the kind of governance infrastructure to evaluate before scaling agents past pilot. — [GlobeNewswire](https://www.globenewswire.com/news-release/2026/08/10/3342167/0/en/ai-r-launches-unified-platform-for-enterprise-ai-governance.html)
 
+- **18 Aug 2026** — A **LinkedIn study finds Millennials and Gen Z are winning the fastest-growing, highest-paying AI roles**: Gen Z now makes up more than two-thirds of hires for forward-deployed engineer and AI engineer jobs (median pay ~$199K and ~$166K), even as only 26% of 2025 AI-role hires were women versus 50% in non-AI occupations. Use it to recalibrate comp bands for AI-adjacent reqs — and to interrogate why your AI pipelines may be skewing male before the gap hardens. — [CNBC](https://www.cnbc.com/2026/08/18/millennials-and-gen-z-are-landing-fast-growing-high-paying-ai-jobs-linkedin-study.html)
+
 ## Open questions
 
 - Which state AIs acts will survive preemption challenges or federal harmonization attempts?
