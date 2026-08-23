@@ -78,6 +78,8 @@ AI-powered agents are automating recruitment workflows end-to-end: sourcing, scr
 
 - **20 Aug 2026** — **Keyple made its Keyple Intelligence Platform (KIP) generally available to U.S. agencies of every size**, pitching an all-in-one AI recruiting/staffing stack built "agency-first" by founder Adán Iracheta to counter bloated toolsets, unused features, and pricing that penalizes growth. If you run a small or mid-sized agency, treat GA as the cue to benchmark consolidated AI platforms against your current point-solution spend. — [Business Wire](https://www.businesswire.com/news/home/20260820253737/en/Keyple-Makes-the-Keyple-Intelligence-Platform-Generally-Available-Bringing-All-in-One-AI-Recruiting-to-Agencies-of-Every-Size)
 
+- **22 Aug 2026** — **Loxo expanded its Next-Generation platform with Loxo AI Chat**, a permission-scoped, zero-retention data-query tool that lets recruiters search their own database alongside a talent graph of 850M+ professionals and cite sources or abstain. It's a concrete example of the "agentic workforce" pattern arriving in mainstream ATS/CRM tools — worth pressure-testing the permission scoping and source-citation claims in any demo. — [TipRanks](https://www.tipranks.com/news/private-companies/loxo-deepens-ai-driven-recruiting-platform-with-new-data-query-tool-and-expanded-agent-capabilities)
+
 ## Open questions
 
 - How do multi-agent systems distribute decision authority between agents, between agents and humans, and across orgs? Who is liable when an agent makes an adverse-impact decision?
