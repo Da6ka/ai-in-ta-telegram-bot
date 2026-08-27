@@ -80,6 +80,8 @@ Anthropic is shipping Claude across every layer of the recruiting tech stack and
 
 - **20 Aug 2026** — Anthropic opened **Claude Academy**, a free learning hub built on how it trains its own staff, with ~20 self-paced courses spanning Claude 101 to API and agent development — including an "AI Fluency" course structured around a Delegation/Description/Discernment/Diligence framework. As "hire for AI fluency" moves onto req scorecards, this gives TA teams a no-cost, structured curriculum to build recruiter AI competence rather than leaving it to ad hoc experimentation. — [Techgenyz](https://techgenyz.com/claude-academy-free-courses/)
 
+- **24 Aug 2026** — Anthropic made **enterprise-managed authorization generally available for Claude's MCP connectors**, letting IT centrally control which third-party services Claude can reach and expanding coverage to Slack, Notion, and Datadog (joining Asana, Atlassian, Figma, Linear, and others). If your TA team runs Claude against recruiting tools or candidate data through connectors, this is the admin control to configure before scaling agents past pilot — set connector-level auth centrally rather than per-user. — [Anthropic Rolls Out Enterprise-Managed Auth for Claude's MCP Connectors](https://cybersecuritynews.com/anthropic-enterprise-managed-mcp-connectors/)
+
 ## Open questions
 
 - As Claude becomes ubiquitous via partnerships (UST, LTM) and integrations (Azure, Foundry, Slack), how do TA leaders differentiate hiring for "Claude fluency" from hiring for underlying problem-solving?

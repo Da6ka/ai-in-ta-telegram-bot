@@ -80,6 +80,8 @@ AI-powered agents are automating recruitment workflows end-to-end: sourcing, scr
 
 - **22 Aug 2026** — **Loxo expanded its Next-Generation platform with Loxo AI Chat**, a permission-scoped, zero-retention data-query tool that lets recruiters search their own database alongside a talent graph of 850M+ professionals and cite sources or abstain. It's a concrete example of the "agentic workforce" pattern arriving in mainstream ATS/CRM tools — worth pressure-testing the permission scoping and source-citation claims in any demo. — [TipRanks](https://www.tipranks.com/news/private-companies/loxo-deepens-ai-driven-recruiting-platform-with-new-data-query-tool-and-expanded-agent-capabilities)
 
+- **26 Aug 2026** — **PageUp and Sapia.ai deepened their partnership to embed autonomous, skills-based AI interviewing directly inside the ATS**, letting enterprises screen 100% of applicants — potentially tens of thousands at once — before shortlisting, with both vendors holding ISO 42001 responsible-AI certification. The signal for TA leaders: high-volume "interview-everyone" screening is becoming a native ATS feature, so press vendors on auditability and bias controls (Sapia uses a text-only model to strip visual, accent, and demographic cues) rather than treating AI interviewing as a bolt-on. — [PageUp and Sapia.ai embed intelligent AI interviewing directly into enterprise hiring workflows](https://www.globenewswire.com/news-release/2026/08/26/3351491/0/en/pageup-and-sapia-ai-embed-intelligent-ai-interviewing-directly-into-enterprise-hiring-workflows.html)
+
 ## Open questions
 
 - How do multi-agent systems distribute decision authority between agents, between agents and humans, and across orgs? Who is liable when an agent makes an adverse-impact decision?
