@@ -2,6 +2,48 @@
 
 ## [Unreleased]
 
+### The daily send runs on the direct-API generator
+
+`scripts/generate-briefing.mjs` shipped alongside `claude -p` rather than
+replacing it, on the reasonable grounds that nothing had been measured yet.
+Now it has been. The 2026-08-28 A/B produced a four-item edition for **$1.47**
+— 247,580 input tokens, 10 billed searches, one turn — and it passed every
+scriptable gate: item floor, target coverage, every bullet dated, four
+distinct domains, bottom line present. The edition `claude -p` sent that
+morning carried two items and missed target coverage. Different news days, so
+that is not a like-for-like quality win; what it does establish is that the
+cheaper path is not a regression.
+
+Both generation paths move together — `daily-briefing.yml` and
+`on-demand-briefing.yml`. Running `/newbriefing` on a different engine than
+the morning send would mean the path with better instrumentation never gets
+exercised by the requests most likely to hit an edge case.
+
+What follows from the engine swap rather than being a separate decision:
+
+- **The cost ceiling changes shape.** `--max-budget-usd` was enforced by the
+  CLI mid-run, so the retry loop had to grep for "Exceeded USD budget" and bail
+  out rather than burn another $4. The ceilings now are pre-emptive
+  (`BRIEFING_MAX_SEARCHES`, `max_tokens`, a budget check before continuing a
+  paused turn) and the final total only warns, so that grep is gone. The
+  step-level `timeout-minutes` stays as the hard wall-clock bound.
+- **Every run now prices itself in the workflow log.** The generator reports
+  tokens, searches and dollars on stderr, and both workflows print it on
+  success instead of only on failure — plus `state/cost_log.jsonl`, which the
+  existing blanket `git add state/` commits. Per-run spend stops being
+  something inferred from a monthly Console total.
+- **Failure diagnosis moves from `--debug-file` to per-turn dumps.**
+  `BRIEFING_DEBUG_DIR` collects what each search returned; the freshness gate's
+  rejection dump reads it with `scripts/dump-search-log.mjs`, which is what
+  separates "the searches failed" from "the searches worked and the model
+  discarded every result". Those two look identical from outside and both read
+  as a thin news day. Gitignored — several KB per turn, rewritten every run,
+  and the commit step would otherwise carry them into git daily.
+- **`npm ci` in both workflows.** Generation needs the lockfile now, not just
+  CI. `on-demand-briefing.yml` stops installing the Claude Code CLI at all: the
+  only remaining `claude -p` call in the repo's briefing path is the daily
+  wiki ingest, which is Haiku bookkeeping and stays where it is.
+
 ### A blocked crawler no longer takes the briefing down
 
 The first run against the new allowlist failed before spending a token:

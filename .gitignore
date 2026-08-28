@@ -5,6 +5,13 @@ node_modules/
 state/briefing_stderr.log
 state/briefing_debug.log
 
+# Per-turn search dumps from the direct-API generator (BRIEFING_DEBUG_DIR).
+# Rewritten every run, several KB of raw search results per turn, and the
+# commit step does a blanket `git add state/` -- so without this they would be
+# committed daily and grow the repo for nothing. Read them from the failed
+# run's log, not from git history.
+state/briefing_debug/
+
 # Wiki ingest scratch — rewritten each run, never committed
 wiki/.pending.json
 
@@ -12,3 +19,4 @@ wiki/.pending.json
 state/candidate_briefing.md
 state/candidate_cost_log.jsonl
 state/candidate_debug/
+state/candidate_stories.md

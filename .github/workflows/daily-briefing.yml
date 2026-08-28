@@ -57,6 +57,14 @@ jobs:
         with:
           node-version: '20'
 
+      # Generation runs through @anthropic-ai/sdk now (see "Generate briefing"),
+      # so the lockfile has to be installed here, not just in CI. `ci`, not
+      # `install`: a drifted lockfile should fail loudly rather than resolve to
+      # some other version at 09:05.
+      - run: npm ci
+
+      # Still needed: the wiki ingest step near the bottom is the one remaining
+      # `claude -p` call in this workflow.
       - name: Install Claude Code
         run: npm install -g @anthropic-ai/claude-code@2.1.209
 
@@ -106,55 +114,57 @@ jobs:
         timeout-minutes: 10
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Each turn's search results land here so a "nothing usable" edition
+          # is diagnosable. Under `claude -p` this was --debug-file; the dump
+          # is now per-turn JSON, read with scripts/dump-search-log.mjs (see
+          # the freshness step below). Gitignored: it is rewritten every run.
+          BRIEFING_DEBUG_DIR: state/briefing_debug
         run: |
           NOTE=$(node scripts/build-date-note.mjs)
           RECENT=$(node scripts/build-recency-note.mjs)
           if [ -n "$RECENT" ]; then
             NOTE="${NOTE}"$'\n\n'"${RECENT}"
           fi
-          # One retry: a transient web-search/API hiccup shouldn't cost the whole
-          # day's briefing. A zero-exit-but-poor generation is caught later by the
-          # freshness gate + stale-generation alert, not here.
-          # --max-budget-usd is a hard cost ceiling (LLM10) and the step-level
-          # timeout-minutes above is a hard wall-clock ceiling (ASI02) on the
-          # WebSearch-driven agent loop, which has no other iteration cap.
-          # --model pins Opus explicitly. Briefly pinned to Sonnet (2026-07-11)
-          # for cost, but reverted the same day: two side-by-side runs on
-          # identical prompts/inputs (today's real run + a local Opus rerun)
-          # showed Sonnet returning 1 story vs Opus's 6 across all three
-          # sections -- a real coverage regression, not noise.
+          # Direct Messages API call, not `claude -p`. The agent loop carried
+          # every web-search result forward in full through every later turn,
+          # so a six-search edition re-sent the accumulated results five more
+          # times and input tokens grew with the square of the research -- ~90%
+          # of what the bot cost to run. scripts/generate-briefing.mjs does the
+          # same research inside one server-side turn. Measured on 2026-08-28
+          # against the same prompt: $1.47 for a 4-item edition that passed
+          # every scriptable gate, against ~$2-3 here.
           #
-          # --setting-sources user (excluding "project") skips this repo's
-          # .claude/settings.json Stop hook (runs `npm test` and blocks
-          # completion on failure). That hook exists to guard interactive
-          # coding sessions, but it has no business gating a headless
-          # content-generation call, and on 2026-07-14 its `npm test` failed
-          # inside the CI checkout (glob mismatch on shared/**/*.test.mjs) --
-          # pinning the model into a Stop-block retry loop that silently ate
-          # three separate runs' worth of output/time/budget without ever
-          # emitting a real error. --bare was tried first and also skips
-          # hooks, but it disables tool search along with them, which broke
-          # WebSearch itself (the model fell back to raw curl/wget via Bash,
-          # all denied, then gave up) -- --setting-sources is the narrower
-          # fix that drops only the hook-bearing settings source.
+          # Cost control changes shape with the engine, and the difference
+          # matters. --max-budget-usd was enforced by the CLI mid-run; the
+          # ceilings now are BRIEFING_MAX_SEARCHES (searches bill per call),
+          # max_tokens, and a budget check before continuing a paused turn --
+          # all pre-emptive. The generator's own final total only warns, on
+          # purpose: once a completed response can be priced the money is
+          # already spent, and failing then would throw away a paid-for
+          # edition that is probably fine. The step-level timeout-minutes
+          # above stays as the hard wall-clock ceiling (ASI02).
+          #
+          # BRIEFING_MODEL/EFFORT/MAX_SEARCHES/SEARCH_MODE/ALLOWED_DOMAINS are
+          # deliberately left at the script's defaults (Opus 4.8, medium,
+          # direct, curated allowlist) so this workflow and compare-generators.yml
+          # stay comparable -- tune them there first, then here.
+          #
+          # One retry: a transient API hiccup shouldn't cost the whole day's
+          # briefing. A zero-exit-but-poor generation is caught later by the
+          # freshness gate + stale-generation alert, not here.
           for attempt in 1 2; do
-            if claude -p "$(cat briefing-prompt.md)"$'\n\n'"$NOTE" --model claude-opus-4-8 --allowedTools "WebSearch" --max-budget-usd 4 --debug-file state/briefing_debug.log --setting-sources user > state/today_briefing.md 2> state/briefing_stderr.log; then
+            if node scripts/generate-briefing.mjs briefing-prompt.md "$NOTE" > state/today_briefing.md 2> state/briefing_stderr.log; then
+              # Always printed, not just on failure: the generator's stderr is
+              # where the run's token counts, search count and dollar cost are
+              # reported, and that line is the whole point of the new engine.
+              cat state/briefing_stderr.log
               break
             fi
-            echo "Generation attempt $attempt failed. claude's stdout/stderr follow so the actual cause (rate limit, budget, auth, etc.) is visible in the log instead of silently landing in a file nobody prints on failure:"
+            echo "Generation attempt $attempt failed. The generator's stdout/stderr follow so the actual cause (refusal, rate limit, auth, empty response) is visible in the log instead of silently landing in a file nobody prints on failure:"
             echo "--- stdout (state/today_briefing.md) ---"
             cat state/today_briefing.md
             echo "--- stderr ---"
             cat state/briefing_stderr.log
-            # A budget-exceedance is deterministic -- a retry can't come in
-            # cheaper under the same cap, it just burns another ~$4 and runs
-            # the step into its 10-minute timeout. Fail fast instead. The
-            # budget error lands on stdout (redirected into today_briefing.md),
-            # so grep both captures.
-            if grep -qi "Exceeded USD budget" state/today_briefing.md state/briefing_stderr.log; then
-              echo "::error::Generation exceeded the --max-budget-usd ceiling -- not retrying (deterministic)."
-              exit 1
-            fi
             if [ "$attempt" -eq 2 ]; then exit 1; fi
             sleep 5
           done
@@ -188,8 +198,13 @@ jobs:
             head -40 state/today_briefing.md
             echo "--- state/briefing_stderr.log ---"
             cat state/briefing_stderr.log 2>/dev/null || true
-            echo "--- state/briefing_debug.log (last 200 lines) ---"
-            tail -200 state/briefing_debug.log 2>/dev/null || true
+            # Distinguishes "the searches failed" from "the searches worked and
+            # the model discarded every result" -- the two look identical from
+            # the outside, and both read as a thin news day. Each result's
+            # page_age is printed, since an undated result is one the prompt
+            # is required to drop.
+            echo "--- searches (state/briefing_debug) ---"
+            node scripts/dump-search-log.mjs state/briefing_debug 2>/dev/null || true
             echo "ok=false" >> "$GITHUB_OUTPUT"
           fi
 
