@@ -2,6 +2,39 @@
 
 ## [Unreleased]
 
+### The Worker ships from CI, and says which commit it is running
+
+Everything else in this repo deploys itself. The Worker did not: `wrangler
+deploy` was a manual step, so a merged change and a live change were separate
+events with nothing joining them. A cap edit could sit in `main` for days while
+the bot enforced the previous bundle, and the failure is invisible — code that
+was never deployed looks exactly like code that does not work.
+
+Two pieces:
+
+- **`GET /status`** on the Worker returns `gitSha` plus the caps, cooldowns,
+  heartbeat cron and retention window it is actually enforcing. The numbers are
+  read from the same constants the request path uses, not a copy: a
+  hand-maintained version string that someone forgot to bump reads as a passing
+  check while production runs something else, which is the exact failure this
+  is meant to catch. Public and unauthenticated — everything it prints is
+  already in the open repo and in `docs/technical-spec.md` — with a test
+  asserting the response carries no ids, allowlist, KV contents or secrets, and
+  that adding a top-level field to it breaks that test on purpose.
+- **`deploy-worker.yml`** runs on pushes to `main` touching `worker/**` or
+  `shared/**`. It re-runs the suite (ci.yml runs alongside this workflow, not
+  before it), deploys with the commit SHA passed through as `GIT_SHA`, then
+  polls `/status` until the live Worker reports that SHA. `wrangler deploy`
+  exiting 0 only means Cloudflare accepted an upload; the poll is what turns
+  the run green.
+
+A local `wrangler deploy` passes no `GIT_SHA` and leaves `/status` reporting
+`unknown`. That is the honest answer rather than a gap: it says the Worker was
+last written from outside CI.
+
+Staging still deploys by hand (`--env staging`). It has no webhook pointed at
+`main`, so there is nothing for CI to keep in sync.
+
 ### On-demand generation caps drop from 5/day to 2
 
 `GLOBAL_DAILY_DISPATCH_CAP` was 5 and `DAILY_DISPATCH_CAP` 3. At the measured

@@ -1038,8 +1038,16 @@
         <div class="note">
           <b>Environments are fully isolated.</b> Production and staging run distinct Workers, distinct bots, distinct
           KV namespaces, and distinct webhook secrets — a staging change is exercised end-to-end with zero chance of
-          touching prod state or prod subscribers. <code>wrangler deploy</code> targets prod;
+          touching prod state or prod subscribers. Prod ships from CI on every push to <code>main</code> under
+          <code>worker/**</code>; a local <code>wrangler deploy</code> still targets prod, and
           <code>--env staging</code> is required to touch staging.
+        </div>
+        <div class="note">
+          <b>A deploy is verified, not assumed.</b> The Worker serves
+          <code>GET /status</code> — the commit SHA it is running plus the caps, cooldowns and heartbeat cron it is
+          actually enforcing, read from the same constants the request path uses. The deploy workflow polls it until
+          the live Worker reports the commit it just pushed, so a green run means production is serving that commit
+          rather than that an upload was accepted.
         </div>
       </section>
 

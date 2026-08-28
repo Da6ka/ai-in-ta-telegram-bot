@@ -1,0 +1,95 @@
+name: Deploy Worker
+
+# The Worker is the one part of this project git does not ship. `wrangler
+# deploy` was manual, so "merged to main" and "running in production" were
+# independent events with nothing connecting them -- a cap or handler change
+# could sit in main for days while the live bot ran the previous bundle.
+#
+# Path-scoped: doc-only commits and the whole briefing pipeline (scripts/,
+# prompts, wiki/) don't touch the Worker and shouldn't redeploy it.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'worker/**'
+      - 'shared/**'
+      - '.github/workflows/deploy-worker.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Two deploys must not race. cancel-in-progress would be wrong here: the
+# cancelled run is the older commit, but cancelling it mid-upload can leave
+# Cloudflare holding a half-applied deploy, and the queued run is the one that
+# matters anyway. Serialise instead.
+concurrency:
+  group: deploy-worker
+  cancel-in-progress: false
+
+env:
+  WORKER_URL: https://ai-in-ta-telegram-bot.ai-in-ta-bot.workers.dev
+  WRANGLER_VERSION: 4.106.0
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm ci
+
+      # ci.yml runs these too, but it runs *alongside* this workflow, not
+      # before it -- a push triggers both at once. Fifteen seconds here is the
+      # difference between catching a red main and shipping it to the live bot.
+      - name: Run unit tests
+        run: npm test
+
+      # --var merges with [vars] in wrangler.toml rather than replacing it
+      # (checked with --dry-run), so GITHUB_REPO survives. Pinned rather than
+      # bare `npx wrangler`: an unpinned deploy tool is a silent dependency on
+      # whatever npm resolves that morning.
+      - name: Deploy
+        working-directory: worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        run: npx --yes wrangler@${{ env.WRANGLER_VERSION }} deploy --var GIT_SHA:"$GITHUB_SHA"
+
+      # A zero exit from `wrangler deploy` means Cloudflare accepted the upload,
+      # not that the new bundle is serving. Asking the running Worker which
+      # commit it is is the only claim worth making, and it is the reason
+      # GET /status exists (worker/src/index.js).
+      - name: Verify the deployed commit is live
+        run: |
+          for attempt in $(seq 1 10); do
+            live=$(curl -sf --max-time 10 "$WORKER_URL/status" | jq -r '.gitSha // empty')
+            if [ "$live" = "$GITHUB_SHA" ]; then
+              echo "live: $live"
+              exit 0
+            fi
+            echo "attempt $attempt: /status reports '${live:-<unreachable>}', want '$GITHUB_SHA'"
+            sleep 6
+          done
+          echo "::error::upload succeeded but $WORKER_URL/status never reported $GITHUB_SHA"
+          exit 1
+
+      # On success this is the record of what the caps actually are; on failure
+      # it is the first thing worth looking at, so it runs either way.
+      - name: What the live Worker reports
+        if: always()
+        run: |
+          {
+            echo '### Live /status'
+            echo ''
+            echo '```json'
+            curl -sf --max-time 10 "$WORKER_URL/status" | jq . || echo '{"error": "status unreachable"}'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
