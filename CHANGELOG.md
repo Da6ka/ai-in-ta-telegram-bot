@@ -45,6 +45,10 @@ guarded (`|| true`), so a miss advances instead of ending the step. The general
 form: a retry loop under `errexit` is not a retry loop unless every command
 inside it is allowed to fail.
 
+The README's release checklist still carried the old step 4 ("Deploy the
+Worker — this is a separate, manual step. There is no CI/CD deploy"), which is
+now the opposite of what happens. Replaced with what to check instead.
+
 ### On-demand generation caps drop from 5/day to 2
 
 `GLOBAL_DAILY_DISPATCH_CAP` was 5 and `DAILY_DISPATCH_CAP` 3. At the measured

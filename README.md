@@ -307,7 +307,17 @@ Least-privilege scope for each credential:
   1. Rename `[Unreleased]` to `[x.y.z] - YYYY-MM-DD`, open a fresh empty `[Unreleased]` above it, and bump `version` in `package.json`.
   2. Bump the version + date in [`docs/technical-spec.md`](docs/technical-spec.md)'s header (`Version: x.y.z · Status: describes the deployed system as of YYYY-MM-DD`). Nothing automates this and nothing fails when it's missed, so it silently goes stale — it sat at 1.4.0 through three releases until v1.6.0. It's the line that tells a reader whether the spec they're about to trust describes what's actually deployed.
   3. Tag it: `git tag vX.Y.Z && git push origin vX.Y.Z`, then `gh release create vX.Y.Z` (the README Release badge reads the latest **GitHub Release**, not the tag, so publishing the release is what updates it).
-  4. **Deploy the Worker — this is a separate, manual step.** There is no CI/CD deploy: merging, tagging, and publishing a release do **not** ship the code. Run `cd worker && npx wrangler deploy` to push it live to the production bot. Verify with `npx wrangler deployments list` (newest entry at 100%) and `curl -s https://ai-in-ta-telegram-bot.ai-in-ta-bot.workers.dev` (returns `ok`).
+  4. **The Worker is already deployed** — no step here. Since 2026-08-28 [`deploy-worker.yml`](.github/workflows/deploy-worker.yml) ships it on every push to `main` touching `worker/**` or `shared/**`, so the code went live when the PR merged, not when the release is cut. Tagging and publishing a release do not deploy anything and do not need to: the release marks a version, the merge shipped the code.
+
+     Confirm what is live at any time — no credentials needed:
+
+     ```
+     curl -s https://ai-in-ta-telegram-bot.ai-in-ta-bot.workers.dev/status
+     ```
+
+     `gitSha` should match `origin/main`; the caps and cooldowns it reports are read from the constants the running bundle actually enforces. `gitSha: "unknown"` means the Worker was last deployed by hand rather than from CI.
+
+     Staging still deploys manually (`cd worker && npx wrangler deploy --env staging`), and a local `cd worker && npx wrangler deploy` remains the fallback for prod if CI is unavailable.
 
 ---
 
