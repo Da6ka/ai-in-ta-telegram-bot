@@ -421,13 +421,19 @@ needed, and it is the cheapest question to answer first — a change that was
 merged but never deployed looks exactly like a change that does not work:
 
 ```
-GET https://ai-in-ta-telegram-bot.ai-in-ta-bot.workers.dev/status
+node scripts/check-deployed.mjs
 ```
 
-Returns `gitSha` plus the caps, cooldowns, heartbeat cron and retention window
-the running bundle is enforcing, read from the same constants the request path
-uses. Compare `gitSha` against `origin/main`. `unknown` means the last deploy
-was manual rather than from CI.
+`GET /status` returns `gitSha` plus the caps, cooldowns, heartbeat cron and
+retention window the running bundle is enforcing, read from the same constants
+the request path uses. The script does the comparison, because the obvious one
+is wrong: `deploy-worker.yml` is path-scoped, so a docs or `state/` commit
+ships nothing and leaves `gitSha` behind `main` correctly — and `state/` is
+pushed every weekday by the briefing, which makes that the normal case. The
+right comparison is against the last commit touching the deploy paths, and
+`test/check-deployed.test.mjs` fails if the script's copy of those paths drifts
+from the workflow's. `unknown` means the last deploy was manual rather than
+from CI.
 
 **Are the crons still registered on the live Worker?** Confirms config, not
 firing — a deploy that dropped `[triggers]` shows up here:

@@ -309,13 +309,13 @@ Least-privilege scope for each credential:
   3. Tag it: `git tag vX.Y.Z && git push origin vX.Y.Z`, then `gh release create vX.Y.Z` (the README Release badge reads the latest **GitHub Release**, not the tag, so publishing the release is what updates it).
   4. **The Worker is already deployed** — no step here. Since 2026-08-28 [`deploy-worker.yml`](.github/workflows/deploy-worker.yml) ships it on every push to `main` touching `worker/**` or `shared/**`, so the code went live when the PR merged, not when the release is cut. Tagging and publishing a release do not deploy anything and do not need to: the release marks a version, the merge shipped the code.
 
-     Confirm what is live at any time — no credentials needed:
+     Confirm what is live at any time:
 
      ```
-     curl -s https://ai-in-ta-telegram-bot.ai-in-ta-bot.workers.dev/status
+     node scripts/check-deployed.mjs
      ```
 
-     `gitSha` should match `origin/main`; the caps and cooldowns it reports are read from the constants the running bundle actually enforces. `gitSha: "unknown"` means the Worker was last deployed by hand rather than from CI.
+     It reads `GET /status` on the Worker — public, no credentials — and compares the deployed commit against the last one that could have triggered a deploy. Do not compare `gitSha` against `origin/main` by eye: the workflow is path-scoped, so a docs or `state/` commit leaves `gitSha` legitimately behind main, and the daily briefing pushes `state/` every weekday. `gitSha: "unknown"` means the Worker was last deployed by hand rather than from CI.
 
      Staging still deploys manually (`cd worker && npx wrangler deploy --env staging`), and a local `cd worker && npx wrangler deploy` remains the fallback for prod if CI is unavailable.
 
