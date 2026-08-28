@@ -14,7 +14,7 @@ import {
 test('estimateCostUsd: tokens priced per million, per model rate', () => {
   // 1M input + 1M output on Opus 4.8 = $5 + $25.
   assert.equal(estimateCostUsd('claude-opus-4-8', { input_tokens: 1e6, output_tokens: 1e6 }), 30)
-  assert.equal(estimateCostUsd('claude-sonnet-5', { input_tokens: 1e6, output_tokens: 1e6 }), 18)
+  assert.equal(estimateCostUsd('claude-sonnet-5', { input_tokens: 1e6, output_tokens: 1e6 }), 12)
 })
 
 test('estimateCostUsd: web searches bill on top of tokens', () => {

@@ -345,7 +345,13 @@ test('briefing and rate limiting', async (t) => {
   // to key on.
   await t.test('F10b each dispatch carries a unique dispatch_id (#28)', async () => {
     const freshCooldown = () => {
-      const rl = doStorage.map.get('briefing_rate'); rl.lastDispatchAt = 0; doStorage.map.set('briefing_rate', rl)
+      const rl = doStorage.map.get('briefing_rate')
+      rl.lastDispatchAt = 0
+      // This test is about dispatch_id, not the caps -- clear both so a cap
+      // refusal can't masquerade as a duplicate id.
+      rl.total = 0
+      rl.counts = {}
+      doStorage.map.set('briefing_rate', rl)
     }
     freshCooldown() // F10's dispatch, just above, left the cooldown active
     kv.map.set('today_briefing_date', '2020-01-01')
@@ -361,6 +367,12 @@ test('briefing and rate limiting', async (t) => {
     assert.notEqual(first, second, 'two distinct requests get distinct ids')
   })
   await t.test('F11 2nd request in cooldown -> no dispatch; cached briefing served if fresh', async () => {
+    // Clear the shared cap but not lastDispatchAt: the cooldown has to be what
+    // refuses here, otherwise this passes for the wrong reason.
+    const rl0 = doStorage.map.get('briefing_rate')
+    rl0.total = 0
+    rl0.counts = {}
+    doStorage.map.set('briefing_rate', rl0)
     fetchLog = []
     await send(upd(OWNER, '/newbriefing'))
     assert.equal(ghDispatches().length, 0, 'no second dispatch within cooldown')
@@ -372,31 +384,35 @@ test('briefing and rate limiting', async (t) => {
     assert.equal(ghDispatches().length, 0)
     assert.ok(sends().some(c => c.body.parse_mode === 'HTML'), 'cached briefing served during cooldown')
   })
-  await t.test('F12 daily cap: 3 dispatches per user, 4th refused even after cooldown', async () => {
+  // One user spending their 2 also spends the shared 2, so both caps trip on
+  // the same request. The per-user check runs first, which is what decides the
+  // message -- and is the point of keeping the two level (worker/src/index.js).
+  await t.test('F12 daily cap: 2 dispatches per user, 3rd refused even after cooldown', async () => {
+    doStorage.map.set('briefing_rate', { lastDispatchAt: 0, date: todayUTC(), counts: {}, total: 0 })
     for (let i = 0; i < 2; i++) {
       const rl = doStorage.map.get('briefing_rate'); rl.lastDispatchAt = 0; doStorage.map.set('briefing_rate', rl)
       await send(upd('222', '/newbriefing'))
     }
     const rl = doStorage.map.get('briefing_rate'); rl.lastDispatchAt = 0; doStorage.map.set('briefing_rate', rl)
-    assert.equal(rl.counts['222'], 3, 'sanity: 222 has 3 dispatches counted')
+    assert.equal(rl.counts['222'], 2, 'sanity: 222 has 2 dispatches counted')
     fetchLog = []
     await send(upd('222', '/newbriefing'))
     assert.equal(ghDispatches().length, 0)
     assert.ok(sends()[0].body.text.includes("reached today's limit"))
   })
   // The per-user cap (F12) bounds hogging, not spend: each allowlisted user
-  // gets their own 3/day, so total cost scales with the allowlist. The global
+  // gets their own 2/day, so total cost scales with the allowlist. The global
   // cap is the actual cost ceiling. Driven with distinct senders so the
   // per-user cap can't be what refuses the request.
   await t.test('F12b global cap: shared limit refuses a user who is under their own cap', async () => {
     doStorage.map.set('briefing_rate', {
       lastDispatchAt: 0,
       date: todayUTC(),
-      counts: { '222': 2, '333': 3 },
-      total: 5,
+      counts: { '222': 1, '333': 1 },
+      total: 2,
     })
     fetchLog = []
-    await send(upd('444', '/newbriefing')) // 444 has spent 0 of its own 3
+    await send(upd('444', '/newbriefing')) // 444 has spent 0 of its own 2
     assert.equal(ghDispatches().length, 0, 'no dispatch once the shared cap is spent')
     assert.ok(
       sends()[0].body.text.includes('shared daily limit'),
@@ -416,11 +432,11 @@ test('briefing and rate limiting', async (t) => {
     assert.equal(doStorage.map.get('briefing_rate').total, 1, 'global total restarts at 1')
 
     // A dispatch GitHub never accepted must not consume a shared slot.
-    doStorage.map.set('briefing_rate', { lastDispatchAt: 0, date: todayUTC(), counts: {}, total: 4 })
+    doStorage.map.set('briefing_rate', { lastDispatchAt: 0, date: todayUTC(), counts: {}, total: 1 })
     fetchOverride = (url) => (url.includes('api.github.com') ? new Response('boom', { status: 500 }) : null)
     fetchLog = []
     await send(upd('222', '/newbriefing'))
-    assert.equal(doStorage.map.get('briefing_rate').total, 4, 'global slot refunded on dispatch failure')
+    assert.equal(doStorage.map.get('briefing_rate').total, 1, 'global slot refunded on dispatch failure')
     fetchOverride = null
   })
   // A briefing_rate record written before the global cap existed has no

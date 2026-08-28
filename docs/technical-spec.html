@@ -896,19 +896,19 @@
             </div>
           </div>
           <div class="card tile limit">
-            <div class="val">3<span class="u">/day</span></div>
+            <div class="val">2<span class="u">/day</span></div>
             <div class="lbl">Per-user dispatch cap</div>
             <div class="sub">
-              <code>DAILY_DISPATCH_CAP</code> — bounds one user hogging <code>/newbriefing</code>; scales with the
-              allowlist, so it doesn't cap cost alone.
+              <code>DAILY_DISPATCH_CAP</code> — bounds one user hogging <code>/newbriefing</code>; held level with the
+              global cap, so a repeat user gets told about their own limit rather than a shared one.
             </div>
           </div>
           <div class="card tile limit">
-            <div class="val">5<span class="u">/day</span></div>
+            <div class="val">2<span class="u">/day</span></div>
             <div class="lbl">Global dispatch cap</div>
             <div class="sub">
               <code>GLOBAL_DAILY_DISPATCH_CAP</code> — the real cost ceiling, since every dispatch is a paid Actions +
-              Claude run.
+              Claude run. Was 5, a ~$7.50/day tail set while the pipeline was being built.
             </div>
           </div>
           <div class="card tile limit">

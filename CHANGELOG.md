@@ -2,6 +2,36 @@
 
 ## [Unreleased]
 
+### On-demand generation caps drop from 5/day to 2
+
+`GLOBAL_DAILY_DISPATCH_CAP` was 5 and `DAILY_DISPATCH_CAP` 3. At the measured
+~$1.5 a generation, a day that spent the shared cap cost $7.50 in
+`/newbriefing` alone — more than the daily send it sits on top of, and the
+largest single item of unbudgeted tail risk in the project.
+
+The Actions log says 5 was calibrated on the wrong period: 41 on-demand runs
+in July, bunched into the fortnight the pipeline was being built and touching
+5–6 on several days, then one run in all of August. Steady-state use is a
+re-run when an edition comes out thin. Two covers that and caps the tail near
+$3/day. Raise it temporarily when iterating on the prompt.
+
+The per-user cap comes down to 2 with it. Left at 3 it would have been a dead
+constant — the shared ceiling always trips first — and a solo user who spent
+both slots would be told about a "shared daily limit" they were the only party
+to. Level caps keep the per-user check meaningful: it runs first, so a repeat
+user gets the accurate message, and the global cap goes back to doing its real
+job of bounding two different users.
+
+### Sonnet 5 was priced 50% too high in the cost log
+
+`shared/anthropic-cost.mjs` carried `claude-sonnet-5` at $3/$15 per MTok. The
+real rate is $2/$10: that was announced as introductory pricing through 31
+August 2026, which is where the wrong number came from, and Anthropic has
+since made it standard and cancelled the September increase. Only `/ask` runs
+on Sonnet, so the error overstated that one line and never touched the
+briefing figure — but the whole point of the log is that nobody re-derives it
+later.
+
 ### The daily send runs on the direct-API generator
 
 `scripts/generate-briefing.mjs` shipped alongside `claude -p` rather than

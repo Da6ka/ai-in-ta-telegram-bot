@@ -13,11 +13,17 @@
 // a hardcoded table on purpose: there is no pricing endpoint, and a wrong
 // number here is a wrong number in a log nobody re-derives later. Check them
 // against https://claude.com/platform/api when adding a model.
+//
+// Sonnet 5 is $2/$10, not the $3/$15 it sat at here until 28 Aug 2026. $2/$10
+// was announced as introductory pricing through 31 August, which is where the
+// wrong number came from; Anthropic has since made it the standard price and
+// cancelled the September increase. Only /ask runs on Sonnet, so the error
+// overstated that line by 50% and never touched the briefing figure.
 
 export const MODEL_PRICES_USD_PER_MTOK = {
   'claude-opus-4-8': { input: 5, output: 25 },
   'claude-opus-5': { input: 5, output: 25 },
-  'claude-sonnet-5': { input: 3, output: 15 },
+  'claude-sonnet-5': { input: 2, output: 10 },
   'claude-haiku-4-5': { input: 1, output: 5 },
 }
 
