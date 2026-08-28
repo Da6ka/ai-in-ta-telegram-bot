@@ -30,6 +30,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { estimateCostUsd, sumUsage, webSearchCount } from '../shared/anthropic-cost.mjs'
 import { SOURCE_ALLOWLIST, parseInaccessibleDomains } from '../shared/source-allowlist.mjs'
+import { countBriefingItems } from '../shared/telegram.mjs'
 
 const [promptPath, note = ''] = process.argv.slice(2)
 if (!promptPath) {
@@ -159,9 +160,18 @@ for (let i = 0; i <= MAX_CONTINUATIONS; i++) {
   })
   usage = sumUsage(usage, response.usage)
 
-  for (const block of response.content) {
-    if (block.type === 'text' && block.text) textParts.push(block.text)
-  }
+  // One entry per turn, not per block. Blocks inside a turn are a continuous
+  // stream and must not gain separators; blocks from different turns are
+  // different messages. Joining everything with '' glued the model's
+  // between-search narration onto the title -- "Let me run one more search.#
+  // Daily AI Recruitment Briefing" on a single line, which normalizeBriefing
+  // could not strip because its title pattern is line-anchored (seen live
+  // 2026-08-28).
+  const turnText = response.content
+    .filter(block => block.type === 'text' && block.text)
+    .map(block => block.text)
+    .join('')
+  if (turnText) textParts.push(turnText)
 
   if (DEBUG_DIR) dumpTurn(DEBUG_DIR, i + 1, response)
 
@@ -180,7 +190,7 @@ for (let i = 0; i <= MAX_CONTINUATIONS; i++) {
 
 const costUsd = estimateCostUsd(MODEL, usage)
 const durationMs = Date.now() - startedAt
-const text = textParts.join('').trim()
+const text = textParts.join('\n\n').trim()
 
 // Log before any failure exit: a run that produced nothing still spent money,
 // and that is precisely the run worth having a record of.
@@ -223,6 +233,17 @@ if (response?.stop_reason === 'max_tokens') {
 }
 if (!text) {
   console.error('Model returned no text content.')
+  process.exit(1)
+}
+// A briefing whose bullets carry no markdown link is not a thin edition, it is
+// an unusable one: every downstream gate counts linked bullets, so this exits 0
+// and is then silently rejected -- the requester gets yesterday's edition and
+// the run is green. Seen live 2026-08-28: five well-formed, correctly dated
+// items, not one link, workflow success, subscriber served a stale briefing.
+// Failing here instead hands it to the workflow's existing retry, and a second
+// failure alerts rather than pretending nothing happened.
+if (countBriefingItems(text) === 0) {
+  console.error('Composed a briefing with no linked bullets — every downstream gate counts links, so this would be discarded. Failing so the retry fires.')
   process.exit(1)
 }
 if (costUsd !== null && costUsd > MAX_USD) {

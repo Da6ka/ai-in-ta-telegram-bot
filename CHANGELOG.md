@@ -2,6 +2,41 @@
 
 ## [Unreleased]
 
+### A linkless edition no longer passes as a successful run
+
+`/newbriefing` at 02:47 UTC on 2026-08-28 produced a good briefing — five
+well-formed items, correct date, every date inside the window — and the
+requester was served yesterday's edition instead. The workflow reported
+success.
+
+Every downstream gate counts *linked* bullets (`extractBriefingBullets` matches
+`- ... ](https://`), and this edition carried no markdown links at all, so the
+freshness gate saw `items=0` and fell back. The generator had already exited 0,
+so the workflow's retry never fired and nothing alerted. A silent, green,
+wrong-output run is the worst of the three outcomes.
+
+`generate-briefing.mjs` now fails when the composed text has zero linked
+bullets, which hands it to the retry already in both briefing workflows and
+turns a second failure into an alert. Why the model dropped the links on that
+run is not settled — both prompts require `[Title](https://url)` and the same
+prompt produced links on other runs the same day — so this is a guard, not a
+cure.
+
+### The model's narration no longer runs into the title
+
+Same run, second defect. `generate-briefing.mjs` joined every text block with
+`''`, including blocks from different turns, so the narration between searches
+arrived glued to the heading: `...round out coverage.# Daily AI Recruitment
+Briefing — 28 August 2026`, all one line. `normalizeBriefing` exists to strip
+exactly this and could not, because its title pattern was anchored to the start
+of a line.
+
+Blocks are now joined per turn — no separator inside a turn, where the text is
+one continuous stream, and a blank line between turns, which are separate
+messages. The title pattern also drops its line anchor, so a glued preamble is
+still stripped if anything else ever produces one. Either fix alone would have
+prevented it; the combination means a preamble has to defeat both.
+
 ### The news search moves out of the model, behind an A/B flag
 
 Anthropic's server-side web search has no recency filter, and the briefing's

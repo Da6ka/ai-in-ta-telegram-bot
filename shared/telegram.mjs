@@ -67,7 +67,13 @@ export function countBriefingItems(md) {
 // no title line at all it returns the content unchanged: an untitled/undated
 // edition is rejected by the freshness gate rather than guessed at here.
 export const BRIEFING_TITLE_PREFIX = '# Daily AI Recruitment Briefing — '
-const BRIEFING_TITLE_RE = new RegExp(`^# Daily AI Recruitment Briefing ${TITLE_DASH} .*$`, 'm')
+// Deliberately not anchored to the start of a line. The direct-API generator
+// can emit the title glued to the end of the model's narration -- "one more
+// search.# Daily AI Recruitment Briefing — 28 August 2026" (seen live
+// 2026-08-28) -- and a line-anchored pattern misses that, leaving the preamble
+// in the edition subscribers receive. `$` with the m flag still ends the match
+// at the line break, so the title itself is captured the same way either way.
+const BRIEFING_TITLE_RE = new RegExp(`# Daily AI Recruitment Briefing ${TITLE_DASH} .*$`, 'm')
 
 export function normalizeBriefing(content, today) {
   const src = String(content ?? '')
