@@ -208,6 +208,22 @@ jobs:
             echo "ok=false" >> "$GITHUB_OUTPUT"
           fi
 
+      # The turn-by-turn response blocks, kept only when the gate rejected the
+      # run. The dump above renders what the searches returned; this keeps the
+      # structure -- which text block carried which citation -- and that is the
+      # difference between diagnosing a rejected edition and guessing at it. On
+      # 2026-08-28 a run was rejected for carrying no links, and answering why
+      # meant reconstructing block shapes from a different run, because these
+      # were gitignored and never left the runner.
+      - name: Keep the response blocks for diagnosis
+        if: always() && steps.freshness.outputs.ok != 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: rejected-briefing-blocks-daily
+          path: state/briefing_debug/
+          retention-days: 14
+          if-no-files-found: ignore
+
       # Sends to the live subscriber list the bot maintains (mirrored into the
       # `subscribers` KV key by the Worker), and outputs recipient_count for
       # the stats steps below.
