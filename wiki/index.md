@@ -15,6 +15,7 @@ A persistent, compounding view of AI-in-recruitment news. Read `CLAUDE.md` for t
 - [[bullhorn]] — Large staffing-CRM/ATS vendor pivoting toward agentic hiring at scale
 - [[cognizant]] — Services giant building AI-native workforce pipelines through certifications and campus hiring
 - [[eightfold]] — Agent-driven end-to-end evaluation and workforce analytics
+- [[hirequotient]] — AI-native ATS with autonomous sourcing, screening, and outreach; particularly strong in high-volume frontline hiring
 - [[icims]] — High-volume hiring with AI-powered apply experiences and embedded analytics
 - [[workday]] — Core HCM platform with Paradox AI recruiting suite; vendor liability exposure from AI bias litigation and ownership risk from Silver Lake takeover bid
 

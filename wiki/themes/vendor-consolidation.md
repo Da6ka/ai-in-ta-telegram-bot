@@ -12,6 +12,8 @@ Capital is flowing to HR services roll-ups and enterprise-scale talent platforms
 
 - **9 July 2026** — AI talent marketplace Mercor is in talks to double its valuation to $20B just nine months after its last round, and bought AI-agent-training startup Deeptune — a deal CEO Brendan Foody had personally angel-invested in three months earlier, "with a purchase already in mind." The valuation signals how much capital is flowing into AI-driven talent/labeling platforms, but the self-dealing disclosure is a governance red flag. Scrutinize conflicts and data provenance before routing sourcing or evaluation through fast-scaling AI hiring vendors. — [TechCrunch](https://techcrunch.com/2026/07/09/mercor-is-in-talks-for-a-20b-valuation/)
 
+- **21 Aug 2026** — **Anthropic-backed Ode acquired AI-services firm Casper Studios**, deepening the "forward-deployed engineering" model that embeds Claude into employee workflows and operational processes. For TA leaders, the signal is that integrators are consolidating implementation capability, and the shift from experimentation to production deployment means you should define which recruiting decisions stay human before an integrator scopes your hiring processes. — [Forbes](https://www.forbes.com/sites/ronschmelzer/2026/08/21/anthropic-backed-ode-buys-casper-as-ai-services-race-heats-up/)
+
 ## Open questions
 
 - Will AI-driven RPO bundling (KF/AMS) outcompete pure-play agentic platforms?

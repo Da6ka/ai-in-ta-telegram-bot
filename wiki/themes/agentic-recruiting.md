@@ -82,10 +82,14 @@ AI-powered agents are automating recruitment workflows end-to-end: sourcing, scr
 
 - **26 Aug 2026** — **PageUp and Sapia.ai deepened their partnership to embed autonomous, skills-based AI interviewing directly inside the ATS**, letting enterprises screen 100% of applicants — potentially tens of thousands at once — before shortlisting, with both vendors holding ISO 42001 responsible-AI certification. The signal for TA leaders: high-volume "interview-everyone" screening is becoming a native ATS feature, so press vendors on auditability and bias controls (Sapia uses a text-only model to strip visual, accent, and demographic cues) rather than treating AI interviewing as a bolt-on. — [PageUp and Sapia.ai embed intelligent AI interviewing directly into enterprise hiring workflows](https://www.globenewswire.com/news-release/2026/08/26/3351491/0/en/pageup-and-sapia-ai-embed-intelligent-ai-interviewing-directly-into-enterprise-hiring-workflows.html)
 
+- **25 Aug 2026** — Alliance Building Services reported closing 35+ specialized, heavily regulated roles while reclaiming 70% of the manual effort previously consumed by sourcing and accelerating time-to-close by more than half using HireQuotient's AI-native ATS. It's a concrete case of end-to-end agentic workflows in high-volume frontline hiring; pressure-test both the efficiency claims and the auditability of autonomous candidate discovery and outreach before deploying at that scale. — [HireQuotient Delivers 70% Reduction in Manual Recruiting Effort for NYC's Alliance Building Services](https://www.globenewswire.com/news-release/2026/08/25/3350330/0/en/hirequotient-delivers-70-reduction-in-manual-recruiting-effort-for-nyc-s-alliance-building-services.html)
+
+- **27 Aug 2026** — Voice and video AI are moving from add-on to core in hiring tools, with Gartner forecasting 80% of enterprise software and applications will be multimodal by 2030, up from less than 10% in 2024. In TA, the signal is that conversational and video-based screening are no longer differentiators but baseline capabilities; pressure-test interview disclosure and bias controls as these modalities become standard rather than niche. — [The next frontier of HR tech: Voice, video and multimodal AI](https://hrexecutive.com/the-next-frontier-of-hr-tech-voice-video-and-multimodal-ai/)
+
 ## Open questions
 
 - How do multi-agent systems distribute decision authority between agents, between agents and humans, and across orgs? Who is liable when an agent makes an adverse-impact decision?
 - What audit trails and bias-testing approaches actually scale to agentic systems with feedback loops?
 - How do recruiting agents handle edge cases — unusual backgrounds, career pivots, protected-class scenarios — without built-in bias from their training data?
 
-Related: [[ai-ethics-and-compliance]], [[skills-based-hiring]], [[vendor-consolidation]], [[eightfold]], [[icims]]
+Related: [[ai-ethics-and-compliance]], [[skills-based-hiring]], [[vendor-consolidation]], [[eightfold]], [[icims]], [[hirequotient]]
