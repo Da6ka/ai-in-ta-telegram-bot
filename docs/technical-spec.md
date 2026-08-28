@@ -284,8 +284,8 @@ per-invocation subrequest cap that silently dropped recipients past ~45).
 | `MAX_USERS`                  | **30**                                            | `BotState.addAllowedUser` (atomic), `/start`, callback-approval path |
 | `MAX_PENDING`                | **50**                                            | Worker, on `/start` (capped independently of `MAX_USERS`)           |
 | Generation dispatch cooldown | **60 min**, **5 min** for the owner               | Worker, before `/newbriefing` dispatch                              |
-| Generation daily cap         | **3/day per user** (`DAILY_DISPATCH_CAP`)         | Worker (`briefing_rate.counts`)                                     |
-| Generation daily cap, shared | **5/day total** (`GLOBAL_DAILY_DISPATCH_CAP`)     | Worker (`briefing_rate.total`)                                      |
+| Generation daily cap         | **2/day per user** (`DAILY_DISPATCH_CAP`)         | Worker (`briefing_rate.counts`)                                     |
+| Generation daily cap, shared | **2/day total** (`GLOBAL_DAILY_DISPATCH_CAP`)     | Worker (`briefing_rate.total`)                                      |
 | `/ask` cooldown              | **30 s** (`ASK_COOLDOWN_MS`)                      | Worker, before `ask` dispatch                                       |
 | `/ask` daily cap             | **10/day per user** (`ASK_DAILY_CAP`)             | Worker (`ask_rate.counts`)                                          |
 | `/ask` daily cap, shared     | **40/day total** (`ASK_GLOBAL_DAILY_CAP`)         | Worker (`ask_rate.total`)                                           |
