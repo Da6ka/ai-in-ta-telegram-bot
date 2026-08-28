@@ -255,6 +255,21 @@ test('normalizeBriefing strips model preamble before the title', () => {
   assert.equal(dateChanged, false)
 })
 
+// The failure of 2026-08-28. The direct-API generator joined every text block
+// with '', so the model's between-search narration ran straight into the title
+// with no line break. A line-anchored title pattern missed it, the preamble
+// stayed in, and subscribers would have been served "Let me do one more
+// search.# Daily AI Recruitment Briefing".
+test('normalizeBriefing strips a preamble glued to the title with no line break', () => {
+  const md =
+    "I'll search for fresh AI recruitment news.Let me do one more search to round out coverage." +
+    '# Daily AI Recruitment Briefing — 28 August 2026\n\n- [Story](https://ex.com/a) something'
+  const { content, preambleStripped } = normalizeBriefing(md, '28 August 2026')
+  assert.ok(content.startsWith('# Daily AI Recruitment Briefing — 28 August 2026'), 'title is first')
+  assert.ok(!content.includes('one more search'), 'glued preamble removed')
+  assert.equal(preambleStripped, true)
+})
+
 test('normalizeBriefing forces a wrong title date to today', () => {
   const md = '# Daily AI Recruitment Briefing — 1 July 2026\n\n- [S](https://e.com/x) y'
   const { content, dateChanged, preambleStripped } = normalizeBriefing(md, '13 July 2026')

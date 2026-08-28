@@ -30,6 +30,8 @@ import Anthropic from '@anthropic-ai/sdk'
 import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { estimateCostUsd, sumUsage, webSearchCount } from '../shared/anthropic-cost.mjs'
 import { SOURCE_ALLOWLIST, parseInaccessibleDomains } from '../shared/source-allowlist.mjs'
+import { countBriefingItems } from '../shared/telegram.mjs'
+import { composeBriefingText } from '../shared/briefing-citations.mjs'
 
 const [promptPath, note = ''] = process.argv.slice(2)
 if (!promptPath) {
@@ -140,7 +142,7 @@ async function requestWithDomainRecovery(params, attemptsLeft = 2) {
 }
 
 const messages = [{ role: 'user', content: userContent }]
-const textParts = []
+const textBlocks = []
 let usage = {}
 let response = null
 let turns = 0
@@ -159,8 +161,10 @@ for (let i = 0; i <= MAX_CONTINUATIONS; i++) {
   })
   usage = sumUsage(usage, response.usage)
 
+  // Keep whole blocks, not just their text: block.citations is where the
+  // source URLs live, and composeText below needs them for the repair path.
   for (const block of response.content) {
-    if (block.type === 'text' && block.text) textParts.push(block.text)
+    if (block.type === 'text' && block.text) textBlocks.push(block)
   }
 
   if (DEBUG_DIR) dumpTurn(DEBUG_DIR, i + 1, response)
@@ -180,7 +184,10 @@ for (let i = 0; i <= MAX_CONTINUATIONS; i++) {
 
 const costUsd = estimateCostUsd(MODEL, usage)
 const durationMs = Date.now() - startedAt
-const text = textParts.join('').trim()
+const { text, citationsRendered } = composeBriefingText(textBlocks)
+if (citationsRendered) {
+  console.error(`Model wrote no markdown links; rebuilt ${countBriefingItems(text)} from the response's citations.`)
+}
 
 // Log before any failure exit: a run that produced nothing still spent money,
 // and that is precisely the run worth having a record of.
@@ -200,6 +207,7 @@ const record = {
   web_searches: webSearchCount(usage),
   cost_usd: costUsd,
   briefing_chars: text.length,
+  citations_rendered: citationsRendered,
 }
 try {
   appendFileSync(COST_LOG, `${JSON.stringify(record)}\n`)
@@ -223,6 +231,17 @@ if (response?.stop_reason === 'max_tokens') {
 }
 if (!text) {
   console.error('Model returned no text content.')
+  process.exit(1)
+}
+// A briefing whose bullets carry no markdown link is not a thin edition, it is
+// an unusable one: every downstream gate counts linked bullets, so this exits 0
+// and is then silently rejected -- the requester gets yesterday's edition and
+// the run is green. Seen live 2026-08-28: five well-formed, correctly dated
+// items, not one link, workflow success, subscriber served a stale briefing.
+// Failing here instead hands it to the workflow's existing retry, and a second
+// failure alerts rather than pretending nothing happened.
+if (countBriefingItems(text) === 0) {
+  console.error('Composed a briefing with no linked bullets and no citations to rebuild them from — every downstream gate counts links, so this would be discarded. Failing so the retry fires.')
   process.exit(1)
 }
 if (costUsd !== null && costUsd > MAX_USD) {

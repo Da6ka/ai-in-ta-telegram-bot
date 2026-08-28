@@ -2,6 +2,70 @@
 
 ## [Unreleased]
 
+### The briefing kept its sources in a channel we were discarding
+
+`/newbriefing` at 02:47 UTC on 2026-08-28 composed a good edition — five
+well-formed items, correct date, every date inside the window — and the
+requester was served the previous day's briefing. The workflow reported
+success.
+
+The cause is in how the Messages API returns sources. Citations are always on
+for web search: each cited span comes back with its source attached to the text
+block as structured data (`citations: [{url, title, cited_text}]`). Whether the
+model *also* writes the markdown link into the prose is a separate matter, and
+it varies. Captured from `state/candidate_debug` the same day:
+
+| Run | Model wrote its own links | Linked bullets |
+|---|---|---|
+| 00:37 | yes, in a block right after each cited span | 4 |
+| 02:47 | no | 0 |
+
+`generate-briefing.mjs` read `block.text` and dropped `block.citations`, so in
+the second case every URL was thrown away by our own code. Every downstream
+gate counts *linked* bullets, so the edition scored zero items and the
+freshness gate fell back. `claude -p` never exposed this: the CLI rendered
+citations into the text before we saw it.
+
+`shared/briefing-citations.mjs` now composes the edition and, only when the
+result carries no linked bullets at all, rebuilds them from the citations. The
+repair is all-or-nothing on purpose: a citation and the model's own link live
+in *different* blocks, so neither can see the other locally, and repairing
+per-block would double-cite every well-behaved run. Anthropic's terms also
+require citations to be shown when API output is displayed to end users, which
+a briefing is.
+
+Two details the block dump settled, both of which would have been wrong
+otherwise. Blocks split mid-sentence — one ends `...an AI services firm`, the
+next opens ` For TA leaders` — so they are joined with no separator. And a
+block does not end where its sentence does: it runs on into the next bullet's
+`\n- `, so a link appended to the raw end lands at the *start* of the following
+bullet, leaving the cited one bare and the next one mis-sourced.
+
+If there is nothing to rebuild from, the generator now exits non-zero instead
+of exiting 0 with an edition every gate will discard. That hands the run to the
+retry both briefing workflows already have, and makes a second failure an alert
+rather than a silent fallback.
+
+### The model's narration no longer runs into the title
+
+Same run, second defect: `...round out coverage.# Daily AI Recruitment Briefing
+— 28 August 2026`, all one line. `normalizeBriefing` exists to strip exactly
+this and could not, because its title pattern was anchored to the start of a
+line. The anchor is gone.
+
+The block dump also ruled out the fix that looked obvious. Joining text blocks
+per turn does not help — the narration and the title are in the *same* turn —
+and inserting a separator between turns would have cut sentences in half, since
+blocks run on across those boundaries too.
+
+### A rejected briefing keeps its evidence
+
+Both briefing workflows now upload `state/briefing_debug/` when the gate
+rejects a run. The existing dump renders what the searches returned; this keeps
+which text block carried which citation. Answering why the 02:47 edition had no
+links meant reconstructing block shapes from a different run, because these
+files are gitignored and never left the runner.
+
 ### The news search moves out of the model, behind an A/B flag
 
 Anthropic's server-side web search has no recency filter, and the briefing's

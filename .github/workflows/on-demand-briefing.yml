@@ -181,6 +181,21 @@ jobs:
             node scripts/dump-search-log.mjs state/briefing_debug 2>/dev/null || true
           fi
 
+      # The turn-by-turn response blocks, kept only when the gate rejected the
+      # run. The step above renders what the searches returned; this keeps the
+      # structure -- which text block carried which citation -- and that is the
+      # difference between diagnosing a rejected edition and guessing at it.
+      # On 2026-08-28 a run was rejected for having no links, and answering why
+      # meant reconstructing the block shapes from a different run, because
+      # these were gitignored and never left the runner.
+      - name: Keep the response blocks for diagnosis
+        if: always() && (steps.freshness.outputs.fresh != 'true' || steps.freshness.outputs.items == '0')
+        uses: actions/upload-artifact@v7
+        with:
+          name: rejected-briefing-blocks-on-demand
+          path: state/briefing_debug/
+          retention-days: 14
+          if-no-files-found: ignore
       - name: Send to requester
         if: steps.freshness.outputs.fresh == 'true' && steps.freshness.outputs.items != '0'
         env:
