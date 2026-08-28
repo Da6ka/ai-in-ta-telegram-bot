@@ -98,15 +98,25 @@ generation-side record. `scripts/sync-kv.mjs` is the one-way bridge
 
 ### 3.3 Anthropic API
 
-Always `claude -p <prompt>` from Actions, never from the Worker. Three
-invocations with deliberately different models, tools, and budgets — the
-tool allowlist is the enforcement, not just the prompt:
+Always from Actions, never from the Worker. Three invocations with
+deliberately different models, tools, and budgets — the tool allowlist is the
+enforcement, not just the prompt:
 
-| Job | Model | `--allowedTools` | Budget |
-| --- | --- | --- | --- |
-| Briefing generation | `claude-opus-4-8` | `WebSearch` | $4 |
-| Wiki ingest (daily only) | `claude-haiku-4-5-20251001` | `Read Write Edit Glob Grep` | $1 |
-| `/ask` answer | `claude-sonnet-5` | `Read Grep Glob` | $1 |
+| Job | Model | How | Tools | Cost ceiling |
+| --- | --- | --- | --- | --- |
+| Briefing generation | `claude-opus-4-8` | `scripts/generate-briefing.mjs` (Messages API) | server-side `web_search` | pre-emptive: `BRIEFING_MAX_SEARCHES`, `max_tokens`, paused-turn budget check |
+| Wiki ingest (daily only) | `claude-haiku-4-5-20251001` | `claude -p` | `Read Write Edit Glob Grep` | `--max-budget-usd 1` |
+| `/ask` answer | `claude-sonnet-5` | `claude -p` | `Read Grep Glob` | `--max-budget-usd 1` |
+
+Generation moved off `claude -p` on 2026-08-28. The agent loop carried every
+web-search result forward in full through every later turn, so input tokens
+grew with the square of the research — around 90% of what the bot cost to run.
+One direct request does the same research inside a single server-side turn.
+The two ceilings are not interchangeable: `--max-budget-usd` was enforced by
+the CLI *during* a run, while the generator's limits are set before it starts
+and its final total only warns, because by the time a completed response can
+be priced the money is already spent. Every run appends what it cost to
+`state/cost_log.jsonl`.
 
 - Prompts: [`briefing-prompt.md`](../briefing-prompt.md) (daily),
   [`briefing-prompt-ondemand.md`](../briefing-prompt-ondemand.md) (on-demand),
@@ -280,7 +290,7 @@ per-invocation subrequest cap that silently dropped recipients past ~45).
 | `/ask` daily cap             | **10/day per user** (`ASK_DAILY_CAP`)             | Worker (`ask_rate.counts`)                                          |
 | `/ask` daily cap, shared     | **40/day total** (`ASK_GLOBAL_DAILY_CAP`)         | Worker (`ask_rate.total`)                                           |
 | `/ask` question length       | **3–300 chars**                                   | Worker, before dispatch                                             |
-| Per-run LLM spend            | **$4** briefing, **$1** ingest, **$1** `/ask`     | Actions                                                             |
+| Per-run LLM spend            | briefing: pre-emptive caps, ~**$1.5** measured; **$1** ingest, **$1** `/ask` | Actions                                                 |
 | Models                       | see §3.3                                          | Actions                                                             |
 | Briefing window              | last 48 hours                                     | prompt                                                              |
 
