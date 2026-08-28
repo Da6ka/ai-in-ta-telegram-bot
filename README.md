@@ -8,6 +8,8 @@ A Telegram bot that sends a **daily briefing on AI in recruitment** — the late
 
 Subscribers tap `/subscribe` and get the briefing every weekday morning at **09:05 UTC / 12:05 MSK** (Mon-Fri; Monday's edition widens its freshness window to cover the weekend). No app to install, no laptop to keep awake — everything runs on GitHub Actions and a Cloudflare Worker.
 
+You can try the bot in Telegram: @AIinTANewsBot
+
 <p align="center">
   <a href="https://ai-in-ta-bot-spec.vercel.app/">
     <picture>
