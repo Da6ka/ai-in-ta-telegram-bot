@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+### Actions bumped off the deprecated Node 20 runtime
+
+Every workflow run was printing a deprecation notice: `actions/checkout@v4`
+and `actions/setup-node@v4` target Node 20, which GitHub now force-runs on a
+newer Node. A warning nobody can act on is a warning everyone learns to scroll
+past, and this one sat on top of the deploy runs that are supposed to be read.
+
+All three actions go to their current majors — checkout v7, setup-node v7,
+upload-artifact v7, 18 references across nine workflows. The intervening major
+bumps are almost entirely the Node 24 runtime move plus a minimum hosted-runner
+version, which `ubuntu-latest` satisfies on its own. The one consumer-facing
+breaking change, setup-node v6 limiting automatic caching to npm, does not
+apply: no workflow here passes `cache:`.
+
+Not included, deliberately: six workflows still pin `node-version: '20'` while
+ci.yml and deploy-worker.yml test on 22, so CI does not run what the briefing
+pipeline runs. That is worth fixing, but not on the night before the first
+production run of the direct-API generator — one variable at a time.
+
 ### The Worker ships from CI, and says which commit it is running
 
 Everything else in this repo deploys itself. The Worker did not: `wrangler
