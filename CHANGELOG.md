@@ -58,9 +58,15 @@ that cries wolf on most days is worse than no check.
 
 `scripts/check-deployed.mjs` now does the comparison — against the last commit
 that could have triggered a deploy — and prints the caps alongside it.
-`test/check-deployed.test.mjs` reads the workflow's own `paths:` filter and
-fails if the script's copy drifts from it, since a silently wrong path list
-would make the script confidently wrong exactly when it is being trusted.
+
+It reads the deploy paths out of the workflow rather than keeping a copy.
+GitHub evaluates `paths:` as literal YAML at trigger time, so the workflow
+cannot read them from anywhere else; it has to be the source, which leaves
+deriving them the only way to end up with one. The copy was the hazard worth
+removing: a drifted list does not fail, it keeps printing a confident verdict
+computed from the wrong set, at the moment someone is debugging something else
+and is least able to question it. A parse the script cannot trust exits 2
+rather than guessing.
 
 ### On-demand generation caps drop from 5/day to 2
 

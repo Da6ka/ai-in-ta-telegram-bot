@@ -430,10 +430,11 @@ the request path uses. The script does the comparison, because the obvious one
 is wrong: `deploy-worker.yml` is path-scoped, so a docs or `state/` commit
 ships nothing and leaves `gitSha` behind `main` correctly — and `state/` is
 pushed every weekday by the briefing, which makes that the normal case. The
-right comparison is against the last commit touching the deploy paths, and
-`test/check-deployed.test.mjs` fails if the script's copy of those paths drifts
-from the workflow's. `unknown` means the last deploy was manual rather than
-from CI.
+right comparison is against the last commit touching the deploy paths, which
+the script reads out of the workflow rather than keeping a copy of — GitHub
+evaluates `paths:` as literal YAML at trigger time, so the workflow has to be
+the source, and deriving from it is the only way to have exactly one.
+`unknown` means the last deploy was manual rather than from CI.
 
 **Are the crons still registered on the live Worker?** Confirms config, not
 firing — a deploy that dropped `[triggers]` shows up here:

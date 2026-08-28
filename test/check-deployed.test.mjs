@@ -1,35 +1,39 @@
-// The one thing scripts/check-deployed.mjs cannot get wrong quietly.
+// scripts/check-deployed.mjs derives the deploy paths from deploy-worker.yml
+// instead of keeping a copy, so there is nothing left to drift. What can still
+// break is the parse: GitHub evaluates `paths:` as literal YAML, so the
+// workflow has to stay the source, and a reformat there could quietly change
+// what the script extracts.
 //
-// It answers "is the live Worker running this checkout" by comparing the
-// deployed commit against the last commit that touched the paths
-// deploy-worker.yml deploys on. Those paths live in two files. If they drift,
-// the script keeps printing a confident verdict computed from the wrong set --
-// the exact failure it exists to prevent, arriving at the moment someone is
-// already debugging something else and least able to question it.
+// A silently wrong path list is the dangerous outcome -- the script would keep
+// printing a confident verdict computed from the wrong set, at the moment
+// someone is debugging something else and least able to question it. So these
+// pin the extraction against the real workflow, and pin that a parse it cannot
+// trust raises rather than degrades.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { DEPLOY_PATHS } from '../scripts/check-deployed.mjs'
+import { deployPaths, WORKFLOW_PATH } from '../scripts/check-deployed.mjs'
 
-test('check-deployed paths match the deploy workflow trigger', () => {
-  const wf = readFileSync('.github/workflows/deploy-worker.yml', 'utf8')
+test('deployPaths reads the real workflow', () => {
+  const paths = deployPaths()
+  assert.ok(paths.length >= 2, 'expected several deploy paths, got ' + JSON.stringify(paths))
+  // worker/ is the whole point of the workflow; if it ever falls out of the
+  // extraction the script would report "up to date" for a Worker change that
+  // never shipped -- the failure this file exists to prevent.
+  assert.ok(paths.includes('worker'), 'worker/ must be among the deploy paths')
+  assert.ok(paths.includes('shared'), 'shared/ must be among the deploy paths')
+  // Globs stripped: the script hands these to `git log -- `, which already
+  // treats a directory as everything beneath it.
+  assert.equal(paths.some(p => p.includes('*')), false, 'globs should be stripped')
+})
 
-  // Narrow to the `paths:` block under `on.push` before collecting entries, so
-  // an unrelated list elsewhere in the workflow can't pad the comparison.
-  const block = wf.match(/\n {4}paths:\n((?: {6}- .*\n)+)/)
-  assert.ok(block, 'no `paths:` filter found under on.push in deploy-worker.yml')
+test('deployPaths covers every path the workflow declares', () => {
+  const yaml = readFileSync(WORKFLOW_PATH, 'utf8')
+  const declared = [...yaml.matchAll(/^ {6}- '([^']+)'$/gm)].map(m => m[1].replace(/\/\*\*$/, ''))
+  assert.deepEqual(deployPaths().sort(), [...new Set(declared)].sort())
+})
 
-  const declared = block[1]
-    .split('\n')
-    .filter(Boolean)
-    .map(line => line.replace(/^\s*-\s*/, '').replace(/^['"]|['"]$/g, ''))
-    // The workflow globs; the script hands bare paths to `git log -- `, which
-    // treats a directory as everything under it. Compare on the same footing.
-    .map(p => p.replace(/\/\*\*$/, ''))
-
-  assert.deepEqual(
-    [...declared].sort(),
-    [...DEPLOY_PATHS].sort(),
-    'deploy-worker.yml and scripts/check-deployed.mjs disagree about what a deploy covers',
-  )
+test('deployPaths raises rather than guessing when it cannot parse', () => {
+  assert.throws(() => deployPaths('on:\n  push:\n    branches: [main]\n'), /no `paths:` filter/)
+  assert.throws(() => deployPaths('\n    paths:\n      - \n'), /parsed to nothing/)
 })
