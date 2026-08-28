@@ -35,6 +35,16 @@ last written from outside CI.
 Staging still deploys by hand (`--env staging`). It has no webhook pointed at
 `main`, so there is nothing for CI to keep in sync.
 
+The first run shipped correctly and reported a failure anyway, which is worth
+recording because the shape recurs. The verify step runs under `bash -e`, and
+during propagation the previous bundle was still answering `/status` with the
+bare `ok` it falls through to — so `jq` exited non-zero on a parse error, the
+assignment failed, and the step aborted on attempt 1. The retry loop written
+for exactly that window never got a second iteration. Both reads are now
+guarded (`|| true`), so a miss advances instead of ending the step. The general
+form: a retry loop under `errexit` is not a retry loop unless every command
+inside it is allowed to fail.
+
 ### On-demand generation caps drop from 5/day to 2
 
 `GLOBAL_DAILY_DISPATCH_CAP` was 5 and `DAILY_DISPATCH_CAP` 3. At the measured
