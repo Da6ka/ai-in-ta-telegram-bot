@@ -2,6 +2,37 @@
 
 ## [Unreleased]
 
+### The news search moves out of the model, behind an A/B flag
+
+Anthropic's server-side web search has no recency filter, and the briefing's
+hardest rule is "published in the past 7 days". On 2026-08-21 the model's own
+search returned 85 results across ten queries with **one** inside that window —
+a listicle the prompt bans. The same beats through Firecrawl's news source with
+a `qdr:w` filter returned ten of ten inside it.
+
+Cost follows from the same change rather than being a separate goal. The ~250k
+input tokens an edition bills are not the writing; they are raw search results
+the model pulled into its own context. Handing it a formatted list of
+candidates instead — one metadata line and a trimmed snippet each — is a few
+thousand tokens.
+
+Not switched on: `compare-generators.yml` gains a `source` input
+(`firecrawl` | `web_search`) so the two can be measured against each other on
+the same day, and `generate-briefing.mjs` gains `BRIEFING_SEARCH_MODE=none`,
+which sends no search tool at all because the stories are already in the
+prompt. The daily send is untouched until a run says which is better.
+
+The queries move from prose in `briefing-prompt.md` into `shared/news-queries.mjs`,
+where they can be tested. All ten now run every time: a Firecrawl search is
+cheap and costs no model context, so the prompt's old "escalate to four more
+beats if the first six came up thin" has nothing left to trade off.
+`briefing-prompt-curated.md` composes from the supplied list and treats every
+title, snippet and URL as untrusted data rather than instructions.
+
+One failed query is survivable and the run continues with what the others
+returned; every query failing exits non-zero, so the workflow alerts instead of
+composing an empty briefing.
+
 ### Actions bumped off the deprecated Node 20 runtime
 
 Every workflow run was printing a deprecation notice: `actions/checkout@v4`

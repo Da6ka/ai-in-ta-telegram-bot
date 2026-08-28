@@ -30,6 +30,9 @@ on:
       domains:
         description: 'allow (curated source list) | none (open web) | a comma-separated list'
         default: allow
+      source:
+        description: 'firecrawl (news search, stories supplied to the model) | web_search (model searches for itself)'
+        default: firecrawl
 
 permissions:
   contents: read
@@ -58,9 +61,14 @@ jobs:
       # hunting for second-choice stories. Without it, both generators face the
       # same problem, and overlap between them reads as agreement rather than
       # as a repeat.
+      # Two candidates share this step. firecrawl: the news search runs first and
+      # its stories go into the prompt, so the model composes and never
+      # searches. web_search: the model searches for itself, the path the first
+      # four A/B runs measured.
       - name: Generate candidate edition
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
           BRIEFING_MODEL: ${{ inputs.model }}
           BRIEFING_EFFORT: ${{ inputs.effort }}
           BRIEFING_MAX_SEARCHES: ${{ inputs.max_searches }}
@@ -68,9 +76,17 @@ jobs:
           BRIEFING_ALLOWED_DOMAINS: ${{ inputs.domains }}
           BRIEFING_COST_LOG: state/candidate_cost_log.jsonl
           BRIEFING_DEBUG_DIR: state/candidate_debug
+          SOURCE: ${{ inputs.source }}
         run: |
           NOTE=$(node scripts/build-date-note.mjs)
-          node scripts/generate-briefing.mjs briefing-prompt.md "$NOTE" > state/candidate_briefing.md
+          if [ "$SOURCE" = "firecrawl" ]; then
+            node scripts/fetch-news.mjs > state/candidate_stories.md
+            STORIES=$(cat state/candidate_stories.md)
+            BRIEFING_SEARCH_MODE=none node scripts/generate-briefing.mjs \
+              briefing-prompt-curated.md "${NOTE}"$'\n\n'"${STORIES}" > state/candidate_briefing.md
+          else
+            node scripts/generate-briefing.mjs briefing-prompt.md "$NOTE" > state/candidate_briefing.md
+          fi
 
       - name: Score the candidate
         run: |
@@ -84,19 +100,19 @@ jobs:
           echo "### Incumbent (claude -p, today's real edition)" >> "$GITHUB_STEP_SUMMARY"
           node scripts/score-briefing.mjs state/today_briefing.md | tee -a "$GITHUB_STEP_SUMMARY"
 
-      # What the model actually searched for and what came back. Without this
-      # a "nothing usable" edition is a dead end: the scores say zero items and
-      # nothing says why.
-      # What the model actually searched for and what came back. Without this
-      # a "nothing usable" edition is a dead end: the scores say zero items and
-      # nothing says why.
+      # What the search returned. Without this a "nothing usable" edition is a
+      # dead end: the scores say zero items and nothing says why.
       - name: What the searches returned
         if: always()
         run: |
           {
             echo '### Searches'
             echo '```'
-            node scripts/dump-search-log.mjs state/candidate_debug
+            if [ -f state/candidate_stories.md ]; then
+              cat state/candidate_stories.md
+            else
+              node scripts/dump-search-log.mjs state/candidate_debug
+            fi
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -120,3 +136,4 @@ jobs:
             state/today_briefing.md
             state/candidate_cost_log.jsonl
             state/candidate_debug/
+            state/candidate_stories.md
