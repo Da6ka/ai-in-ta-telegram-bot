@@ -1047,7 +1047,8 @@
           <code>GET /status</code> — the commit SHA it is running plus the caps, cooldowns and heartbeat cron it is
           actually enforcing, read from the same constants the request path uses. The deploy workflow polls it until
           the live Worker reports the commit it just pushed, so a green run means production is serving that commit
-          rather than that an upload was accepted.
+          rather than that an upload was accepted. Deploys are path-scoped, so <code>scripts/check-deployed.mjs</code>
+          compares against the last commit that could have triggered one rather than against <code>main</code>.
         </div>
       </section>
 

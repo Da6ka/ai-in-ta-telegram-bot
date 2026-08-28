@@ -49,6 +49,25 @@ The README's release checklist still carried the old step 4 ("Deploy the
 Worker — this is a separate, manual step. There is no CI/CD deploy"), which is
 now the opposite of what happens. Replaced with what to check instead.
 
+That replacement said to compare `gitSha` against `origin/main`, which is
+wrong, and wrong in the direction that matters — it reports a problem when
+there is none. The deploy is path-scoped, so a docs or `state/` commit ships
+nothing and leaves `gitSha` behind `main` correctly; the briefing pushes
+`state/` every weekday, so that is the normal case, not the rare one. A check
+that cries wolf on most days is worse than no check.
+
+`scripts/check-deployed.mjs` now does the comparison — against the last commit
+that could have triggered a deploy — and prints the caps alongside it.
+
+It reads the deploy paths out of the workflow rather than keeping a copy.
+GitHub evaluates `paths:` as literal YAML at trigger time, so the workflow
+cannot read them from anywhere else; it has to be the source, which leaves
+deriving them the only way to end up with one. The copy was the hazard worth
+removing: a drifted list does not fail, it keeps printing a confident verdict
+computed from the wrong set, at the moment someone is debugging something else
+and is least able to question it. A parse the script cannot trust exits 2
+rather than guessing.
+
 ### On-demand generation caps drop from 5/day to 2
 
 `GLOBAL_DAILY_DISPATCH_CAP` was 5 and `DAILY_DISPATCH_CAP` 3. At the measured
