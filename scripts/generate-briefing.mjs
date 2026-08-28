@@ -52,6 +52,10 @@ const COST_LOG = process.env.BRIEFING_COST_LOG || 'state/cost_log.jsonl'
 // arrived and were judged unusable. The prompt drops any story whose publish
 // date it cannot verify, which is exactly what would happen if page_age does
 // not survive filtering. Default is 'direct' until that is settled.
+// 'none' sends no search tool at all: the candidate stories are already in the
+// prompt, put there by scripts/fetch-news.mjs. That is the cheap path -- the
+// ~250k input tokens an edition costs are raw search results the model pulled
+// into its own context, not the writing.
 const SEARCH_MODE = process.env.BRIEFING_SEARCH_MODE || 'direct'
 // When set, each turn's response blocks are dumped here (minus the multi-KB
 // encrypted_content, which is unreadable and not the point). This exists
@@ -123,7 +127,8 @@ function buildSearchTool() {
 // request fails before any tokens are billed.
 async function requestWithDomainRecovery(params, attemptsLeft = 2) {
   try {
-    return await client.messages.stream({ ...params, tools: [buildSearchTool()] }).finalMessage()
+    const tools = SEARCH_MODE === 'none' ? {} : { tools: [buildSearchTool()] }
+    return await client.messages.stream({ ...params, ...tools }).finalMessage()
   } catch (err) {
     const blocked = err?.status === 400 ? parseInaccessibleDomains(err?.error?.error?.message ?? err?.message) : []
     if (!blocked.length || !attemptsLeft || !allowedDomains) throw err
