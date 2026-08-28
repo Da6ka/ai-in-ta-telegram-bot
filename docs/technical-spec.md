@@ -416,6 +416,19 @@ These two calls separate those cases. Both need the personal Cloudflare account
 a false "all clear". The bearer token below is the wrangler OAuth token from
 `~/.wrangler/config/default.toml`.
 
+**Is the live Worker running the commit you think it is?** No credentials
+needed, and it is the cheapest question to answer first — a change that was
+merged but never deployed looks exactly like a change that does not work:
+
+```
+GET https://ai-in-ta-telegram-bot.ai-in-ta-bot.workers.dev/status
+```
+
+Returns `gitSha` plus the caps, cooldowns, heartbeat cron and retention window
+the running bundle is enforcing, read from the same constants the request path
+uses. Compare `gitSha` against `origin/main`. `unknown` means the last deploy
+was manual rather than from CI.
+
 **Are the crons still registered on the live Worker?** Confirms config, not
 firing — a deploy that dropped `[triggers]` shows up here:
 
@@ -491,8 +504,13 @@ Rotate on any suspected leak and at least annually; after rotation, trigger
 
 Production and **staging** are fully isolated: distinct Worker
 (`ai-in-ta-telegram-bot` vs `-staging`), distinct bot, distinct KV namespace
-(`5b93a48b…`), distinct webhook secret. `wrangler deploy` targets prod;
-`--env staging` is required for staging.
+(`5b93a48b…`), distinct webhook secret. Prod ships from CI (§11); a local
+`wrangler deploy` still targets prod and `--env staging` is required for
+staging. Staging has no CI path — deploy it by hand.
+
+A manual deploy passes no `GIT_SHA`, so `/status` reports `unknown` afterwards.
+That is deliberate: it means "something outside CI last wrote this Worker", and
+the next push to `main` under `worker/**` puts it back.
 
 **Known gotcha:** the staging DO migrates seed data from KV only on first
 touch. Re-seeding requires a two-step migration (remove binding +
@@ -509,6 +527,11 @@ Staging is at migration tag **v3** for this reason; prod stays at **v1**.
 - **Perf:** `test/perf-stress.mjs`.
 - **CI:** `.github/workflows/ci.yml` runs the test suite + `actionlint`
   (pinned to a checksum-verified release) over every workflow file.
+- **Deploy:** `.github/workflows/deploy-worker.yml` ships the Worker on every
+  push to `main` under `worker/**` or `shared/**`. It re-runs the tests (ci.yml
+  runs alongside it, not before it), deploys with the commit SHA passed in as
+  `GIT_SHA`, then polls `GET /status` until the live Worker reports that SHA.
+  A green run means main is serving, not that an upload was accepted.
 - **Workflow execution paths** are manually verified (inherent GitHub Actions
   gap); the meaningful logic lives in `.mjs` scripts with their own unit tests.
 - **Manual cutover gate:** send synthetic Telegram updates (with the secret

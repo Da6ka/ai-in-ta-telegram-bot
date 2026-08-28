@@ -1397,6 +1397,46 @@ async function handleMessage(env, stub, message) {
   await handler(env, message, gated, args, text)
 }
 
+// GET /status -- what this Worker is actually running.
+//
+// Deploys are manual and git-independent (`npx wrangler deploy`; no CI ships
+// the Worker), so "merged to main" and "live in production" are separate
+// facts with nothing connecting them. Verifying a cap change otherwise means
+// spending real /newbriefing dispatches to see where the limit bites.
+//
+// It reports the live constants rather than a hand-maintained version string
+// on purpose: a string someone forgot to bump reads as a passing check while
+// production runs whatever was last pushed, which is the failure this is here
+// to catch. GIT_SHA is set by the deploy workflow (`wrangler deploy --var`),
+// so comparing it against origin/main answers "is main deployed" directly; a
+// manual deploy leaves it 'unknown', which is the honest answer.
+//
+// Public and unauthenticated. Everything below is already published -- the
+// repo is open and docs/technical-spec.md carries the same numbers. Nothing
+// that isn't may be added here: no allowlist, no owner or chat ids, no KV
+// contents, no subscriber counts, no secrets. See the test in
+// test/worker.behavior.test.mjs that asserts the response stays clean.
+function statusResponse(env) {
+  return Response.json({
+    gitSha: env.GIT_SHA ?? 'unknown',
+    caps: {
+      briefingPerUser: DAILY_DISPATCH_CAP,
+      briefingGlobal: GLOBAL_DAILY_DISPATCH_CAP,
+      askPerUser: ASK_DAILY_CAP,
+      askGlobal: ASK_GLOBAL_DAILY_CAP,
+      maxUsers: MAX_USERS,
+      maxPending: MAX_PENDING,
+    },
+    cooldownsSec: {
+      briefing: DISPATCH_COOLDOWN_MS / 1000,
+      briefingOwner: OWNER_DISPATCH_COOLDOWN_MS / 1000,
+      ask: ASK_COOLDOWN_MS / 1000,
+    },
+    heartbeatCron: HEARTBEAT_CRON,
+    retentionDays: RETENTION_DAYS,
+  })
+}
+
 export default {
   // Cloudflare Cron Trigger (see wrangler.toml's [triggers]) — a reliable
   // replacement for GitHub Actions' own `schedule` trigger, which has proven
@@ -1437,6 +1477,9 @@ export default {
   },
 
   async fetch(request, env) {
+    if (request.method === 'GET' && new URL(request.url).pathname === '/status') {
+      return statusResponse(env)
+    }
     if (request.method !== 'POST') return new Response('ok')
     const secret = request.headers.get('X-Telegram-Bot-Api-Secret-Token')
     if (secret !== env.TELEGRAM_WEBHOOK_SECRET) return new Response('unauthorized', { status: 401 })

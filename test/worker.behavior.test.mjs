@@ -155,6 +155,97 @@ test('webhook auth', async (t) => {
     const r = await send({ update_id: UID++ })
     assert.equal(r.status, 200); assert.equal(sends().length, 0)
   })
+
+})
+
+// =============== GET /status ===============
+// Deploys are manual, so nothing in git proves the running Worker matches
+// main. /status is how a deploy gets verified without spending real dispatches
+// to find out where a cap bites -- which means the numbers it reports have to
+// come from the same constants the request path uses, not a copy.
+test('status endpoint', async (t) => {
+  resetState()
+  const status = async (e = env) => {
+    const r = await worker.default.fetch(new Request('https://bot.test/status'), e)
+    return { r, body: await r.json() }
+  }
+
+  await t.test('S1 reports the live caps, no webhook secret required', async () => {
+    fetchLog = []
+    const { r, body } = await status()
+    assert.equal(r.status, 200)
+    assert.equal(r.headers.get('content-type')?.includes('application/json'), true)
+    assert.equal(body.caps.briefingPerUser, 2)
+    assert.equal(body.caps.briefingGlobal, 2)
+    assert.equal(body.caps.askPerUser, 10)
+    assert.equal(body.caps.askGlobal, 40)
+    assert.equal(body.cooldownsSec.briefing, 3600)
+    assert.equal(body.cooldownsSec.briefingOwner, 300)
+    assert.equal(body.heartbeatCron, '0 12 * * 1-5')
+    assert.equal(fetchLog.length, 0, 'a status read costs nothing downstream')
+  })
+
+  // The cap the endpoint prints and the cap that refuses a dispatch have to be
+  // the same number, or the check is theatre: it would go on reporting 2 while
+  // production refused at some other value.
+  await t.test('S2 the reported cap is the cap that actually refuses', async () => {
+    resetState()
+    const { body } = await status()
+    doStorage.map.set('briefing_rate', {
+      lastDispatchAt: 0,
+      date: todayUTC(),
+      counts: {},
+      total: body.caps.briefingGlobal - 1,
+    })
+    fetchLog = []
+    await send(upd(OWNER, '/newbriefing'))
+    assert.equal(ghDispatches().length, 1, 'one slot below the reported cap still dispatches')
+    const rl = doStorage.map.get('briefing_rate'); rl.lastDispatchAt = 0; doStorage.map.set('briefing_rate', rl)
+    fetchLog = []
+    await send(upd(OWNER, '/newbriefing'))
+    assert.equal(ghDispatches().length, 0, 'at the reported cap it refuses')
+  })
+
+  await t.test('S3 GIT_SHA is echoed when set, unknown when not', async () => {
+    assert.equal((await status()).body.gitSha, 'unknown', 'manual deploy says so')
+    const { body } = await status({ ...env, GIT_SHA: 'abc1234' })
+    assert.equal(body.gitSha, 'abc1234')
+  })
+
+  // The endpoint is public and unauthenticated. Everything it prints is
+  // already in the open repo; a regression that widens it into state would
+  // leak the allowlist, owner id or bot token to anyone who curls it.
+  await t.test('S4 leaks no state, ids or secrets', async () => {
+    resetState({ allowFrom: [OWNER, '222'], subscribers: [OWNER, '222'] })
+    kv.map.set('today_briefing_md', '# secret edition')
+    const raw = JSON.stringify((await status()).body)
+    for (const forbidden of [
+      env.TELEGRAM_BOT_TOKEN,
+      env.TELEGRAM_WEBHOOK_SECRET,
+      env.GITHUB_TOKEN,
+      env.GITHUB_REPO,
+      OWNER,
+      '222',
+      'secret edition',
+    ]) {
+      assert.equal(raw.includes(forbidden), false, `status must not expose ${forbidden}`)
+    }
+    assert.deepEqual(
+      Object.keys((await status()).body).sort(),
+      ['caps', 'cooldownsSec', 'gitSha', 'heartbeatCron', 'retentionDays'],
+      'new top-level fields need a deliberate look at what they expose',
+    )
+  })
+
+  await t.test('S5 other paths and methods are unchanged', async () => {
+    const root = await worker.default.fetch(new Request('https://bot.test/'), env)
+    assert.equal(await root.text(), 'ok', 'root GET still the bare uptime reply')
+    const posted = await worker.default.fetch(
+      new Request('https://bot.test/status', { method: 'POST', body: '{}' }),
+      env,
+    )
+    assert.equal(posted.status, 401, 'POST /status is still webhook-authenticated')
+  })
 })
 
 // =============== pairing flow ===============
