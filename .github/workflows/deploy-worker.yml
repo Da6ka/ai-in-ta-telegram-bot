@@ -68,14 +68,23 @@ jobs:
       # commit it is is the only claim worth making, and it is the reason
       # GET /status exists (worker/src/index.js).
       - name: Verify the deployed commit is live
+        #
+        # Both reads are failure-tolerant on purpose. The step runs under
+        # `bash -e`, and during the propagation window the previous bundle is
+        # still answering -- unreachable, or plain `ok` from a bundle predating
+        # this endpoint, which makes jq exit non-zero on a parse error. Without
+        # the guards that first miss kills the step instead of advancing to the
+        # next attempt, so the retry loop never runs and a healthy deploy reads
+        # as a failure. A transient miss is the case this loop exists for.
         run: |
           for attempt in $(seq 1 10); do
-            live=$(curl -sf --max-time 10 "$WORKER_URL/status" | jq -r '.gitSha // empty')
+            body=$(curl -sf --max-time 10 "$WORKER_URL/status" || true)
+            live=$(printf '%s' "$body" | jq -r '.gitSha // empty' 2>/dev/null || true)
             if [ "$live" = "$GITHUB_SHA" ]; then
               echo "live: $live"
               exit 0
             fi
-            echo "attempt $attempt: /status reports '${live:-<unreachable>}', want '$GITHUB_SHA'"
+            echo "attempt $attempt: /status reports '${live:-<no json yet>}', want '$GITHUB_SHA'"
             sleep 6
           done
           echo "::error::upload succeeded but $WORKER_URL/status never reported $GITHUB_SHA"
