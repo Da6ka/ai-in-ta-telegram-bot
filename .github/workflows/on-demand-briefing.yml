@@ -17,7 +17,7 @@ jobs:
   briefing:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Pinned once, at job start, so every later step (generation, the
       # freshness check, force-briefing-date.mjs, update-recent-stories.mjs,
@@ -29,7 +29,7 @@ jobs:
           echo "BRIEFING_DATE_ISO=$(date -u +%F)" >> "$GITHUB_ENV"
           echo "BRIEFING_DATE_HUMAN=$(date -u '+%-d %B %Y')" >> "$GITHUB_ENV"
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '20'
 
