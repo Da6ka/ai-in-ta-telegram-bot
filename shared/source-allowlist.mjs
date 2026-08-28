@@ -55,7 +55,6 @@ export const SOURCE_ALLOWLIST = [
   // Tech and business press, for launches, funding and M&A.
   'techcrunch.com',
   'bloomberg.com',
-  'reuters.com',
   'fortune.com',
   'cnbc.com',
   'forbes.com',
@@ -77,3 +76,18 @@ export const SOURCE_ALLOWLIST = [
   'ibm.com',
   'cognizant.com',
 ]
+
+// reuters.com is deliberately absent: it blocks Anthropic's crawler, and the
+// API rejects the whole request with a 400 naming it rather than skipping it,
+// so one such entry takes the day's briefing down. Anything added here should
+// be checked the same way -- a run that 400s on a domain is cheap (it fails
+// before any tokens are spent), but it fails.
+//
+// The 400's message lists the offending domains, which is enough to recover
+// from automatically. scripts/generate-briefing.mjs drops them and retries;
+// this parses the list out of the message.
+export function parseInaccessibleDomains(message) {
+  const match = /domains are not accessible to our user agent:\s*\[([^\]]*)\]/i.exec(String(message ?? ''))
+  if (!match) return []
+  return [...match[1].matchAll(/['"]([^'"]+)['"]/g)].map((m) => m[1])
+}
