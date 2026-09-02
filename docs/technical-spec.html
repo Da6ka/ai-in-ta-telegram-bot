@@ -679,7 +679,7 @@
       <div class="wrap masthead-inner">
         <div class="kicker-row">
           <span class="livedot" aria-hidden="true"></span>
-          <span class="eyebrow">Technical Specification · v1.8.1 · live</span>
+          <span class="eyebrow">Technical Specification · v1.9.0 · live</span>
         </div>
         <h1>
           AI-in-TA Telegram Bot
@@ -838,6 +838,11 @@
                 <td>Validated by the Worker, fanned out on the Actions runner</td>
               </tr>
               <tr>
+                <td><span class="cmd">/pause · /resume</span></td>
+                <td><span class="pill admin">owner / admin</span></td>
+                <td>Freeze or lift the bot; while paused every paid path is withheld and the daily send is skipped</td>
+              </tr>
+              <tr>
                 <td><span class="cmd">/addadmin · /removeadmin</span></td>
                 <td><span class="pill owner">owner only</span></td>
                 <td>Delegate / revoke admin — target must already be allowlisted</td>
@@ -857,6 +862,12 @@
           <li>
             <b>Removal is complete.</b> <code>/removeuser</code> (or a user's own <code>/forgetme</code>) also revokes
             any admin status they held.
+          </li>
+          <li>
+            <b>A pause spends nothing.</b> While <code>/pause</code> is on, every paid path is withheld for everyone,
+            admins included — <code>/newbriefing</code>, <code>/ask</code>, and <code>/briefing</code>'s
+            generate-fallback short-circuit, and the daily send is skipped. <code>/briefing</code> still serves the last
+            saved edition, and the data-subject-rights commands stay reachable.
           </li>
         </ul>
       </section>
@@ -1043,12 +1054,12 @@
           <code>--env staging</code> is required to touch staging.
         </div>
         <div class="note">
-          <b>A deploy is verified, not assumed.</b> The Worker serves
-          <code>GET /status</code> — the commit SHA it is running plus the caps, cooldowns and heartbeat cron it is
-          actually enforcing, read from the same constants the request path uses. The deploy workflow polls it until
-          the live Worker reports the commit it just pushed, so a green run means production is serving that commit
-          rather than that an upload was accepted. Deploys are path-scoped, so <code>scripts/check-deployed.mjs</code>
-          compares against the last commit that could have triggered one rather than against <code>main</code>.
+          <b>A deploy is verified, not assumed.</b> The Worker serves <code>GET /status</code> — the commit SHA it is
+          running plus the caps, cooldowns and heartbeat cron it is actually enforcing, read from the same constants the
+          request path uses. The deploy workflow polls it until the live Worker reports the commit it just pushed, so a
+          green run means production is serving that commit rather than that an upload was accepted. Deploys are
+          path-scoped, so <code>scripts/check-deployed.mjs</code> compares against the last commit that could have
+          triggered one rather than against <code>main</code>.
         </div>
       </section>
 
@@ -1057,7 +1068,7 @@
         <span>·</span>
         <span>Specification reflects the deployed system as of 2026-08-20</span>
         <span>·</span>
-        <span class="mono">v1.8.1</span>
+        <span class="mono">v1.9.0</span>
       </footer>
     </main>
   </body>
