@@ -743,10 +743,10 @@ test('maintenance pause', async (t) => {
     assert.ok(!doStorage.map.get('subscribers').subscribers.includes(NONADMIN), '/subscribe did not take effect')
   })
 
-  await t.test('P5 briefing and GDPR commands stay reachable while paused', async () => {
+  await t.test('P5 GDPR commands stay reachable while paused', async () => {
     resetState({ allowFrom: [OWNER, NONADMIN], subscribers: [OWNER, NONADMIN] })
     kv.map.set('maintenance', 'on')
-    for (const cmd of ['/briefing', '/newbriefing', '/privacy', '/mydata']) {
+    for (const cmd of ['/privacy', '/mydata']) {
       fetchLog = []
       await send(upd(NONADMIN, cmd))
       assert.ok(!sends().some(c => c.body.text.includes('paused for a short update')), `${cmd} is exempt from the pause`)
@@ -755,6 +755,18 @@ test('maintenance pause', async (t) => {
     fetchLog = []
     await send(upd(NONADMIN, '/forgetme'))
     assert.ok(!doStorage.map.get('subscribers').subscribers.includes(NONADMIN), '/forgetme ran while paused')
+  })
+
+  await t.test('P5b /briefing serves the cached edition while paused, without generating', async () => {
+    resetState({ allowFrom: [OWNER, NONADMIN], subscribers: [OWNER] })
+    kv.map.set('maintenance', 'on')
+    kv.map.set('today_briefing_date', todayUTC())
+    kv.map.set('today_briefing_md', '# Today\n- cached item')
+    fetchLog = []
+    await send(upd(NONADMIN, '/briefing'))
+    assert.equal(ghDispatches().length, 0, 'no generation dispatched')
+    assert.ok(sends().some(c => c.body.text.includes('cached item')), 'cached edition delivered')
+    assert.ok(!sends().some(c => c.body.text.includes('paused for a short update')), 'no pause notice when a cache exists')
   })
 
   await t.test('P6 owner and admins bypass the pause entirely', async () => {
@@ -782,6 +794,41 @@ test('maintenance pause', async (t) => {
     await send(upd(NONADMIN, '/subscribe'))
     assert.ok(!sends()[0].body.text.includes('paused for a short update'), 'no notice after resume')
     assert.ok(doStorage.map.get('subscribers').subscribers.includes(NONADMIN), '/subscribe works after resume')
+  })
+
+  await t.test('P8 no paid generation while paused: /newbriefing and /ask spend nothing', async () => {
+    resetState({ allowFrom: [OWNER, NONADMIN], subscribers: [OWNER] })
+    kv.map.set('maintenance', 'on')
+    // Non-admin: stopped at the gate with the notice, no dispatch.
+    for (const cmd of ['/newbriefing', '/ask what is new']) {
+      fetchLog = []
+      await send(upd(NONADMIN, cmd))
+      assert.ok(sends().some(c => c.body.text.includes('paused')), `${cmd} tells the user it is paused`)
+      assert.equal(ghDispatches().length, 0, `${cmd} dispatches nothing`)
+    }
+    // Owner bypasses the gate but must still not trigger a paid run.
+    for (const cmd of ['/newbriefing', '/ask what is new']) {
+      fetchLog = []
+      await send(upd(OWNER, cmd))
+      assert.equal(ghDispatches().length, 0, `owner ${cmd} dispatches no paid job while paused`)
+    }
+  })
+
+  await t.test('P9 scheduled daily dispatch and heartbeat are skipped while paused', async () => {
+    resetState({ subscribers: [OWNER] })
+    kv.map.set('maintenance', 'on')
+    fetchLog = []
+    let waited = []
+    await worker.default.scheduled({}, env, { waitUntil: (p) => waited.push(p) })
+    await Promise.all(waited)
+    assert.equal(ghDispatches().length, 0, 'no daily-briefing dispatch while paused')
+    // Heartbeat would otherwise alert daily about a briefing that never lands.
+    kv.map.set('last_delivered_date', '2020-01-01')
+    fetchLog = []
+    waited = []
+    await worker.default.scheduled({ cron: '0 12 * * 1-5' }, env, { waitUntil: (p) => waited.push(p) })
+    await Promise.all(waited)
+    assert.equal(sends().length, 0, 'no heartbeat alert while paused')
   })
 })
 

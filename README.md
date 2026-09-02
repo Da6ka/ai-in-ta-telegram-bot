@@ -118,10 +118,12 @@ To stop: **`/unsubscribe`** ends the daily send but keeps your access; **`/forge
 | `/adduser` · `/removeuser` | Add or remove someone directly             |
 | `/listusers`               | List everyone the bot knows, with @handles |
 | `/broadcast`               | Send a one-off message to every subscriber |
-| `/pause`                   | Pause the bot until the next release; `/briefing` and `/newbriefing` stay live |
+| `/pause`                   | Pause the bot until the next release; stops all paid generation |
 | `/resume`                  | Lift the pause                             |
 
-> **`/pause [message]` freezes the bot for everyone but you.** While it's on, non-admin users get a short "paused for a short update" notice for every command except `/briefing`, `/newbriefing` and the privacy commands (`/privacy`, `/mydata`, `/forgetme`, `/unsubscribe`) — those stay reachable so a pause can never trap someone's data. Owner and delegated admins are never gated, so `/resume` always works. The daily briefing is untouched: it runs in the Worker's `scheduled` handler, which the pause flag doesn't reach. An optional message is fanned out to subscribers as the pause announcement, over the same runner path as `/broadcast` — `/resume [message]` does the same for the all-clear.
+> **`/pause [message]` freezes the bot and stops it spending on Claude API.** While it's on, non-admin users get a short "paused for a short update" notice for every command except `/briefing` (which serves the last saved edition, without generating) and the privacy commands (`/privacy`, `/mydata`, `/forgetme`, `/unsubscribe`) — those stay reachable so a pause can never trap someone's data. Every paid path is withheld: `/newbriefing`, `/ask`, and `/briefing`'s generate-fallback all return the notice, for admins too, so a pause means zero spend. `scheduled()` also stops dispatching the daily digest and skips the heartbeat. Owner and delegated admins bypass the user-facing notice, so `/resume` always works. An optional message is fanned out to subscribers as the pause announcement, over the same runner path as `/broadcast` — `/resume [message]` does the same for the all-clear.
+>
+> **One caveat for the daily digest.** `daily-briefing.yml` also has GitHub's own backup `schedule` trigger, which the Worker can't suppress. To stop the digest fully, disable that workflow while paused: `gh workflow disable daily-briefing.yml` (re-enable it with `gh workflow enable daily-briefing.yml` at release).
 
 **Owner-only**
 

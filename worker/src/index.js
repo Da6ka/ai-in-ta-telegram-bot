@@ -699,6 +699,16 @@ async function hasTodayCached(env) {
 // today's exists, otherwise a "being generated" note (a run is likely in
 // flight, since the cooldown started less than an hour ago).
 async function requestGeneration(env, stub, senderId, generatingMsg, isOwner = false) {
+  // Bot paused (/pause): never dispatch a paid generation. Serve the last saved
+  // edition if there is one (free), else say the fresh run is paused. This is
+  // the single choke point for /briefing's generate-fallback and /newbriefing,
+  // so no command -- admin included -- spends Claude API credits while paused.
+  if ((await env.BOT_STATE.get('maintenance')) === 'on') {
+    if (await serveStaleBriefing(env, senderId)) return
+    await reply(env, senderId,
+      "The bot is paused for a short update, so a fresh briefing isn't being generated right now. There's no saved edition to show yet — everything's back at the next release.")
+    return
+  }
   const r = await stub.reserveBriefingDispatch(senderId, isOwner)
   if (!r.allowed) {
     // Both caps: serveStaleBriefing only fires when a *previous* day's edition
@@ -843,9 +853,11 @@ async function briefingHeartbeat(env) {
 // this as data — rather than a copy-pasted gate block in each handler — means
 // a newly-added privileged command can't accidentally ship ungated.
 // Commands a non-admin user can still run while the bot is paused (/pause):
-// the briefing commands the pause is meant to keep alive, and the GDPR
-// self-service commands, which must never be blockable.
-const MAINTENANCE_EXEMPT = new Set(['briefing', 'newbriefing', 'privacy', 'mydata', 'forgetme', 'unsubscribe'])
+// /briefing (which serves the last saved edition without generating), and the
+// GDPR self-service commands, which must never be blockable. Everything that
+// costs Claude API credits -- /newbriefing, /ask, /briefing's generate-fallback
+// -- is withheld while paused.
+const MAINTENANCE_EXEMPT = new Set(['briefing', 'privacy', 'mydata', 'forgetme', 'unsubscribe'])
 
 const COMMAND_ROLES = {
   admin: 'admin',
@@ -1074,6 +1086,13 @@ const COMMAND_HANDLERS = {
       await reply(env, senderId, 'You need to be approved first — send /start to request access.')
       return
     }
+    // /ask runs a paid claude job on the runner; withheld while paused. Non-admins
+    // are already stopped by the maintenance gate -- this catches admins, who
+    // bypass it, so a pause really means zero spend.
+    if ((await env.BOT_STATE.get('maintenance')) === 'on') {
+      await reply(env, senderId, 'The bot is paused for a short update — /ask is back at the next release.')
+      return
+    }
     const question = (rawText ?? '').trim().replace(/^\/ask(@\S+)?\s*/i, '').trim()
     if (!question) {
       await reply(env, senderId,
@@ -1144,7 +1163,7 @@ const COMMAND_HANDLERS = {
       // automatically instead of silently missing from a hand-maintained list.
       Object.keys(COMMAND_HANDLERS).sort().map(name => `- /${name}: ${c[name] ?? 0}`).join('\n') + `\n\n` +
       `Use /listusers, /pending, /adduser <id>, /removeuser <id>, /broadcast <msg>\n` +
-      `- /pause [msg] pauses the bot (briefing stays live); /resume [msg] lifts it\n` +
+      `- /pause [msg] pauses the bot (stops paid generation; cached /briefing stays); /resume [msg] lifts it\n` +
       `Owner only: /addadmin <id>, /removeadmin <id>`)
   },
 
@@ -1293,18 +1312,20 @@ const COMMAND_HANDLERS = {
   },
 
   // Maintenance pause. Admin-gated like /broadcast. Sets the BOT_STATE
-  // 'maintenance' flag that handleMessage's gate reads, so non-admin users get
-  // a short notice for every command EXCEPT /briefing, /newbriefing and the
-  // GDPR commands (/privacy, /mydata, /forgetme, /unsubscribe). Owner and
-  // delegated admins are never gated, so /resume is always reachable. The daily
-  // 09:05-UTC briefing is unaffected: it runs in the scheduled() handler, which
-  // this flag does not touch. An optional message is fanned out to subscribers
-  // as the pause announcement, over the same runner path as /broadcast.
+  // 'maintenance' flag. While it is on: non-admins get a notice for every
+  // command except /briefing (cached copy) and the GDPR commands; every paid
+  // generation is withheld (/newbriefing, /ask, /briefing's generate-fallback);
+  // and scheduled() stops dispatching the daily digest and skips the heartbeat.
+  // Owner and delegated admins are never gated, so /resume is always reachable.
+  // The digest also has GitHub's own backup schedule on daily-briefing.yml,
+  // which the Worker can't suppress -- disable that workflow to stop it fully.
+  // An optional message is fanned out to subscribers as the pause announcement,
+  // over the same runner path as /broadcast.
   async pause(env, message, gated, args, rawText) {
     const { senderId, stub } = gated
     const announce = (rawText ?? '').trim().replace(/^\/pause(@\S+)?\s*/i, '')
     await env.BOT_STATE.put('maintenance', 'on')
-    const paused = 'Bot paused. Non-admins now get a maintenance notice for every command except /briefing, /newbriefing and the privacy commands. The daily briefing still runs.'
+    const paused = 'Bot paused. Non-admins now get a notice for everything except /briefing (cached copy) and the privacy commands; /newbriefing and /ask are off, so no paid generation runs. The daily-digest dispatch is stopped too — disable the daily-briefing workflow to also stop GitHub\'s backup schedule.'
     if (!announce) {
       await reply(env, senderId, `${paused}\n\nNo announcement was sent — add one with /pause <message>. Lift the pause with /resume.`)
       return
@@ -1430,7 +1451,7 @@ async function handleMessage(env, stub, message) {
   if (cmd === null || !MAINTENANCE_EXEMPT.has(cmd)) {
     if (!isOwnerOrAdmin(gated.access, gated.senderId) && (await env.BOT_STATE.get('maintenance')) === 'on') {
       await reply(env, gated.senderId,
-        "AI in TA News is paused for a short update. Daily briefings still arrive as usual, and /briefing works. Everything else is back shortly.")
+        "AI in TA News is paused for a short update. /briefing still shows the latest saved edition, and everything else is back at the next release.")
       return
     }
   }
@@ -1525,6 +1546,12 @@ export default {
   // daily-briefing.yml's last_briefing_at idempotency check makes this safe
   // to race with (or duplicate) GitHub's own schedule/watchdog firing.
   async scheduled(event, env, ctx) {
+    // Bot paused (/pause): don't dispatch the daily briefing (no generation, no
+    // spend) and don't run the heartbeat (which would otherwise alert every day
+    // about a briefing that was never meant to land). GitHub's own backup
+    // schedule on daily-briefing.yml is outside the Worker -- disable that
+    // workflow to stop the digest fully.
+    if ((await env.BOT_STATE.get('maintenance')) === 'on') return
     // Two crons (worker/wrangler.toml): the 12:00 UTC one is an external
     // heartbeat (briefingHeartbeat); the 09:05 UTC one dispatches the daily
     // briefing. event.cron distinguishes them.

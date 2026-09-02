@@ -2,26 +2,31 @@
 
 ## [Unreleased]
 
-### A pause switch that spares the briefing
+### A pause switch that stops the bot spending
 
-Two admin commands, `/pause` and `/resume`, and a maintenance flag in
-`BOT_STATE` behind them. `/pause [message]` sets the flag; while it's on, every
-non-admin command returns a short notice instead of running — except
-`/briefing`, `/newbriefing`, and the GDPR commands (`/privacy`, `/mydata`,
-`/forgetme`, `/unsubscribe`), which stay reachable so a pause can never trap
-someone's data. Owner and delegated admins bypass the flag entirely, so
-`/resume` always works.
+Two admin commands, `/pause` and `/resume`, and a `maintenance` flag in
+`BOT_STATE` behind them, for freezing the bot between releases without paying
+for generation nobody's watching.
 
-The daily briefing is deliberately outside the gate. It runs in the Worker's
-`scheduled` handler; the flag only guards `handleMessage`, so the 09:05-UTC run
-and the 12:00-UTC heartbeat fire regardless of whether the command surface is
-paused. The optional message on either command is fanned out to subscribers over
-the same runner path as `/broadcast` — the pause announcement and the all-clear.
+While the flag is on, every non-admin command returns a short notice instead of
+running — except `/briefing`, which serves the last saved edition (no
+generation), and the GDPR commands (`/privacy`, `/mydata`, `/forgetme`,
+`/unsubscribe`), which must never be blockable. Every paid path is withheld:
+`/newbriefing`, `/ask`, and `/briefing`'s generate-fallback all short-circuit,
+for admins too, through a single guard in `requestGeneration` (and one in the
+`/ask` handler). So a pause means zero Claude API spend, not a wrong assumption
+about who's exempt.
 
-Both commands are admin-gated like `/broadcast`; the flag read is skipped for
-admins and for the exempt commands, so the common paths take no extra KV read.
-`/admin` shows the current pause state. Covered by `test/worker.behavior.test.mjs`
-(P1-P7).
+`scheduled()` reads the same flag first: while paused it dispatches no daily
+briefing and runs no heartbeat (which would otherwise alert every day about a
+digest that was never meant to land). The daily digest has one trigger the
+Worker can't reach — GitHub's own backup `schedule` on `daily-briefing.yml` —
+so the docs point at `gh workflow disable daily-briefing.yml` to stop it fully.
+
+Both commands are admin-gated like `/broadcast`, and either can carry an
+optional message that's fanned out to subscribers over the `/broadcast` runner
+path — the pause announcement, and the all-clear. `/admin` shows the current
+pause state. Covered by `test/worker.behavior.test.mjs` (P1-P9).
 
 ### The briefing kept its sources in a channel we were discarding
 
