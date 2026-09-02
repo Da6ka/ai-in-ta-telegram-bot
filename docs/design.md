@@ -45,7 +45,7 @@ GitHub Actions (scheduled + dispatched)       Cloudflare Worker (webhook + cron,
    │  - GitHub schedule (backup, 09:00, often      │    'daily-briefing-trigger'
    │    late/skipped — issue #17)                 │
    │  - watchdog fallback (backup, 10:30)          │ fetch() — Telegram webhook
-   │  1. claude -p + briefing-prompt.md            │  /briefing        → serve
+   │  1. fetch-news.mjs + generate-briefing.mjs    │  /briefing        → serve
    │     → state/today_briefing.md                │                      cached copy from KV
    │  2. send-briefing.mjs → all subscribers       │  /newbriefing,
    │  3. commit state/ back to repo                │  /broadcast       → repository_dispatch
@@ -105,9 +105,10 @@ reads without going through the DO on every request.
   GitHub's own `schedule` (backup, 09:00 UTC, kept despite being unreliable —
   see below), and the watchdog (backup, see next item). An idempotency check
   (below) makes it safe for more than one of these to fire the same day. Once
-  running: `claude -p` against `briefing-prompt.md`, writes
-  `state/today_briefing.md`, sends via `scripts/send-briefing.mjs`, commits
-  `state/` back to the repo.
+  running: `scripts/fetch-news.mjs` gathers the day's candidate stories and
+  `scripts/generate-briefing.mjs` composes them against
+  `briefing-prompt-curated.md`, writes `state/today_briefing.md`, sends via
+  `scripts/send-briefing.mjs`, commits `state/` back to the repo.
 - `daily-briefing-watchdog.yml` — 10:30 UTC cron. Checks whether
   `last_briefing_at` in `state/usage_stats.json` matches today; if not,
   re-dispatches `daily-briefing.yml` and alerts the owner via
@@ -147,9 +148,11 @@ Data flow
    dispatches `daily-briefing-trigger` to `daily-briefing.yml` (primary path).
    GitHub's own 09:00 UTC `schedule` trigger on the same workflow is a backup
    that may fire independently (often late or not at all — issue #17).
-2. `claude -p briefing-prompt.md` searches the web (news from the past 48h)
-   and writes `state/today_briefing.md` + updates `state/usage_stats.json`
-   (idempotency marker, so a duplicate trigger the same day is a no-op).
+2. `fetch-news.mjs` runs the news search (Firecrawl, recency-filtered) and
+   `generate-briefing.mjs` composes the candidate stories against
+   `briefing-prompt-curated.md`, writing `state/today_briefing.md` + updating
+   `state/usage_stats.json` (idempotency marker, so a duplicate trigger the
+   same day is a no-op). The model is sent no search tool of its own.
 3. `send-briefing.mjs` reads the live subscriber list from KV and sends to
    each.
 4. Workflow commits updated `state/` back to `main`.

@@ -52,6 +52,15 @@ jobs:
         run: |
           echo "BRIEFING_DATE_ISO=$(date -u +%F)" >> "$GITHUB_ENV"
           echo "BRIEFING_DATE_HUMAN=$(date -u '+%-d %B %Y')" >> "$GITHUB_ENV"
+          # The wiki ingest runs once a week, on Friday, rather than after
+          # every edition -- see "Ingest into the wiki" below for why. Decided
+          # here, with the rest of the date pinning, so the whole job agrees on
+          # it even across a UTC midnight (#25).
+          if [ "$(date -u +%u)" = "5" ]; then
+            echo "WIKI_INGEST_DAY=true" >> "$GITHUB_ENV"
+          else
+            echo "WIKI_INGEST_DAY=false" >> "$GITHUB_ENV"
+          fi
 
       - uses: actions/setup-node@v7
         with:
@@ -64,8 +73,10 @@ jobs:
       - run: npm ci
 
       # Still needed: the wiki ingest step near the bottom is the one remaining
-      # `claude -p` call in this workflow.
+      # `claude -p` call in this workflow. That step is weekly now, so the
+      # install is too -- it buys nothing on the other four mornings.
       - name: Install Claude Code
+        if: env.WIKI_INGEST_DAY == 'true'
         run: npm install -g @anthropic-ai/claude-code@2.1.209
 
       - name: Check idempotency
@@ -114,10 +125,13 @@ jobs:
         timeout-minutes: 10
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          # Each turn's search results land here so a "nothing usable" edition
+          # The day's candidate stories come from Firecrawl's news search, not
+          # from the model -- see the run block below.
+          FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
+          BRIEFING_SEARCH_MODE: none
+          # Each turn's response blocks land here so a "nothing usable" edition
           # is diagnosable. Under `claude -p` this was --debug-file; the dump
-          # is now per-turn JSON, read with scripts/dump-search-log.mjs (see
-          # the freshness step below). Gitignored: it is rewritten every run.
+          # is now per-turn JSON. Gitignored: it is rewritten every run.
           BRIEFING_DEBUG_DIR: state/briefing_debug
         run: |
           NOTE=$(node scripts/build-date-note.mjs)
@@ -125,35 +139,54 @@ jobs:
           if [ -n "$RECENT" ]; then
             NOTE="${NOTE}"$'\n\n'"${RECENT}"
           fi
-          # Direct Messages API call, not `claude -p`. The agent loop carried
-          # every web-search result forward in full through every later turn,
-          # so a six-search edition re-sent the accumulated results five more
-          # times and input tokens grew with the square of the research -- ~90%
-          # of what the bot cost to run. scripts/generate-briefing.mjs does the
-          # same research inside one server-side turn. Measured on 2026-08-28
-          # against the same prompt: $1.47 for a 4-item edition that passed
-          # every scriptable gate, against ~$2-3 here.
+          # The news search runs here, in Firecrawl, and its results are handed
+          # to the model in the prompt. The model gets no search tool at all
+          # (BRIEFING_SEARCH_MODE=none) and composes from this list.
           #
+          # Not a failure of the model's own search so much as of its shape:
+          # server-side web search has no recency filter, so an edition pulled
+          # ~250k tokens of raw results into context to find the handful inside
+          # the freshness window, and every one of those searches also billed
+          # per call. Firecrawl's news source takes a `qdr:w` filter, so the
+          # filtering happens before anything reaches the context window.
+          #
+          # Measured against the same morning, 2026-08-28 (compare-generators.yml,
+          # runs 33130324680 and 33137088863): the model searching for itself
+          # cost $1.47 for 247,580 input tokens, 10 billed searches and 4 linked
+          # items; this path cost $0.094 for 3,976 input tokens, no searches and
+          # 6 linked items. The edition that actually went out that morning, on
+          # the old path, cost $2.55 and scored 2 items.
+          #
+          # A single failed query is survivable and fetch-news.mjs continues on
+          # the rest; every query failing exits non-zero, which fails this step
+          # rather than composing an edition out of nothing. That is deliberate:
+          # the failure alert below is the right outcome, not a briefing built
+          # from the model's memory.
+          node scripts/fetch-news.mjs > state/today_stories.md
+          STORIES=$(cat state/today_stories.md)
           # Cost control changes shape with the engine, and the difference
           # matters. --max-budget-usd was enforced by the CLI mid-run; the
-          # ceilings now are BRIEFING_MAX_SEARCHES (searches bill per call),
-          # max_tokens, and a budget check before continuing a paused turn --
-          # all pre-emptive. The generator's own final total only warns, on
-          # purpose: once a completed response can be priced the money is
-          # already spent, and failing then would throw away a paid-for
-          # edition that is probably fine. The step-level timeout-minutes
-          # above stays as the hard wall-clock ceiling (ASI02).
+          # ceilings now are max_tokens and a budget check before continuing a
+          # paused turn -- both pre-emptive. (BRIEFING_MAX_SEARCHES no longer
+          # binds here: no search tool is sent. It still guards the direct path
+          # that compare-generators.yml and on-demand-briefing.yml can take.)
+          # The generator's own final total only warns, on purpose: once a
+          # completed response can be priced the money is already spent, and
+          # failing then would throw away a paid-for edition that is probably
+          # fine. The step-level timeout-minutes above stays as the hard
+          # wall-clock ceiling (ASI02).
           #
-          # BRIEFING_MODEL/EFFORT/MAX_SEARCHES/SEARCH_MODE/ALLOWED_DOMAINS are
-          # deliberately left at the script's defaults (Opus 4.8, medium,
-          # direct, curated allowlist) so this workflow and compare-generators.yml
-          # stay comparable -- tune them there first, then here.
+          # BRIEFING_MODEL/EFFORT are deliberately left at the script's defaults
+          # (Opus 4.8, medium) so this workflow and compare-generators.yml stay
+          # comparable -- tune them there first, then here.
           #
           # One retry: a transient API hiccup shouldn't cost the whole day's
-          # briefing. A zero-exit-but-poor generation is caught later by the
+          # briefing. The candidate list is fetched once, above, and reused --
+          # a second Firecrawl pass would return the same stories at the cost of
+          # more credits. A zero-exit-but-poor generation is caught later by the
           # freshness gate + stale-generation alert, not here.
           for attempt in 1 2; do
-            if node scripts/generate-briefing.mjs briefing-prompt.md "$NOTE" > state/today_briefing.md 2> state/briefing_stderr.log; then
+            if node scripts/generate-briefing.mjs briefing-prompt-curated.md "${NOTE}"$'\n\n'"${STORIES}" > state/today_briefing.md 2> state/briefing_stderr.log; then
               # Always printed, not just on failure: the generator's stderr is
               # where the run's token counts, search count and dollar cost are
               # reported, and that line is the whole point of the new engine.
@@ -198,13 +231,13 @@ jobs:
             head -40 state/today_briefing.md
             echo "--- state/briefing_stderr.log ---"
             cat state/briefing_stderr.log 2>/dev/null || true
-            # Distinguishes "the searches failed" from "the searches worked and
-            # the model discarded every result" -- the two look identical from
-            # the outside, and both read as a thin news day. Each result's
-            # page_age is printed, since an undated result is one the prompt
-            # is required to drop.
-            echo "--- searches (state/briefing_debug) ---"
-            node scripts/dump-search-log.mjs state/briefing_debug 2>/dev/null || true
+            # Distinguishes "the news search returned nothing usable" from
+            # "it returned stories and the model discarded every one" -- the two
+            # look identical from the outside, and both read as a thin news day.
+            # The candidate list carries each story's date, since an undated one
+            # is exactly what the prompt is required to drop.
+            echo "--- candidate stories (state/today_stories.md) ---"
+            cat state/today_stories.md 2>/dev/null || true
             echo "ok=false" >> "$GITHUB_OUTPUT"
           fi
 
@@ -220,7 +253,9 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: rejected-briefing-blocks-daily
-          path: state/briefing_debug/
+          path: |
+            state/briefing_debug/
+            state/today_stories.md
           retention-days: 14
           if-no-files-found: ignore
 
@@ -270,9 +305,18 @@ jobs:
       # saw -- an on-demand edition, or every day of a multi-day outage. Writes
       # the count so the expensive claude call below is skipped when there's
       # nothing to fold in.
+      #
+      # Weekly, like the ingest it feeds. The batch limit is raised for the same
+      # reason: five weekday editions produce ~25 records, which is exactly
+      # INGEST_BATCH_LIMIT's default, so at a weekly cadence the default would
+      # leave every on-demand edition's records permanently behind the cap and
+      # the backlog would grow week over week. 40 gives a normal week's arrivals
+      # room to drain in one run.
       - name: Collect pending wiki records
         id: wiki_pending
-        if: steps.idempotency.outputs.should_run == 'true'
+        if: steps.idempotency.outputs.should_run == 'true' && env.WIKI_INGEST_DAY == 'true'
+        env:
+          WIKI_INGEST_BATCH: '40'
         run: node scripts/wiki-pending.mjs
 
       # Folds the pending records into wiki/ pages.
@@ -296,9 +340,23 @@ jobs:
       # No WebSearch in --allowedTools, deliberately: the wiki must only ever
       # contain what the bot published. The prompt says so, but the tool
       # allowlist is what actually enforces it.
+      #
+      # Weekly (Friday), not after every edition. In August 2026 this step was
+      # the second-largest line in the bot's API bill -- $17.35 of $71.91, on
+      # bookkeeping that never reaches a subscriber -- and after the generation
+      # change above it is the largest. Most of a run's cost is fixed: reading
+      # wiki/CLAUDE.md, the index, the existing pages and the sources corpus
+      # happens once whether the batch is five records or forty, so folding a
+      # week in one pass pays that overhead once instead of five times.
+      #
+      # The ceiling rises from 1 to 2.5 for the same reason -- a week's batch is
+      # five times the records -- and still bounds the worst case at roughly
+      # $11/month against $17.35. Do not lower it without also shortening the
+      # cadence: a truncated ingest leaves its records pending, and at a weekly
+      # cadence they would arrive faster than they drain.
       - name: Ingest into the wiki
         id: wiki_ingest
-        if: steps.idempotency.outputs.should_run == 'true' && steps.wiki_pending.outputs.count != '0'
+        if: steps.idempotency.outputs.should_run == 'true' && env.WIKI_INGEST_DAY == 'true' && steps.wiki_pending.outputs.count != '0'
         continue-on-error: true
         timeout-minutes: 10
         env:
@@ -307,7 +365,7 @@ jobs:
           claude -p "$(cat wiki-ingest-prompt.md)" \
             --model claude-haiku-4-5-20251001 \
             --allowedTools "Read Write Edit Glob Grep" \
-            --max-budget-usd 1 \
+            --max-budget-usd 2.5 \
             --setting-sources user
 
       # Separate step so a failed or half-finished ingest never marks its

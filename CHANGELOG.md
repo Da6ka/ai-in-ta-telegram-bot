@@ -2,6 +2,64 @@
 
 ## [Unreleased]
 
+### The daily briefing stopped paying the model to search
+
+August's API bill on this key was $71.91, and $54 of it was one line: the daily
+edition's research. Not the writing — the research. Anthropic's server-side web
+search has no recency filter, so every morning the model ran a dozen searches
+across the open beat, pulled roughly 250,000 tokens of raw results into context
+to find the handful published inside the freshness window, and then paid for
+those same searches a second time as input tokens. Three consecutive editions
+measured about 450,000 input tokens against 8,000-10,000 output — fifty tokens
+read for every one written.
+
+The cheaper path already existed, behind the A/B flag added in #111.
+`scripts/fetch-news.mjs` runs the same ten queries through Firecrawl's news
+source with a `qdr:w` recency filter, and the survivors go into the prompt as a
+candidate list; the model composes from that list and is sent no search tool at
+all. `daily-briefing.yml` now takes it — `briefing-prompt-curated.md` with
+`BRIEFING_SEARCH_MODE=none` — which means the morning send depends on
+`FIRECRAWL_API_KEY`, now documented in the README's secrets table.
+
+Both paths were measured against the same morning, 2026-08-28:
+
+| Path | Input tokens | Searches | Cost | Linked items |
+| ---- | ------------ | -------- | ---- | ------------ |
+| Model searches (the edition that shipped) | 449,615 | 12 | $2.55 | 2 |
+| Model searches (A/B run) | 247,580 | 10 | $1.47 | 4 |
+| Stories supplied in the prompt | 3,976 | 0 | $0.09 | 6 |
+
+Cheaper by a factor of 27, and it scored better: the recency filter does by
+query what the prompt was otherwise asking the model to do by reading.
+
+Two smaller things follow. `BRIEFING_MAX_SEARCHES` drops from 12 to 6 — the
+number the prompt actually plans, the spare six being a thin-day allowance every
+edition paid for. It no longer binds the daily send, which sends no search tool,
+but it still ceilings `compare-generators.yml` and `on-demand-briefing.yml`. And
+the freshness gate's rejection dump prints the candidate list instead of a search
+log that is now always empty, so a rejected edition still says whether the search
+returned nothing or the model discarded everything it returned.
+
+`/newbriefing` deliberately keeps searching for itself. `briefing-prompt-ondemand.md`
+carries its own freshness rules (up to 14 days, search mandatory), so moving it
+needs its own prompt and its own A/B run rather than a flag flip.
+
+### The wiki ingest moved to once a week
+
+$17.35 of August's bill was the Haiku pass that folds published stories into
+`wiki/` pages — bookkeeping no subscriber ever sees, and, with the briefing line
+cut, what would now be the largest item on the bill. It ran after every edition,
+folding about five records, and most of what it paid for was fixed cost: reading
+the schema, the index, the existing pages and the sources corpus happens once
+whether the batch is five records or forty.
+
+It now runs on Fridays only and folds the week in one pass. The batch cap rises
+from 25 to 40 — five weekday editions produce about 25 records, so at a weekly
+cadence the old cap would have left every on-demand edition's records permanently
+behind it — and the per-run ceiling from $1 to $2.50, which bounds the worst case
+near $11 a month against $17.35. The Claude Code install step is gated on the
+same day; it buys nothing on the other four mornings.
+
 ## [1.9.0] - 2026-09-02
 
 ### A pause switch that stops the bot spending
