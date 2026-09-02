@@ -1,6 +1,6 @@
 # AI-in-TA Telegram Bot — Technical Specification
 
-Version: 1.8.1 · Status: describes the deployed system as of 2026-08-20
+Version: 1.9.0 · Status: describes the deployed system as of 2026-09-02
 
 > This is the interface/requirements-level companion to [`design.md`](./design.md).
 > `design.md` explains _why_ the system is shaped the way it is (narrative,
@@ -83,6 +83,7 @@ generation-side record. `scripts/sync-kv.mjs` is the one-way bridge
 | `/privacy`, `/mydata`, `/forgetme`                            | allowlisted    | Worker → DO      | Data-subject rights over DO-held data                                               |
 | `/admin`, `/pending`, `/listusers`, `/adduser`, `/removeuser` | owner or admin | Worker → DO      | Read/mutate allowlist                                                               |
 | `/broadcast <msg>`                                            | owner or admin | Worker → Actions | Validate, then `repository_dispatch` → `broadcast.yml`                              |
+| `/pause [msg]`, `/resume [msg]`                               | owner or admin | Worker → KV/DO   | Set/clear the `maintenance` flag; optional `msg` fanned out over the broadcast path (§5.5) |
 | `/addadmin <id>`, `/removeadmin <id>`                         | **owner only** | Worker → DO      | Delegate/revoke admin; target must already be allowlisted                           |
 
 **Authorization rules (invariants):**
@@ -95,6 +96,15 @@ generation-side record. `scripts/sync-kv.mjs` is the one-way bridge
   erase their own data — these check `ownerChatId` directly.
 - Removing a user (`/removeuser` or their own `/forgetme`) also revokes any
   admin status they held.
+- **Maintenance flag (`/pause`):** while `maintenance` is set, every paid path
+  is withheld for **everyone, admins included** — `/newbriefing`, `/ask`, and
+  `/briefing`'s generate-fallback short-circuit through the single guard in
+  `requestGeneration()`, and `scheduled()` dispatches no daily briefing and runs
+  no heartbeat, so a pause means zero Anthropic spend. Non-admins get a notice
+  for every command except `/briefing` (serves the last saved edition) and the
+  data-subject-rights commands, which stay reachable. `/resume` clears the flag.
+  The flag cannot reach GitHub's own backup `schedule` on `daily-briefing.yml`;
+  fully stopping the digest also requires disabling that workflow.
 
 ### 3.3 Anthropic API
 

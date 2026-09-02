@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-09-02
+
 ### A pause switch that stops the bot spending
 
 Two admin commands, `/pause` and `/resume`, and a `maintenance` flag in
