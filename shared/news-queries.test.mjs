@@ -3,7 +3,7 @@
 // is the part that decides which stories reach the model and how they read.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { NEWS_QUERIES, dedupeStories, formatStories, recencyTbs, storyKey } from './news-queries.mjs'
+import { NEWS_QUERIES, dedupeStories, formatStories, recencyTbs, storyKey, widerWindow } from './news-queries.mjs'
 
 test('the query set covers every beat the prompt asks for', () => {
   assert.ok(NEWS_QUERIES.length >= 8, 'thin query sets produce thin briefings')
@@ -18,6 +18,16 @@ test('recencyTbs: a day window only for a same-day rerun, otherwise a week', () 
   assert.equal(recencyTbs(24), 'qdr:d')
   assert.equal(recencyTbs(48), 'qdr:w')
   assert.equal(recencyTbs(96), 'qdr:w')
+})
+
+test('widerWindow climbs the ladder once and then stops', () => {
+  assert.equal(widerWindow('qdr:d'), 'qdr:w')
+  assert.equal(widerWindow('qdr:w'), 'qdr:m')
+  // A month is the last rung: without a null here the on-demand path would
+  // sweep a second time at the same window and pay for it twice.
+  assert.equal(widerWindow('qdr:m'), null)
+  assert.equal(widerWindow('qdr:y'), null, 'an unknown window has no known next step')
+  assert.equal(widerWindow(undefined), null)
 })
 
 test('storyKey ignores www, query strings and trailing slashes', () => {

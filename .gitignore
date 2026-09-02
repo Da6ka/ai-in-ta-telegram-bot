@@ -15,6 +15,12 @@ state/briefing_debug/
 # Wiki ingest scratch — rewritten each run, never committed
 wiki/.pending.json
 
+# The day's candidate stories from scripts/fetch-news.mjs -- rewritten every
+# run and reproducible from the run log, so the blanket `git add state/` in the
+# commit step must not carry it into history. Kept on a rejected run as a
+# workflow artifact instead.
+state/today_stories.md
+
 # A/B candidate editions (compare-generators.yml) -- generated per run, never part of state
 state/candidate_briefing.md
 state/candidate_cost_log.jsonl

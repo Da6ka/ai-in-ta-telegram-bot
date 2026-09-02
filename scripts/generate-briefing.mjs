@@ -41,7 +41,12 @@ if (!promptPath) {
 
 const MODEL = process.env.BRIEFING_MODEL || 'claude-opus-4-8'
 const EFFORT = process.env.BRIEFING_EFFORT || 'medium'
-const MAX_SEARCHES = Number(process.env.BRIEFING_MAX_SEARCHES || 12)
+// 12 until the daily send moved to SEARCH_MODE 'none' (below): the prompt
+// plans six searches, and the spare six were a thin-day allowance every
+// edition paid for -- billed per call, and again as results in context.
+// Nothing on the 'none' path reads this; it is the ceiling for whoever takes
+// the 'direct' path deliberately.
+const MAX_SEARCHES = Number(process.env.BRIEFING_MAX_SEARCHES || 6)
 const MAX_TOKENS = Number(process.env.BRIEFING_MAX_TOKENS || 16_000)
 const MAX_USD = Number(process.env.BRIEFING_MAX_USD || 4)
 const COST_LOG = process.env.BRIEFING_COST_LOG || 'state/cost_log.jsonl'
@@ -75,8 +80,8 @@ const ENGINE = 'api'
 
 // A paused turn is resumed by sending the assistant message back unchanged.
 // Bounded so a pathological pause loop can't run the step into its timeout:
-// the prompt's own search plan is six searches, ten on a thin day, which fits
-// well inside one turn plus a couple of continuations.
+// the prompt's own search plan is six searches, which fits well inside one
+// turn plus a couple of continuations.
 const MAX_CONTINUATIONS = 4
 
 const prompt = readFileSync(promptPath, 'utf8')

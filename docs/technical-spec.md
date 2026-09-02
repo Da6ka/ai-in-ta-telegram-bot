@@ -128,8 +128,14 @@ and its final total only warns, because by the time a completed response can
 be priced the money is already spent. Every run appends what it cost to
 `state/cost_log.jsonl`.
 
-- Prompts: [`briefing-prompt.md`](../briefing-prompt.md) (daily),
-  [`briefing-prompt-ondemand.md`](../briefing-prompt-ondemand.md) (on-demand),
+- Prompts: [`briefing-prompt-curated.md`](../briefing-prompt-curated.md)
+  (daily — stories supplied, no search tool),
+  [`briefing-prompt.md`](../briefing-prompt.md) (the model-searches variant,
+  now A/B only),
+  [`briefing-prompt-ondemand-curated.md`](../briefing-prompt-ondemand-curated.md)
+  (on-demand — stories supplied, its own 14-day fallback),
+  [`briefing-prompt-ondemand.md`](../briefing-prompt-ondemand.md) (the
+  model-searches on-demand variant, kept for reference),
   [`wiki-ingest-prompt.md`](../wiki-ingest-prompt.md) (ingest),
   [`ask-prompt.md`](../ask-prompt.md) (`/ask`). Editorial rules (sourcing, no
   repeated domains, news-not-evergreen, 48-hour window) live in those prompts
@@ -239,7 +245,8 @@ is the idempotency marker.
 1. Worker Cron Trigger (`5 9 * * 1-5`, 09:05 UTC Mon-Fri) fires `scheduled()` →
    `repository_dispatch: daily-briefing-trigger`.
 2. `daily-briefing.yml`: idempotency check on `last_briefing_at`; if already
-   today, **no-op**. Otherwise `claude -p briefing-prompt.md` → write
+   today, **no-op**. Otherwise `fetch-news.mjs` → candidate stories →
+   `generate-briefing.mjs briefing-prompt-curated.md` → write
    `state/today_briefing.md`.
 3. **Freshness & content gate:** the edition MUST be dated today AND carry at
    least `MIN_BRIEFING_ITEMS` (**2**) linked stories. A rejected edition is not

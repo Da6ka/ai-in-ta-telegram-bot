@@ -14,6 +14,8 @@
 // escalation, run only when the first six came up thin. There is no reason to
 // hold them back now -- a Firecrawl search is cheap and does not consume model
 // context, so all ten run every time and the model picks from the union.
+import { sourceTier } from './source-allowlist.mjs'
+
 export const NEWS_QUERIES = [
   'Claude AI talent acquisition news',
   'AI recruitment news',
@@ -32,6 +34,18 @@ export const NEWS_QUERIES = [
 // same-day rerun that should only surface what is genuinely new.
 export function recencyTbs(windowHours) {
   return Number(windowHours) <= 24 ? 'qdr:d' : 'qdr:w'
+}
+
+// The next wider window on Firecrawl's ladder, or null when there is nowhere
+// left to widen. Only the on-demand path uses it: /newbriefing can land minutes
+// after the morning edition has already taken every fresh story, and its prompt
+// is allowed to reach back further rather than tell the requester there is no
+// news. The daily never widens -- its seven-day rule is hard, and a thin day is
+// supposed to produce a thin briefing.
+export function widerWindow(tbs) {
+  const ladder = ['qdr:d', 'qdr:w', 'qdr:m']
+  const i = ladder.indexOf(String(tbs))
+  return i === -1 || i === ladder.length - 1 ? null : ladder[i + 1]
 }
 
 // Two searches returning the same story is the norm, not the exception -- the
@@ -71,7 +85,11 @@ export function formatStories(stories) {
   const lines = stories.map((story, i) => {
     const date = story.date ? ` (${story.date})` : ''
     const snippet = story.snippet ? `\n   ${String(story.snippet).replace(/\s+/g, ' ').trim().slice(0, 400)}` : ''
-    return `${i + 1}. ${story.title}${date}\n   ${story.url}${snippet}`
+    // The marker is the only thing that survives of the API-enforced source
+    // allowlist (shared/source-allowlist.mjs): the prompts' "prefer strong
+    // sources" rule is advisory, and this is what it reads.
+    const tier = sourceTier(story.url) === 'preferred' ? ' [preferred source]' : ''
+    return `${i + 1}. ${story.title}${date}${tier}\n   ${story.url}${snippet}`
   })
   return `Candidate stories from today's news search, newest first within each query. These are the only stories you may use:\n\n${lines.join('\n\n')}`
 }

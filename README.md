@@ -62,7 +62,7 @@ A real edition, sent via `/briefing`:
 >
 > **Bottom line:** More capable models are arriving faster than the compliance and fairness guardrails around them — pair any new AI hiring capability with documented human review and a live read on your states' shifting rules before you scale it.
 
-Every item is sourced (clickable, dated, no bare URLs), never repeats a domain, and skips evergreen "guide"/"trends" content in favor of recent news — freshest first, nothing older than a week — see `briefing-prompt.md` for the exact editorial rules.
+Every item is sourced (clickable, dated, no bare URLs), never repeats a domain, and skips evergreen "guide"/"trends" content in favor of recent news — freshest first, nothing older than a week — see `briefing-prompt-curated.md` for the exact editorial rules.
 
 ## Using the bot (subscribers)
 
@@ -152,9 +152,9 @@ The interactive one-pager below is the fastest way in — architecture, command 
 ```
 Cloudflare Worker                            GitHub Actions
    │                                             │
-   │ Cron Trigger (09:05 UTC, Mon-Fri) ─dispatch▶│ 1. claude -p reads
-   │                                             │    briefing-prompt.md,
-   │ webhook: receives Telegram commands         │    searches web, writes
+   │ Cron Trigger (09:05 UTC, Mon-Fri) ─dispatch▶│ 1. fetch-news.mjs pulls
+   │                                             │    the day's stories, the
+   │ webhook: receives Telegram commands         │    model composes them into
    │ 24/7, independent of any local machine      │    state/today_briefing.md
    │                                             │
    │ /newbriefing, /broadcast ───dispatch───────▶│ 2. send-briefing.mjs sends
@@ -171,13 +171,13 @@ Cloudflare Worker                            GitHub Actions
 
 The redundancy is real but not absolute: all three ride GitHub's scheduler, and the Worker cron and GitHub schedule missed the *same* morning on 2026-07-16 (#61). A separate **Cloudflare heartbeat** (12:00 UTC — the Worker's second cron in `worker/wrangler.toml`) closes that gap: it doesn't generate anything, but it alerts the owner if KV's `last_delivered_date` isn't today, and as the only check running outside GitHub it catches an account-wide Actions failure the other layers would miss.
 
-1. `briefing-prompt.md` is handed to `claude -p`, which searches the web, composes the briefing, and writes it to `state/today_briefing.md` (plus `state/usage_stats.json` for the idempotency check above).
+1. `scripts/fetch-news.mjs` runs the day's news search through Firecrawl, and hands the candidate stories to `scripts/generate-briefing.mjs`, which composes the edition against `briefing-prompt-curated.md` and writes it to `state/today_briefing.md` (plus `state/usage_stats.json` for the idempotency check above). The model gets no search tool of its own — running the search outside it, against a source with a real recency filter, is what took an edition from about $2.55 to about $0.09.
 2. `scripts/send-briefing.mjs` sends the result to every subscriber in the bot's live list (the `subscribers` KV key).
 3. The workflow commits the updated `state/` files back to the repo.
 
 **The self-filling wiki:**
 
-Every edition that reaches a subscriber is appended to an append-only corpus under `wiki/sources/` by `scripts/append-wiki-sources.mjs` (both the daily and on-demand flows). Daily only, a Haiku `claude -p` pass folds the pending records into per-vendor and per-theme pages under `wiki/vendors/` and `wiki/themes/`. The ingest is `continue-on-error`, gated behind the send checks, and capped at 25 records per run, so it can never delay or block a briefing.
+Every edition that reaches a subscriber is appended to an append-only corpus under `wiki/sources/` by `scripts/append-wiki-sources.mjs` (both the daily and on-demand flows). Once a week, on Friday, a Haiku `claude -p` pass folds the pending records into per-vendor and per-theme pages under `wiki/vendors/` and `wiki/themes/`. It ran after every edition until 2 September 2026, which cost more per month than the briefings themselves; a week's records fold in one pass for a fraction of that. The ingest is `continue-on-error`, gated behind the send checks, and capped at 40 records per run, so it can never delay or block a briefing.
 
 **Asking the archive (`/ask`):**
 
@@ -202,6 +202,7 @@ Want the daily briefing running under your own bot? Three things to set up:
 | Secret               | What it is                                                                          |
 | -------------------- | ----------------------------------------------------------------------------------- |
 | `ANTHROPIC_API_KEY`  | Anthropic Console API key (pay-as-you-go, separate from any claude.ai subscription) |
+| `FIRECRAWL_API_KEY`  | Firecrawl key — the news search that feeds every briefing prompt                    |
 | `TELEGRAM_BOT_TOKEN` | The bot's token from @BotFather                                                     |
 | `CF_ACCOUNT_ID`      | Cloudflare account id                                                               |
 | `CF_API_TOKEN`       | Cloudflare token — **Workers KV Storage: Edit** only                                |
@@ -217,9 +218,12 @@ Set them with:
 
 ```bash
 gh secret set ANTHROPIC_API_KEY --repo <owner>/ai-in-ta-telegram-bot
+gh secret set FIRECRAWL_API_KEY --repo <owner>/ai-in-ta-telegram-bot
 gh secret set TELEGRAM_BOT_TOKEN --repo <owner>/ai-in-ta-telegram-bot
 gh variable set OWNER_CHAT_ID --repo <owner>/ai-in-ta-telegram-bot   # your numeric Telegram id
 ```
+
+> **Firecrawl has a monthly quota, and both briefing paths now depend on it.** A sweep is ten queries and costs about 20 credits, so a month of weekday editions is roughly 440 of the free plan's 1,000; each `/newbriefing` adds about 20, and twice that when the story count is thin enough to widen the window. Running out fails the search, which fails the run and alerts the owner rather than quietly composing from nothing — but check the balance before raising the send cadence or the per-user `/newbriefing` cap.
 
 > **Finding your Telegram id:** message [@userinfobot](https://t.me/userinfobot) (or [@getmyid_bot](https://t.me/getmyid_bot)) — it replies with your numeric id. Alternatively, `/start` your own bot and read the id it logs. It's just a number like `123456789`, not sensitive, which is why `OWNER_CHAT_ID` is a repo _variable_ rather than a secret.
 
