@@ -3,10 +3,10 @@
 // every future briefing, which reads as a thin news day.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { SOURCE_ALLOWLIST, parseInaccessibleDomains } from './source-allowlist.mjs'
+import { SOURCE_ALLOWLIST, SOURCE_DENYLIST, parseInaccessibleDomains, sourceTier } from './source-allowlist.mjs'
 
 test('entries are bare domains: no scheme, no www, no trailing slash', () => {
-  for (const entry of SOURCE_ALLOWLIST) {
+  for (const entry of [...SOURCE_ALLOWLIST, ...SOURCE_DENYLIST]) {
     assert.doesNotMatch(entry, /^https?:\/\//, `${entry} carries a scheme`)
     assert.doesNotMatch(entry, /^www\./, `${entry} carries a www prefix`)
     assert.doesNotMatch(entry, /\/$/, `${entry} has a trailing slash`)
@@ -55,4 +55,24 @@ test('parseInaccessibleDomains: any other error yields nothing to drop', () => {
 
 test('reuters.com stays out: it blocks the crawler and 400s the whole request', () => {
   assert.ok(!SOURCE_ALLOWLIST.includes('reuters.com'))
+})
+
+test('the two lists never overlap', () => {
+  // An overlap would be decided by sourceTier's ordering rather than by
+  // anyone's intent, and the loser would be silently invisible.
+  const allowed = new Set(SOURCE_ALLOWLIST)
+  for (const denied of SOURCE_DENYLIST) {
+    assert.ok(!allowed.has(denied), `${denied} is on both lists`)
+  }
+})
+
+test('sourceTier sorts a url into denied, preferred or other', () => {
+  assert.equal(sourceTier('https://www.investing.com/news/x'), 'denied')
+  assert.equal(sourceTier('https://finance.biggo.com/news/y'), 'denied', 'subdomains of a denied domain are denied')
+  assert.equal(sourceTier('https://www.cnbc.com/2026/09/02/z.html'), 'preferred')
+  assert.equal(sourceTier('https://techrseries.com/hiring/a'), 'other', 'not on either list is not a verdict')
+  // A malformed url must not throw here: it would take down the whole news
+  // fetch over one bad result.
+  assert.equal(sourceTier('not a url'), 'other')
+  assert.equal(sourceTier(undefined), 'other')
 })

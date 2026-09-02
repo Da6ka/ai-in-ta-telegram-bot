@@ -77,6 +77,63 @@ export const SOURCE_ALLOWLIST = [
   'cognizant.com',
 ]
 
+// Domains dropped from the candidate list outright.
+//
+// The allowlist above was enforced by the API: it went out as the web search
+// tool's `allowed_domains`, so a story from anywhere else could not reach the
+// model. Moving the search to Firecrawl on 2026-09-02 removed that enforcement
+// -- Firecrawl has no equivalent filter -- and the first live run showed what
+// that costs: of 50 candidates, exactly one (cnbc.com) was on the allowlist,
+// and the pool was led by stock-analysis and PR-aggregator domains.
+//
+// Re-applying the allowlist as a filter is not an option: it would have left
+// one story out of fifty. This is the inverse, and deliberately narrow. Every
+// entry is the "stock-analysis" tier the composition prompts already tell the
+// model to avoid, so this enforces an existing editorial rule rather than
+// inventing one -- these outlets rewrite someone else's reporting for an
+// investor audience, so the story is always available from its actual source.
+// A domain that merely looks low-rent does not belong here; that judgment is
+// the manual G6 gate's, not this list's.
+export const SOURCE_DENYLIST = [
+  'investing.com',
+  'finance.yahoo.com',
+  'stocktitan.net',
+  'benzinga.com',
+  'zacks.com',
+  'marketbeat.com',
+  'insidermonkey.com',
+  'simplywall.st',
+  'fool.com',
+  'tracxn.com',
+  'biggo.com',
+]
+
+function hostOf(url) {
+  try {
+    return new URL(String(url)).host.replace(/^www\./, '').toLowerCase()
+  } catch {
+    return ''
+  }
+}
+
+// Matches a domain and its subdomains, so 'finance.yahoo.com' covers itself
+// and 'biggo.com' covers 'finance.biggo.com'.
+function matches(host, domain) {
+  return host === domain || host.endsWith(`.${domain}`)
+}
+
+// 'denied' -- drop it before the model ever sees it. 'preferred' -- on the
+// curated source list, which the candidate block marks so the prompts' "prefer
+// strong sources" rule has something concrete to read. 'other' -- allowed, and
+// judged on its merits like anything else.
+export function sourceTier(url) {
+  const host = hostOf(url)
+  if (!host) return 'other'
+  if (SOURCE_DENYLIST.some((d) => matches(host, d))) return 'denied'
+  if (SOURCE_ALLOWLIST.some((d) => matches(host, d))) return 'preferred'
+  return 'other'
+}
+
 // reuters.com is deliberately absent: it blocks Anthropic's crawler, and the
 // API rejects the whole request with a 400 naming it rather than skipping it,
 // so one such entry takes the day's briefing down. Anything added here should

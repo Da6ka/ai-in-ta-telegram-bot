@@ -14,6 +14,8 @@
 // escalation, run only when the first six came up thin. There is no reason to
 // hold them back now -- a Firecrawl search is cheap and does not consume model
 // context, so all ten run every time and the model picks from the union.
+import { sourceTier } from './source-allowlist.mjs'
+
 export const NEWS_QUERIES = [
   'Claude AI talent acquisition news',
   'AI recruitment news',
@@ -83,7 +85,11 @@ export function formatStories(stories) {
   const lines = stories.map((story, i) => {
     const date = story.date ? ` (${story.date})` : ''
     const snippet = story.snippet ? `\n   ${String(story.snippet).replace(/\s+/g, ' ').trim().slice(0, 400)}` : ''
-    return `${i + 1}. ${story.title}${date}\n   ${story.url}${snippet}`
+    // The marker is the only thing that survives of the API-enforced source
+    // allowlist (shared/source-allowlist.mjs): the prompts' "prefer strong
+    // sources" rule is advisory, and this is what it reads.
+    const tier = sourceTier(story.url) === 'preferred' ? ' [preferred source]' : ''
+    return `${i + 1}. ${story.title}${date}${tier}\n   ${story.url}${snippet}`
   })
   return `Candidate stories from today's news search, newest first within each query. These are the only stories you may use:\n\n${lines.join('\n\n')}`
 }

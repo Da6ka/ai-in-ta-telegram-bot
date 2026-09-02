@@ -18,6 +18,7 @@
 // whatever the others returned; every query failing is not, and exits non-zero
 // so the workflow's alerting fires instead of composing an empty briefing.
 import { NEWS_QUERIES, dedupeStories, formatStories, recencyTbs, widerWindow } from '../shared/news-queries.mjs'
+import { sourceTier } from '../shared/source-allowlist.mjs'
 import { recencyWindowHours } from '../shared/telegram.mjs'
 import { existsSync, readFileSync } from 'node:fs'
 
@@ -77,11 +78,15 @@ async function sweep(window) {
       console.error(`Query "${NEWS_QUERIES[i]}" failed (window ${window}): ${result.reason?.message ?? result.reason}`)
     }
   }
-  return {
-    stories: settled.flatMap((s) => (s.status === 'fulfilled' ? s.value : [])),
-    ok: settled.filter((s) => s.status === 'fulfilled').length,
-    total: settled.length,
+  const stories = settled.flatMap((s) => (s.status === 'fulfilled' ? s.value : []))
+  // Dropped here rather than left for the prompt to reject: a denied domain
+  // that stays on the list still occupies one of the model's slots, and a
+  // stock-analysis rewrite of a real story crowds out the story itself.
+  const kept = stories.filter((story) => sourceTier(story.url) !== 'denied')
+  if (kept.length < stories.length) {
+    console.error(`Dropped ${stories.length - kept.length} result(s) from denylisted domains.`)
   }
+  return { stories: kept, ok: settled.filter((s) => s.status === 'fulfilled').length, total: settled.length }
 }
 
 const first = await sweep(tbs)

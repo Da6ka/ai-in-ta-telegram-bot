@@ -30,7 +30,11 @@ Both paths were measured against the same morning, 2026-08-28:
 | Stories supplied in the prompt | 3,976 | 0 | $0.09 | 6 |
 
 Cheaper by a factor of 27, and it scored better: the recency filter does by
-query what the prompt was otherwise asking the model to do by reading.
+query what the prompt was otherwise asking the model to do by reading. Re-run
+live on 2 September before shipping (run 33621909310): 40 candidates from 10/10
+queries, 8,364 in / 2,244 out, no searches, **$0.098**, 30 seconds, six linked
+items, every scriptable gate green — against the 29 August edition's $2.62, on
+which G4 (links resolve) now fails.
 
 Two smaller things follow. `BRIEFING_MAX_SEARCHES` drops from 12 to 6 — the
 number the prompt actually plans, the spare six being a thin-day allowance every
@@ -72,6 +76,34 @@ costs about 2 Firecrawl credits, so a ten-query sweep is about 20, a month of
 weekday editions about 440, and the free plan carries 1,000 a month. Each
 `/newbriefing` adds ~20, doubled when it widens. The README says so next to the
 secret, since the quota is now a delivery risk rather than a detail.
+
+### The source allowlist stopped being enforced, so there is a denylist now
+
+Moving the search to Firecrawl quietly removed a control nobody had listed as a
+cost of the change. `SOURCE_ALLOWLIST` — 33 domains, derived from what 39
+editions had actually cited — was never a preference: it went out as the web
+search tool's `allowed_domains`, and the API enforced it. Firecrawl has no
+equivalent, so it now filters nothing, while `generate-briefing.mjs` still
+computes it and logs `allowed_domains: 33` on a run where it did nothing.
+
+The 2 September validation run showed the size of it. Of 50 candidates, exactly
+one (cnbc.com) was on the allowlist; the pool was led by `tracxn.com`,
+`patch.com` and `investing.com`, and two of the six stories the model picked came
+from the stock-analysis tier the prompt explicitly tells it to avoid.
+
+Re-applying the allowlist as a filter would have left one story in fifty, so this
+is the inverse and deliberately narrow. `SOURCE_DENYLIST` holds eleven
+stock-analysis and financial-aggregator domains — the tier both composition
+prompts already name — and `fetch-news.mjs` drops them before the model sees the
+list, because a denied domain that stays on it still occupies a slot, and a
+rewrite of a story crowds out the story. On the same 50 candidates it drops 7 and
+leaves 43, including both stock-tier sources that had made it into the edition.
+What survives is judged on its merits: a domain that merely looks low-rent is the
+manual G6 gate's business, not this list's.
+
+`sourceTier()` also marks allowlisted candidates `[preferred source]` in the
+block the model reads, and both curated prompts now say what the marker means —
+which is all that is left of a rule the API used to enforce.
 
 ### The wiki ingest moved to once a week
 
