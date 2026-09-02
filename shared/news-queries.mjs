@@ -34,6 +34,18 @@ export function recencyTbs(windowHours) {
   return Number(windowHours) <= 24 ? 'qdr:d' : 'qdr:w'
 }
 
+// The next wider window on Firecrawl's ladder, or null when there is nowhere
+// left to widen. Only the on-demand path uses it: /newbriefing can land minutes
+// after the morning edition has already taken every fresh story, and its prompt
+// is allowed to reach back further rather than tell the requester there is no
+// news. The daily never widens -- its seven-day rule is hard, and a thin day is
+// supposed to produce a thin briefing.
+export function widerWindow(tbs) {
+  const ladder = ['qdr:d', 'qdr:w', 'qdr:m']
+  const i = ladder.indexOf(String(tbs))
+  return i === -1 || i === ladder.length - 1 ? null : ladder[i + 1]
+}
+
 // Two searches returning the same story is the norm, not the exception -- the
 // beats overlap by design. Dedupe on host + path so a tracking query string or
 // a trailing slash doesn't smuggle the same article in twice and burn one of

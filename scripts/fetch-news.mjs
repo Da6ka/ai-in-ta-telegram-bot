@@ -1,5 +1,6 @@
 // Fetches the day's candidate stories from Firecrawl and prints them as the
-// block that gets appended to briefing-prompt-curated.md.
+// block that gets appended to briefing-prompt-curated.md (daily) or
+// briefing-prompt-ondemand-curated.md (/newbriefing).
 //
 // Usage:
 //   node scripts/fetch-news.mjs            # prompt block on stdout
@@ -16,7 +17,7 @@
 // Failure policy: one failed query is survivable and the run continues with
 // whatever the others returned; every query failing is not, and exits non-zero
 // so the workflow's alerting fires instead of composing an empty briefing.
-import { NEWS_QUERIES, dedupeStories, formatStories, recencyTbs } from '../shared/news-queries.mjs'
+import { NEWS_QUERIES, dedupeStories, formatStories, recencyTbs, widerWindow } from '../shared/news-queries.mjs'
 import { recencyWindowHours } from '../shared/telegram.mjs'
 import { existsSync, readFileSync } from 'node:fs'
 
@@ -26,6 +27,9 @@ if (!API_KEY) throw new Error('FIRECRAWL_API_KEY is not set')
 const PER_QUERY = Number(process.env.NEWS_LIMIT_PER_QUERY || 8)
 const MAX_ITEMS = Number(process.env.NEWS_MAX_ITEMS || 40)
 const COUNTRY = process.env.NEWS_COUNTRY || 'US'
+// Below this many distinct stories, sweep again at the next wider window and
+// merge. 0 (the default, and what the daily uses) disables it entirely.
+const MIN_STORIES = Number(process.env.NEWS_MIN_STORIES || 0)
 const asJson = process.argv.includes('--json')
 
 // Same window the date note tells the model about, so the search and the
@@ -41,7 +45,7 @@ if (existsSync('state/usage_stats.json')) {
 }
 const tbs = process.env.NEWS_TBS || recencyTbs(recencyWindowHours(todayISO, lastBriefingISO))
 
-async function search(query) {
+async function search(query, window) {
   const res = await fetch('https://api.firecrawl.dev/v2/search', {
     method: 'POST',
     headers: { authorization: `Bearer ${API_KEY}`, 'content-type': 'application/json' },
@@ -49,7 +53,7 @@ async function search(query) {
       query,
       limit: PER_QUERY,
       sources: [{ type: 'news' }],
-      tbs,
+      tbs: window,
       country: COUNTRY,
     }),
   })
@@ -62,23 +66,48 @@ async function search(query) {
   return news.map((r) => ({ title: r.title, url: r.url, date: r.date, snippet: r.snippet, query }))
 }
 
-const settled = await Promise.allSettled(NEWS_QUERIES.map(search))
-const failures = settled.filter((s) => s.status === 'rejected')
-for (const [i, result] of settled.entries()) {
-  if (result.status === 'rejected') console.error(`Query "${NEWS_QUERIES[i]}" failed: ${result.reason?.message ?? result.reason}`)
+// One pass of all ten queries at a given window. Rejections are reported and
+// tolerated here; whether "all ten failed" is fatal is the caller's call.
+// Each query costs about 2 Firecrawl credits, so a pass is ~20 -- see the
+// README's note on the plan's monthly ceiling before adding queries or passes.
+async function sweep(window) {
+  const settled = await Promise.allSettled(NEWS_QUERIES.map((query) => search(query, window)))
+  for (const [i, result] of settled.entries()) {
+    if (result.status === 'rejected') {
+      console.error(`Query "${NEWS_QUERIES[i]}" failed (window ${window}): ${result.reason?.message ?? result.reason}`)
+    }
+  }
+  return {
+    stories: settled.flatMap((s) => (s.status === 'fulfilled' ? s.value : [])),
+    ok: settled.filter((s) => s.status === 'fulfilled').length,
+    total: settled.length,
+  }
 }
-if (failures.length === settled.length) {
+
+const first = await sweep(tbs)
+if (!first.ok) {
   console.error('Every news query failed — not composing a briefing from nothing.')
   process.exit(1)
 }
 
-const stories = dedupeStories(
-  settled.flatMap((s) => (s.status === 'fulfilled' ? s.value : [])),
-  MAX_ITEMS,
-)
+let stories = dedupeStories(first.stories, MAX_ITEMS)
+console.error(`Fetched ${stories.length} distinct stories from ${first.ok}/${first.total} queries (window ${tbs}).`)
 
-console.error(
-  `Fetched ${stories.length} distinct stories from ${settled.length - failures.length}/${settled.length} queries (window ${tbs}).`,
-)
+if (MIN_STORIES && stories.length < MIN_STORIES) {
+  const wider = widerWindow(tbs)
+  if (!wider) {
+    console.error(`Only ${stories.length} distinct stories (want ${MIN_STORIES}), and no window wider than ${tbs} to try.`)
+  } else {
+    console.error(`Only ${stories.length} distinct stories (want ${MIN_STORIES}) — sweeping again at ${wider}.`)
+    const second = await sweep(wider)
+    // First-pass stories keep their slots: dedupeStories preserves input order,
+    // so widening can only add older items below the fresh ones, never displace
+    // them. Dropping the composition prompt's date filter is not this script's
+    // job -- the wider list still carries every story's date, and the prompt
+    // still refuses anything outside its own window.
+    stories = dedupeStories([...first.stories, ...second.stories], MAX_ITEMS)
+    console.error(`Now ${stories.length} distinct stories after widening to ${wider} (${second.ok}/${second.total} queries).`)
+  }
+}
 
 process.stdout.write(asJson ? `${JSON.stringify(stories, null, 2)}\n` : `${formatStories(stories)}\n`)

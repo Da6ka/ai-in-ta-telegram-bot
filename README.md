@@ -202,7 +202,7 @@ Want the daily briefing running under your own bot? Three things to set up:
 | Secret               | What it is                                                                          |
 | -------------------- | ----------------------------------------------------------------------------------- |
 | `ANTHROPIC_API_KEY`  | Anthropic Console API key (pay-as-you-go, separate from any claude.ai subscription) |
-| `FIRECRAWL_API_KEY`  | Firecrawl key — the daily news search that feeds the briefing prompt                |
+| `FIRECRAWL_API_KEY`  | Firecrawl key — the news search that feeds every briefing prompt                    |
 | `TELEGRAM_BOT_TOKEN` | The bot's token from @BotFather                                                     |
 | `CF_ACCOUNT_ID`      | Cloudflare account id                                                               |
 | `CF_API_TOKEN`       | Cloudflare token — **Workers KV Storage: Edit** only                                |
@@ -222,6 +222,8 @@ gh secret set FIRECRAWL_API_KEY --repo <owner>/ai-in-ta-telegram-bot
 gh secret set TELEGRAM_BOT_TOKEN --repo <owner>/ai-in-ta-telegram-bot
 gh variable set OWNER_CHAT_ID --repo <owner>/ai-in-ta-telegram-bot   # your numeric Telegram id
 ```
+
+> **Firecrawl has a monthly quota, and both briefing paths now depend on it.** A sweep is ten queries and costs about 20 credits, so a month of weekday editions is roughly 440 of the free plan's 1,000; each `/newbriefing` adds about 20, and twice that when the story count is thin enough to widen the window. Running out fails the search, which fails the run and alerts the owner rather than quietly composing from nothing — but check the balance before raising the send cadence or the per-user `/newbriefing` cap.
 
 > **Finding your Telegram id:** message [@userinfobot](https://t.me/userinfobot) (or [@getmyid_bot](https://t.me/getmyid_bot)) — it replies with your numeric id. Alternatively, `/start` your own bot and read the id it logs. It's just a number like `123456789`, not sensitive, which is why `OWNER_CHAT_ID` is a repo _variable_ rather than a secret.
 

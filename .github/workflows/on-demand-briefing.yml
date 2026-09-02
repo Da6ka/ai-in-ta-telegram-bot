@@ -97,6 +97,15 @@ jobs:
         timeout-minutes: 10
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
+          BRIEFING_SEARCH_MODE: none
+          # /newbriefing can land minutes after the morning edition has taken
+          # every fresh story, and the recency note then rules those out too.
+          # Below eight candidates, fetch-news.mjs sweeps again at the next
+          # wider window and merges, which is what lets this prompt keep its
+          # "up to 14 days if fewer than three qualify" fallback. The daily
+          # leaves this unset: its seven-day rule is hard.
+          NEWS_MIN_STORIES: '8'
           BRIEFING_DEBUG_DIR: state/briefing_debug
         run: |
           NOTE=$(node scripts/build-date-note.mjs)
@@ -104,25 +113,27 @@ jobs:
           if [ -n "$RECENT" ]; then
             NOTE="${NOTE}"$'\n\n'"${RECENT}"
           fi
-          # Direct Messages API call, not `claude -p` -- see daily-briefing.yml's
-          # identical step for why (the agent loop re-sent every accumulated
-          # search result on every later turn, which is where the money went).
-          # Both paths move together deliberately: running /newbriefing on a
-          # different engine than the morning send would mean the cheaper,
-          # better-instrumented path never gets exercised by the requests most
-          # likely to hit an edge case.
+          # Same engine and same shape as the morning send -- see
+          # daily-briefing.yml's identical step for why the search runs in
+          # Firecrawl rather than inside the model. Both paths move together
+          # deliberately: running /newbriefing on a different engine than the
+          # morning send would mean the cheaper, better-instrumented path never
+          # gets exercised by the requests most likely to hit an edge case.
           #
-          # The prompt differs (briefing-prompt-ondemand.md) and nothing else
-          # does: same model, effort, search mode and curated allowlist, all at
-          # the script's defaults.
-          #
+          # The prompt differs (briefing-prompt-ondemand-curated.md, which keeps
+          # this path's own freshness fallback) and NEWS_MIN_STORIES is set;
+          # model, effort and everything else stay at the script's defaults.
+          node scripts/fetch-news.mjs > state/today_stories.md
+          STORIES=$(cat state/today_stories.md)
           # One retry so a transient hiccup doesn't fail a user's on-demand
-          # request. The step-level timeout-minutes above stays the hard
-          # wall-clock ceiling (ASI02); cost ceilings are now pre-emptive
-          # (BRIEFING_MAX_SEARCHES, max_tokens, the paused-turn budget check)
-          # rather than the CLI's mid-run --max-budget-usd.
+          # request. The candidate list is fetched once, above, and reused: a
+          # second sweep would return the same stories and bill the Firecrawl
+          # credits again. The step-level timeout-minutes above stays the hard
+          # wall-clock ceiling (ASI02); cost ceilings are pre-emptive
+          # (max_tokens, the paused-turn budget check) rather than the CLI's
+          # mid-run --max-budget-usd.
           for attempt in 1 2; do
-            if node scripts/generate-briefing.mjs briefing-prompt-ondemand.md "$NOTE" > state/today_briefing.md 2> state/briefing_stderr.log; then
+            if node scripts/generate-briefing.mjs briefing-prompt-ondemand-curated.md "${NOTE}"$'\n\n'"${STORIES}" > state/today_briefing.md 2> state/briefing_stderr.log; then
               # The generator reports tokens, searches and dollars on stderr.
               cat state/briefing_stderr.log
               break
@@ -175,15 +186,18 @@ jobs:
             head -40 state/today_briefing.md
             echo "--- state/briefing_stderr.log ---"
             cat state/briefing_stderr.log 2>/dev/null || true
-            # Separates "the searches failed" from "the searches worked and the
-            # model discarded every result", which look identical from outside.
-            echo "--- searches (state/briefing_debug) ---"
-            node scripts/dump-search-log.mjs state/briefing_debug 2>/dev/null || true
+            # Separates "the news search returned nothing usable" from "it
+            # returned stories and the model discarded every one", which look
+            # identical from outside. Each story carries its date, which is the
+            # first thing the prompt filters on.
+            echo "--- candidate stories (state/today_stories.md) ---"
+            cat state/today_stories.md 2>/dev/null || true
           fi
 
       # The turn-by-turn response blocks, kept only when the gate rejected the
-      # run. The step above renders what the searches returned; this keeps the
-      # structure -- which text block carried which citation -- and that is the
+      # run, alongside the candidate list the model was given. The step above
+      # renders that list into the log; these keep the structure too -- which
+      # text block carried which citation -- and that is the
       # difference between diagnosing a rejected edition and guessing at it.
       # On 2026-08-28 a run was rejected for having no links, and answering why
       # meant reconstructing the block shapes from a different run, because
@@ -193,7 +207,9 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: rejected-briefing-blocks-on-demand
-          path: state/briefing_debug/
+          path: |
+            state/briefing_debug/
+            state/today_stories.md
           retention-days: 14
           if-no-files-found: ignore
       - name: Send to requester

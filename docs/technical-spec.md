@@ -132,7 +132,10 @@ be priced the money is already spent. Every run appends what it cost to
   (daily — stories supplied, no search tool),
   [`briefing-prompt.md`](../briefing-prompt.md) (the model-searches variant,
   now A/B only),
-  [`briefing-prompt-ondemand.md`](../briefing-prompt-ondemand.md) (on-demand),
+  [`briefing-prompt-ondemand-curated.md`](../briefing-prompt-ondemand-curated.md)
+  (on-demand — stories supplied, its own 14-day fallback),
+  [`briefing-prompt-ondemand.md`](../briefing-prompt-ondemand.md) (the
+  model-searches on-demand variant, kept for reference),
   [`wiki-ingest-prompt.md`](../wiki-ingest-prompt.md) (ingest),
   [`ask-prompt.md`](../ask-prompt.md) (`/ask`). Editorial rules (sourcing, no
   repeated domains, news-not-evergreen, 48-hour window) live in those prompts

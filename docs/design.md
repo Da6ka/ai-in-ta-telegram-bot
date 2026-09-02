@@ -315,7 +315,7 @@ Current limitations / open items
   chasing at this scale (the meaningful logic already lives in `.mjs` scripts
   with their own unit tests).
 - Briefing quality/editorial rules live in prose (`briefing-prompt.md`,
-  `briefing-prompt-ondemand.md`) rather than structured config — that's
+  `briefing-prompt-ondemand-curated.md`) rather than structured config — that's
   inherent to steering an LLM, not a gap to close. What *was* a gap: the
   re-validation process was named and wired for one specific past change
   ("Phase 16"). Generalized into a reusable mechanism

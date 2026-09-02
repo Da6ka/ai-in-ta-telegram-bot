@@ -40,9 +40,38 @@ the freshness gate's rejection dump prints the candidate list instead of a searc
 log that is now always empty, so a rejected edition still says whether the search
 returned nothing or the model discarded everything it returned.
 
-`/newbriefing` deliberately keeps searching for itself. `briefing-prompt-ondemand.md`
-carries its own freshness rules (up to 14 days, search mandatory), so moving it
-needs its own prompt and its own A/B run rather than a flag flip.
+### `/newbriefing` takes the same path
+
+The on-demand run went the same way, on the principle already written into both
+workflows: the two paths move together, or the cheaper one never gets exercised
+by the requests most likely to hit an edge case. It composes from
+`briefing-prompt-ondemand-curated.md` now, and at about $2.50 a run before, this
+was the second-largest generation line on the bill.
+
+The one thing that could not be copied across is the freshness rule. The daily's
+seven-day window is hard; `/newbriefing` is allowed up to 14 days when fewer than
+three stories qualify, because it can land minutes after the morning edition has
+taken every fresh story and the recency note has ruled those out too. So
+`fetch-news.mjs` now sweeps twice: if the first pass returns fewer than
+`NEWS_MIN_STORIES` distinct stories, it repeats at the next wider window
+(`widerWindow` in `shared/news-queries.mjs`, tested) and merges. First-pass
+stories keep their slots — widening can only add older items below the fresh
+ones. The daily leaves `NEWS_MIN_STORIES` unset and never widens.
+
+The curated on-demand prompt also drops one instruction the old one carried:
+"open the selected article and verify its content". With no search or fetch tool
+it cannot, so it summarizes from the title, date and snippet the candidate list
+gives it, and is told plainly not to fill a gap from memory.
+
+### Firecrawl became a dependency of every send, and it has a ceiling
+
+Both briefing paths now fail if the news search does. That is the right failure —
+loud, alerting, and better than composing an edition out of the model's memory —
+but it is worth knowing the shape of it. Measured 2 September 2026: one query
+costs about 2 Firecrawl credits, so a ten-query sweep is about 20, a month of
+weekday editions about 440, and the free plan carries 1,000 a month. Each
+`/newbriefing` adds ~20, doubled when it widens. The README says so next to the
+secret, since the quota is now a delivery risk rather than a detail.
 
 ### The wiki ingest moved to once a week
 
