@@ -10,32 +10,27 @@ Subscribers tap `/subscribe` and get the briefing every weekday morning at **09:
 
 You can try the bot in Telegram: @AIinTANewsBot
 
-<p align="center">
-  <a href="https://ai-in-ta-bot-spec.vercel.app/">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://github.com/Da6ka/ai-in-ta-telegram-bot/raw/main/docs/assets/spec-preview-dark.png">
-      <source media="(prefers-color-scheme: light)" srcset="https://github.com/Da6ka/ai-in-ta-telegram-bot/raw/main/docs/assets/spec-preview-light.png">
-      <img src="https://github.com/Da6ka/ai-in-ta-telegram-bot/raw/main/docs/assets/spec-preview-light.png" alt="Technical specification cover — architecture, command contract, limits, reliability" width="820">
-    </picture>
-  </a>
-</p>
-
-> 📡 **[Live Technical Specification](https://ai-in-ta-bot-spec.vercel.app/)** — an interactive one-pager: architecture, command contract, limits, and reliability at a glance. Also available as Markdown ([`docs/technical-spec.md`](docs/technical-spec.md), [`docs/design.md`](docs/design.md)).
-
 ---
 
 ## Contents
+
+**For subscribers — what the bot does**
 
 - [What it does](#what-it-does)
 - [Example briefing](#example-briefing)
 - [Using the bot (subscribers)](#using-the-bot-subscribers)
 - [Commands](#commands)
+
+**Technical documentation**
+
+- [Live spec & demo site](#technical-documentation)
 - [How it works](#how-it-works)
 - [Quickstart](#quickstart)
 - [Cloudflare Worker (on-demand commands)](#cloudflare-worker-on-demand-commands)
 - [Staging environment](#staging-environment-optional)
 - [Secrets, scopes & rotation](#secrets-scopes--rotation)
 - [Releasing](#releasing)
+
 - [License](#license)
 
 ---
@@ -133,6 +128,24 @@ To stop: **`/unsubscribe`** ends the daily send but keeps your access; **`/forge
 | `/removeadmin <id>` | Revoke a user's admin status (keeps their allowlist access) |
 
 > Free-form chat with Claude and group chats are **not** supported — this bot is briefing delivery only.
+
+---
+
+## Technical documentation
+
+The interactive one-pager below is the fastest way in — architecture, command contract, limits, and reliability at a glance. The sections after it are the same system in depth.
+
+<p align="center">
+  <a href="https://ai-in-ta-bot-spec.vercel.app/">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://github.com/Da6ka/ai-in-ta-telegram-bot/raw/main/docs/assets/spec-preview-dark.png">
+      <source media="(prefers-color-scheme: light)" srcset="https://github.com/Da6ka/ai-in-ta-telegram-bot/raw/main/docs/assets/spec-preview-light.png">
+      <img src="https://github.com/Da6ka/ai-in-ta-telegram-bot/raw/main/docs/assets/spec-preview-light.png" alt="Live technical specification — architecture, command contract, limits, reliability" width="820">
+    </picture>
+  </a>
+</p>
+
+> 📡 **[Live Technical Specification](https://ai-in-ta-bot-spec.vercel.app/)** — the interactive demo site shown above, hosted on Vercel. Also available as Markdown ([`docs/technical-spec.md`](docs/technical-spec.md), [`docs/design.md`](docs/design.md)).
 
 ## How it works
 
