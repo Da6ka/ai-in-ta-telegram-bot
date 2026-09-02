@@ -703,6 +703,88 @@ test('admin commands', async (t) => {
   })
 })
 
+// =============== maintenance pause (/pause, /resume) ===============
+test('maintenance pause', async (t) => {
+  const NONADMIN = '222'
+
+  await t.test('P1 /pause is admin-gated: a non-admin is refused and the flag is not set', async () => {
+    resetState({ allowFrom: [OWNER, NONADMIN], subscribers: [OWNER, NONADMIN] })
+    await send(upd(NONADMIN, '/pause we are down'))
+    assert.ok(sends()[0].body.text.includes('delegated admin'), 'refused with the admin-only message')
+    assert.equal(kv.map.get('maintenance'), undefined, 'flag not set by a non-admin')
+    assert.equal(ghDispatches().length, 0, 'no broadcast dispatched')
+  })
+
+  await t.test('P2 /pause sets the flag and fans the announcement out to subscribers', async () => {
+    resetState({ allowFrom: [OWNER, NONADMIN], subscribers: [OWNER, NONADMIN] })
+    await send(upd(OWNER, '/pause back after the next release'))
+    assert.equal(kv.map.get('maintenance'), 'on', 'maintenance flag on')
+    const d = ghDispatches()
+    assert.equal(d.length, 1, 'one broadcast dispatch')
+    assert.equal(d[0].body.event_type, 'broadcast')
+    assert.equal(d[0].body.client_payload.message, 'back after the next release', 'prefix stripped, message verbatim')
+    assert.ok(sends().some(c => String(c.body.chat_id) === OWNER && c.body.text.includes('Bot paused')), 'owner acked')
+  })
+
+  await t.test('P3 /pause with no message pauses without a broadcast', async () => {
+    resetState({ allowFrom: [OWNER, NONADMIN], subscribers: [OWNER, NONADMIN] })
+    await send(upd(OWNER, '/pause'))
+    assert.equal(kv.map.get('maintenance'), 'on')
+    assert.equal(ghDispatches().length, 0, 'no announcement dispatched')
+    assert.ok(sends()[0].body.text.includes('No announcement was sent'), 'ack notes nothing was announced')
+  })
+
+  await t.test('P4 while paused a non-admin command gets the notice and does not run', async () => {
+    resetState({ allowFrom: [OWNER, NONADMIN], subscribers: [OWNER] })
+    kv.map.set('maintenance', 'on')
+    fetchLog = []
+    await send(upd(NONADMIN, '/subscribe'))
+    assert.ok(sends()[0].body.text.includes('paused for a short update'), 'maintenance notice')
+    assert.ok(!doStorage.map.get('subscribers').subscribers.includes(NONADMIN), '/subscribe did not take effect')
+  })
+
+  await t.test('P5 briefing and GDPR commands stay reachable while paused', async () => {
+    resetState({ allowFrom: [OWNER, NONADMIN], subscribers: [OWNER, NONADMIN] })
+    kv.map.set('maintenance', 'on')
+    for (const cmd of ['/briefing', '/newbriefing', '/privacy', '/mydata']) {
+      fetchLog = []
+      await send(upd(NONADMIN, cmd))
+      assert.ok(!sends().some(c => c.body.text.includes('paused for a short update')), `${cmd} is exempt from the pause`)
+    }
+    // /forgetme actually erases, so assert the effect rather than the absence of a notice
+    fetchLog = []
+    await send(upd(NONADMIN, '/forgetme'))
+    assert.ok(!doStorage.map.get('subscribers').subscribers.includes(NONADMIN), '/forgetme ran while paused')
+  })
+
+  await t.test('P6 owner and admins bypass the pause entirely', async () => {
+    resetState({ allowFrom: [OWNER, NONADMIN], subscribers: [OWNER], adminIds: [NONADMIN] })
+    kv.map.set('maintenance', 'on')
+    fetchLog = []
+    await send(upd(OWNER, '/admin'))
+    assert.ok(sends()[0].body.text.includes('Bot Admin Panel'), 'owner reaches /admin')
+    assert.ok(sends()[0].body.text.includes('Maintenance pause: ON'), 'panel shows the pause state')
+    fetchLog = []
+    await send(upd(NONADMIN, '/listusers'))
+    assert.ok(!sends()[0].body.text.includes('paused for a short update'), 'delegated admin bypasses the pause')
+  })
+
+  await t.test('P7 /resume clears the flag and commands work again', async () => {
+    resetState({ allowFrom: [OWNER, NONADMIN], subscribers: [OWNER] })
+    kv.map.set('maintenance', 'on')
+    fetchLog = []
+    await send(upd(OWNER, '/resume we are back'))
+    assert.equal(kv.map.get('maintenance'), undefined, 'flag cleared')
+    const d = ghDispatches()
+    assert.equal(d.length, 1, 'resume announcement dispatched')
+    assert.equal(d[0].body.client_payload.message, 'we are back')
+    fetchLog = []
+    await send(upd(NONADMIN, '/subscribe'))
+    assert.ok(!sends()[0].body.text.includes('paused for a short update'), 'no notice after resume')
+    assert.ok(doStorage.map.get('subscribers').subscribers.includes(NONADMIN), '/subscribe works after resume')
+  })
+})
+
 // =============== delegated admin roles ===============
 test('delegated admin roles', async (t) => {
   resetState({ allowFrom: [OWNER, '222', '333'] })

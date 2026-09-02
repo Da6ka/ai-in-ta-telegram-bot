@@ -2,6 +2,27 @@
 
 ## [Unreleased]
 
+### A pause switch that spares the briefing
+
+Two admin commands, `/pause` and `/resume`, and a maintenance flag in
+`BOT_STATE` behind them. `/pause [message]` sets the flag; while it's on, every
+non-admin command returns a short notice instead of running — except
+`/briefing`, `/newbriefing`, and the GDPR commands (`/privacy`, `/mydata`,
+`/forgetme`, `/unsubscribe`), which stay reachable so a pause can never trap
+someone's data. Owner and delegated admins bypass the flag entirely, so
+`/resume` always works.
+
+The daily briefing is deliberately outside the gate. It runs in the Worker's
+`scheduled` handler; the flag only guards `handleMessage`, so the 09:05-UTC run
+and the 12:00-UTC heartbeat fire regardless of whether the command surface is
+paused. The optional message on either command is fanned out to subscribers over
+the same runner path as `/broadcast` — the pause announcement and the all-clear.
+
+Both commands are admin-gated like `/broadcast`; the flag read is skipped for
+admins and for the exempt commands, so the common paths take no extra KV read.
+`/admin` shows the current pause state. Covered by `test/worker.behavior.test.mjs`
+(P1-P7).
+
 ### The briefing kept its sources in a channel we were discarding
 
 `/newbriefing` at 02:47 UTC on 2026-08-28 composed a good edition — five

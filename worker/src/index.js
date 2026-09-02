@@ -842,6 +842,11 @@ async function briefingHeartbeat(env) {
 // (those handlers still do their own isAllowed check where relevant). Keeping
 // this as data — rather than a copy-pasted gate block in each handler — means
 // a newly-added privileged command can't accidentally ship ungated.
+// Commands a non-admin user can still run while the bot is paused (/pause):
+// the briefing commands the pause is meant to keep alive, and the GDPR
+// self-service commands, which must never be blockable.
+const MAINTENANCE_EXEMPT = new Set(['briefing', 'newbriefing', 'privacy', 'mydata', 'forgetme', 'unsubscribe'])
+
 const COMMAND_ROLES = {
   admin: 'admin',
   listusers: 'admin',
@@ -849,6 +854,8 @@ const COMMAND_ROLES = {
   removeuser: 'admin',
   broadcast: 'admin',
   pending: 'admin',
+  pause: 'admin',
+  resume: 'admin',
   addadmin: 'owner',
   removeadmin: 'owner',
 }
@@ -1119,6 +1126,7 @@ const COMMAND_HANDLERS = {
     const subs = await stub.getSubscribers()
     const stats = await getJSON(env, 'usage_stats', DEFAULT_USAGE)
     const c = stats.command_counts
+    const paused = (await env.BOT_STATE.get('maintenance')) === 'on'
     await reply(env, senderId,
       `Bot Admin Panel\n\n` +
       `Users\n` +
@@ -1126,6 +1134,8 @@ const COMMAND_HANDLERS = {
       `- Subscribed: ${subs.subscribers.length}\n` +
       `- Admins: ${access.adminIds.length}\n` +
       `- Pending pairings: ${Object.keys(access.pending).length}\n\n` +
+      `Status\n` +
+      `- Maintenance pause: ${paused ? 'ON (non-admins see a notice; /briefing still works)' : 'off'}\n\n` +
       `Briefings\n` +
       `- Total sent: ${stats.briefings_sent}\n` +
       `- Last sent: ${stats.last_briefing_at ?? 'never'}\n\n` +
@@ -1134,6 +1144,7 @@ const COMMAND_HANDLERS = {
       // automatically instead of silently missing from a hand-maintained list.
       Object.keys(COMMAND_HANDLERS).sort().map(name => `- /${name}: ${c[name] ?? 0}`).join('\n') + `\n\n` +
       `Use /listusers, /pending, /adduser <id>, /removeuser <id>, /broadcast <msg>\n` +
+      `- /pause [msg] pauses the bot (briefing stays live); /resume [msg] lifts it\n` +
       `Owner only: /addadmin <id>, /removeadmin <id>`)
   },
 
@@ -1281,6 +1292,61 @@ const COMMAND_HANDLERS = {
       : "Couldn't start the broadcast right now — please try again shortly, or check the Worker logs if this keeps happening.")
   },
 
+  // Maintenance pause. Admin-gated like /broadcast. Sets the BOT_STATE
+  // 'maintenance' flag that handleMessage's gate reads, so non-admin users get
+  // a short notice for every command EXCEPT /briefing, /newbriefing and the
+  // GDPR commands (/privacy, /mydata, /forgetme, /unsubscribe). Owner and
+  // delegated admins are never gated, so /resume is always reachable. The daily
+  // 09:05-UTC briefing is unaffected: it runs in the scheduled() handler, which
+  // this flag does not touch. An optional message is fanned out to subscribers
+  // as the pause announcement, over the same runner path as /broadcast.
+  async pause(env, message, gated, args, rawText) {
+    const { senderId, stub } = gated
+    const announce = (rawText ?? '').trim().replace(/^\/pause(@\S+)?\s*/i, '')
+    await env.BOT_STATE.put('maintenance', 'on')
+    const paused = 'Bot paused. Non-admins now get a maintenance notice for every command except /briefing, /newbriefing and the privacy commands. The daily briefing still runs.'
+    if (!announce) {
+      await reply(env, senderId, `${paused}\n\nNo announcement was sent — add one with /pause <message>. Lift the pause with /resume.`)
+      return
+    }
+    const subs = await stub.getSubscribers()
+    const dispatched = subs.subscribers.length > 0
+      ? await dispatchEvent(env, 'broadcast', { message: announce, owner: senderId })
+      : false
+    const note = subs.subscribers.length === 0
+      ? 'No subscribers to announce to.'
+      : dispatched
+        ? `Announcing to ${subs.subscribers.length} subscriber(s) — I'll send you a delivery report when it finishes.`
+        : "Couldn't start the announcement broadcast — the pause is set; try /broadcast to send the message on its own."
+    await reply(env, senderId, `${paused}\n\n${note}\n\nLift the pause with /resume.`)
+  },
+
+  // Lift the maintenance pause set by /pause. Admin-gated. An optional message
+  // is broadcast the same way (e.g. a "we're back" note at release time).
+  async resume(env, message, gated, args, rawText) {
+    const { senderId, stub } = gated
+    const wasPaused = (await env.BOT_STATE.get('maintenance')) === 'on'
+    await env.BOT_STATE.delete('maintenance')
+    const announce = (rawText ?? '').trim().replace(/^\/resume(@\S+)?\s*/i, '')
+    const head = wasPaused
+      ? 'Bot resumed — all commands are live again for everyone.'
+      : 'The bot was not paused. All commands are live.'
+    if (!announce) {
+      await reply(env, senderId, head)
+      return
+    }
+    const subs = await stub.getSubscribers()
+    const dispatched = subs.subscribers.length > 0
+      ? await dispatchEvent(env, 'broadcast', { message: announce, owner: senderId })
+      : false
+    const note = subs.subscribers.length === 0
+      ? 'No subscribers to announce to.'
+      : dispatched
+        ? `Announcing to ${subs.subscribers.length} subscriber(s) — I'll send you a delivery report when it finishes.`
+        : "Couldn't start the announcement broadcast — try /broadcast to send the message on its own."
+    await reply(env, senderId, `${head}\n\n${note}`)
+  },
+
   async pending(env, message, gated) {
     const { access, senderId } = gated
     const entries = Object.entries(access.pending)
@@ -1353,6 +1419,21 @@ async function handleMessage(env, stub, message) {
   // autocapitalize — normalize so /Start, /Briefing etc. resolve to the
   // handler instead of falling through to the nudge.
   const cmd = m ? m[1].toLowerCase() : null
+  // Maintenance pause (see the /pause and /resume commands). While the
+  // BOT_STATE 'maintenance' flag is on, non-admin users get a short notice for
+  // every command except the briefing commands and the GDPR self-service
+  // commands -- those stay reachable so a pause can never trap someone's data.
+  // Owner and delegated admins bypass entirely (so /resume always works). Only
+  // this handler is gated; the daily briefing runs in scheduled(). The flag is
+  // read only for a non-privileged, non-exempt command, so the common paths add
+  // no KV read. Placed before recordCommand so a blocked attempt isn't counted.
+  if (cmd === null || !MAINTENANCE_EXEMPT.has(cmd)) {
+    if (!isOwnerOrAdmin(gated.access, gated.senderId) && (await env.BOT_STATE.get('maintenance')) === 'on') {
+      await reply(env, gated.senderId,
+        "AI in TA News is paused for a short update. Daily briefings still arrive as usual, and /briefing works. Everything else is back shortly.")
+      return
+    }
+  }
   // Object.hasOwn: /constructor, /__proto__ etc. must not resolve to
   // Object.prototype members — they'd be treated as handlers and produce
   // silence instead of the nudge.

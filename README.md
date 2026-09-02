@@ -118,6 +118,10 @@ To stop: **`/unsubscribe`** ends the daily send but keeps your access; **`/forge
 | `/adduser` · `/removeuser` | Add or remove someone directly             |
 | `/listusers`               | List everyone the bot knows, with @handles |
 | `/broadcast`               | Send a one-off message to every subscriber |
+| `/pause`                   | Pause the bot until the next release; `/briefing` and `/newbriefing` stay live |
+| `/resume`                  | Lift the pause                             |
+
+> **`/pause [message]` freezes the bot for everyone but you.** While it's on, non-admin users get a short "paused for a short update" notice for every command except `/briefing`, `/newbriefing` and the privacy commands (`/privacy`, `/mydata`, `/forgetme`, `/unsubscribe`) — those stay reachable so a pause can never trap someone's data. Owner and delegated admins are never gated, so `/resume` always works. The daily briefing is untouched: it runs in the Worker's `scheduled` handler, which the pause flag doesn't reach. An optional message is fanned out to subscribers as the pause announcement, over the same runner path as `/broadcast` — `/resume [message]` does the same for the all-clear.
 
 **Owner-only**
 
