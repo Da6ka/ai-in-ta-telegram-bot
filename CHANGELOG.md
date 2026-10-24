@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### README: approval wording
+
+The README no longer asks every applicant to DM the owner after requesting access. Approval comes in due course; a DM is only for someone who needs it immediately. Docs only, no behavior change.
+
 ## [1.10.0] - 2026-10-24
 
 ### /start now points a new applicant at /privacy
