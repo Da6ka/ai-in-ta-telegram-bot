@@ -8,8 +8,7 @@ A Telegram bot that sends a **daily briefing on AI in recruitment** — the late
 
 Subscribers tap `/subscribe` and get the briefing every weekday morning at **09:05 UTC / 12:05 MSK** (Mon-Fri; Monday's edition widens its freshness window to cover the weekend). No app to install, no laptop to keep awake — everything runs on GitHub Actions and a Cloudflare Worker.
 
-You can try the bot in Telegram: @AIinTANewsBot (my approval is necessary, so DM me after your request via TG @Da6ka).
-Paused for now.
+You can try the bot in Telegram: @AIinTANewsBot (access needs my approval, which I give in due course; if you need it right away, DM me on Telegram: @Da6ka).
 
 ---
 
@@ -93,7 +92,7 @@ To stop: **`/unsubscribe`** ends the daily send but keeps your access; **`/forge
 
 > **`/ask` has its own, looser limits** — 10 questions per person per day, 40 across everyone, and 30 seconds between them. Separate counters from the briefing ones on purpose: answering a question is a search over files the bot already wrote, not a paid web-research run, so questions never eat into your `/newbriefing` allowance.
 
-> **`/newbriefing` is rate-limited.** A fresh briefing is delivered only to you, but each run is a paid generation that overwrites the one shared cached edition `/briefing` serves everyone — so three limits apply: a 60-minute cooldown between runs (5 minutes for the owner), global because the cache and the cost are shared (back-to-back regenerations would just re-spend to overwrite the same copy); a cap of 3 per person per day, so no single user hogs it; and 5 across all users per day, the actual cost ceiling. Hit any of them and you get today's cached copy instead of an error — and the morning briefing is never affected by these limits.
+> **`/newbriefing` is rate-limited.** A fresh briefing is delivered only to you, but each run is a paid generation that overwrites the one shared cached edition `/briefing` serves everyone — so three limits apply: a 60-minute cooldown between runs (5 minutes for the owner), global because the cache and the cost are shared (back-to-back regenerations would just re-spend to overwrite the same copy); a cap of 2 per person per day, so no single user hogs it; and 2 across all users per day, the actual cost ceiling. Hit any of them and you get today's cached copy instead of an error — and the morning briefing is never affected by these limits.
 
 **Privacy**
 
