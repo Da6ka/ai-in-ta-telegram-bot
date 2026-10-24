@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-10-24
+
 ### /start now points a new applicant at /privacy
 
 The reply to a brand-new access request adds two sentences: the bot stores the
