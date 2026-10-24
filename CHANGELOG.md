@@ -4,7 +4,7 @@
 
 ### README: approval wording, `/newbriefing` caps, spec covers
 
-The README no longer asks every applicant to DM the owner after requesting access. Approval comes in due course; a DM is only for someone who needs it immediately. The `/newbriefing` limits now match the code (2 per person and 2 across everyone per day, not 3 and 5). The two spec cover images are re-rendered from the v1.10.0 spec page (they still showed v1.8.1 and a 30-user cap). Docs only, no behavior change.
+The README no longer asks every applicant to DM the owner after requesting access. Approval comes in due course; a DM is only for someone who needs it immediately. The `/newbriefing` limits now match the code (2 per person and 2 across everyone per day, not 3 and 5). The two spec cover images are re-rendered from the v1.10.0 spec page (they still showed v1.8.1 and a 30-user cap). The stale "Paused for now." line is removed (the bot is live again). Docs only, no behavior change.
 
 ## [1.10.0] - 2026-10-24
 
