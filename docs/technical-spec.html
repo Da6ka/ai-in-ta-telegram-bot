@@ -694,7 +694,7 @@
           <span class="chip"><span class="k">schedule</span> <b>09:05 UTC</b> Mon-Fri</span>
           <span class="chip"><span class="k">window</span> last <b>48-96h</b></span>
           <span class="chip"><span class="k">access</span> <b>allowlist-gated</b></span>
-          <span class="chip"><span class="k">cap</span> <b>30 users</b></span>
+          <span class="chip"><span class="k">cap</span> <b>50 users</b></span>
           <span class="chip"><span class="k">runtimes</span> Worker <b>+</b> Actions</span>
         </div>
       </div>
@@ -885,14 +885,14 @@
         </div>
         <div class="grid cols-3">
           <div class="card tile limit">
-            <div class="val">30</div>
+            <div class="val">50</div>
             <div class="lbl">Maximum users</div>
             <div class="sub">
               <code>MAX_USERS</code> — checked atomically in the DO so two concurrent approvals can't both slip past.
             </div>
           </div>
           <div class="card tile limit">
-            <div class="val">50</div>
+            <div class="val">100</div>
             <div class="lbl">Pending queue cap</div>
             <div class="sub">
               <code>MAX_PENDING</code> — bounds the access-request queue, capped independently of the user allowlist.

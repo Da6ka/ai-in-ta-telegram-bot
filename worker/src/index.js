@@ -90,11 +90,11 @@ const GENERATION_IN_FLIGHT_MIN = 10
 const HEARTBEAT_CRON = '0 12 * * 1-5'
 
 // Capacity cap for the current private, single-operator deployment. The daily
-// send stays comfortably under Telegram's rate limit at this size, and (on the
-// Workers free plan) /broadcast is subrequest-capped around here too. The
-// (MAX_USERS+1)th person to request access is told the bot is full rather than
-// queued. Raise this once broadcast delivery moves to the Actions runner.
-const MAX_USERS = 30
+// send stays comfortably under Telegram's rate limit at this size. Broadcast
+// delivery runs on the Actions runner (scripts/broadcast.mjs), so the Workers
+// subrequest cap no longer bounds this. The (MAX_USERS+1)th person to request
+// access is told the bot is full rather than queued.
+const MAX_USERS = 50
 
 // Independent cap on unapproved /start requests. MAX_USERS alone only turns
 // people away once the allowlist itself is full -- it does nothing while
@@ -104,7 +104,7 @@ const MAX_USERS = 30
 // notification per sender with no rate limit. Set comfortably above
 // MAX_USERS so normal approval churn (a backlog of legitimate requests
 // waiting on the owner) never trips it.
-const MAX_PENDING = 50
+const MAX_PENDING = 100
 
 // Storage-limitation retention: the per-user last_seen activity log -- and the
 // usernames map kept in lockstep with it -- is pruned to entries from the last

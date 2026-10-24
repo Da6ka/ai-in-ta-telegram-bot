@@ -44,7 +44,7 @@ Paused for now.
 - 📣 **Owner tools** — broadcast a message to everyone, manage the subscriber list, check who's on it.
 - 🔒 **Runs itself** — a Cloudflare Worker kicks off the daily run (Cron Trigger) and handles live commands; GitHub Actions does the heavy lifting (research, generation, delivery) and doubles as a scheduling backup. Nothing depends on a personal machine being online.
 
-This is a **private, allowlist-gated bot** (single operator, capped at 30 users). New people tap `/start` to request access; the owner approves them. There's **no hand-maintained recipient list** — once in, whoever taps `/subscribe` gets the daily briefing and `/unsubscribe` stops it. The subscriber list lives in Durable Object storage, mirrored to Cloudflare KV and read fresh at send time.
+This is a **private, allowlist-gated bot** (single operator, capped at 50 users). New people tap `/start` to request access; the owner approves them. There's **no hand-maintained recipient list** — once in, whoever taps `/subscribe` gets the daily briefing and `/unsubscribe` stops it. The subscriber list lives in Durable Object storage, mirrored to Cloudflare KV and read fresh at send time.
 
 ## Example briefing
 

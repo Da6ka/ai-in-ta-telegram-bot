@@ -1088,13 +1088,13 @@ test('subscription logic under stress', async (t) => {
     doStorage.map.set('subscribers', { subscribers: [OWNER] })
   })
   await t.test('capacity cap holds: neither /start nor /adduser can push the allowlist past MAX_USERS', async () => {
-    // MAX_USERS = 30 in the Worker. Fill the allowlist to the cap (owner + 29),
-    // then confirm neither approval path can push it past 30. (Broadcast fan-out
+    // MAX_USERS = 50 in the Worker. Fill the allowlist to the cap (owner + 49),
+    // then confirm neither approval path can push it past 50. (Broadcast fan-out
     // is no longer bounded by this — BUG-4 moved delivery to the Actions runner —
     // but the capacity cap still exists for the private single-operator scope.)
-    const filled = [OWNER, ...Array.from({ length: 29 }, (_, i) => String(3000 + i))]
+    const filled = [OWNER, ...Array.from({ length: 49 }, (_, i) => String(3000 + i))]
     resetState({ allowFrom: filled, subscribers: [OWNER] })
-    assert.equal(doStorage.map.get('access').allowFrom.length, 30, 'at capacity')
+    assert.equal(doStorage.map.get('access').allowFrom.length, 50, 'at capacity')
     // New user's /start is turned away, not queued.
     fetchLog = []
     await send(upd('4001', '/start', { from: { id: 4001, first_name: 'Late' } }))
@@ -1105,24 +1105,24 @@ test('subscription logic under stress', async (t) => {
     await send(upd(OWNER, '/adduser 4002'))
     assert.ok(sends()[0].body.text.includes('at capacity'), '/adduser refused at cap')
     assert.ok(!doStorage.map.get('access').allowFrom.includes('4002'))
-    assert.equal(doStorage.map.get('access').allowFrom.length, 30, 'still exactly at cap')
+    assert.equal(doStorage.map.get('access').allowFrom.length, 50, 'still exactly at cap')
   })
   await t.test('MAX_PENDING cap holds: distinct-sender /start flood is refused once pending is full, independent of MAX_USERS', async () => {
-    // MAX_PENDING = 50 in the Worker. Fill pending to the cap with 50 distinct
+    // MAX_PENDING = 100 in the Worker. Fill pending to the cap with 100 distinct
     // unapproved requesters while allowFrom stays tiny -- this cap must bite
     // even when the allowlist is nowhere near MAX_USERS, since that's exactly
     // the flood scenario it exists to stop.
     const filledPending = Object.fromEntries(
-      Array.from({ length: 50 }, (_, i) => [String(5000 + i), { displayName: `P${i}`, username: '@p', createdAt: 1 }])
+      Array.from({ length: 100 }, (_, i) => [String(5000 + i), { displayName: `P${i}`, username: '@p', createdAt: 1 }])
     )
     resetState({ allowFrom: [OWNER], subscribers: [OWNER], pending: filledPending })
-    assert.equal(Object.keys(doStorage.map.get('access').pending).length, 50, 'pending at capacity')
+    assert.equal(Object.keys(doStorage.map.get('access').pending).length, 100, 'pending at capacity')
     fetchLog = []
     await send(upd('6001', '/start', { from: { id: 6001, first_name: 'Flood' } }))
     const s = sends()
     assert.ok(s.some(c => String(c.body.chat_id) === '6001' && c.body.text.includes('pending requests')), 'requester told, not silently dropped')
     assert.ok(!doStorage.map.get('access').pending['6001'], 'not added to pending')
-    assert.equal(Object.keys(doStorage.map.get('access').pending).length, 50, 'pending count unchanged')
+    assert.equal(Object.keys(doStorage.map.get('access').pending).length, 100, 'pending count unchanged')
     assert.equal(s.filter(c => String(c.body.chat_id) === OWNER).length, 0, 'owner not notified for a refused request')
   })
 })

@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+### User cap raised from 30 to 50
+
+`MAX_USERS` goes 30 -> 50 and `MAX_PENDING` 50 -> 100 (it must stay above the
+user cap so a backlog of requests never trips it). The old 30 was sized for the
+Workers free-plan subrequest limit on in-Worker `/broadcast`; delivery has run
+on the Actions runner since BUG-4, so that bound is gone. Reason: a 90-minute
+lecture where up to 30 recruiters join the bot, 16 seats already taken. Entry
+is unchanged: `/start`, then the owner approves. The per-user and global
+`/ask` and briefing caps are unchanged. Test and docs updated in the same PR.
+
 ### The daily briefing stopped paying the model to search
 
 August's API bill on this key was $71.91, and $54 of it was one line: the daily
