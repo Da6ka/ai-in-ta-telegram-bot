@@ -69,7 +69,7 @@ Every item is sourced (clickable, dated, no bare URLs), never repeats a domain, 
 
 If someone's already running the bot and you just want the briefing, the whole flow is four taps:
 
-1. **`/start`** — requests access. Access is allowlist-gated, so this puts you in a queue rather than letting you straight in.
+1. **`/start`** — requests access. Access is allowlist-gated, so this puts you in a queue rather than letting you straight in. The reply tells you the bot stores your Telegram ID for the allowlist and points to `/privacy`.
 2. **Wait for approval** — the owner gets your request and approves it. You'll be able to use the commands below once they do.
 3. **`/subscribe`** — now the briefing lands in your chat every weekday morning at 09:05 UTC. That's the only step you need for the daily send.
 4. **`/briefing`** any time for today's edition (instant, cached), or **`/newbriefing`** to generate a fresh one on the spot.

@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### /start now points a new applicant at /privacy
+
+The reply to a brand-new access request adds two sentences: the bot stores the
+Telegram ID to run the allowlist, see /privacy, send /forgetme to erase it.
+Before, the first mention of consent was in the `/subscribe` reply. Affects only
+unapproved users sending `/start`; admin gating, caps and the 12:00 UTC run are
+unchanged. Test K10 asserts the line.
+
 ### User cap raised from 30 to 50
 
 `MAX_USERS` goes 30 -> 50 and `MAX_PENDING` 50 -> 100 (it must stay above the

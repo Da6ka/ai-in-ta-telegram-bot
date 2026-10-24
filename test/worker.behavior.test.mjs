@@ -1430,6 +1430,7 @@ test('ask is discoverable from the start', async (t) => {
     await send(upd('777', '/start'))
     const applicantMsg = sends().at(-1).body.text
     assert.match(applicantMsg, /\/ask/, '/ask named alongside /briefing and /subscribe')
+    assert.match(applicantMsg, /\/privacy/, 'new applicant is pointed at /privacy before approval')
   })
 
   await t.test('K11 /help lists /ask', async () => {
