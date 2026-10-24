@@ -679,7 +679,7 @@
       <div class="wrap masthead-inner">
         <div class="kicker-row">
           <span class="livedot" aria-hidden="true"></span>
-          <span class="eyebrow">Technical Specification · v1.9.0 · live</span>
+          <span class="eyebrow">Technical Specification · v1.10.0 · live</span>
         </div>
         <h1>
           AI-in-TA Telegram Bot
@@ -707,7 +707,7 @@
           <span class="eyebrow">01 · System context</span>
           <h2>Two runtimes, one latency boundary</h2>
           <p>
-            Generation needs <code>claude -p</code> running for tens of seconds with web search; live commands must
+            Generation needs a runner for tens of seconds (news fetch plus composition); live commands must
             answer Telegram in milliseconds. Splitting them means a slow generation run can never make
             <code>/briefing</code> feel slow, and a webhook hiccup can never affect the scheduled send.
           </p>
@@ -738,7 +738,7 @@
               <h3>GitHub Actions</h3>
               <p class="role">Generation + fan-out · on demand · minutes</p>
               <ul>
-                <li><code>claude -p</code> + WebSearch composes the briefing</li>
+                <li>Firecrawl fetches the news; one Messages API call composes the briefing</li>
                 <li><code>send-briefing.mjs</code> delivers to every subscriber</li>
                 <li><code>broadcast.mjs</code> fans out on the runner, paced + retried</li>
                 <li><code>sync-kv.mjs</code> bridges the result back into KV</li>
@@ -795,7 +795,7 @@
               <tr>
                 <td><span class="cmd">/start</span></td>
                 <td><span class="pill any">anyone</span></td>
-                <td>Request access — adds sender to <code>pending</code>; enforces the 30-user cap</td>
+                <td>Request access — adds sender to <code>pending</code>; enforces the 50-user cap; the reply points at <code>/privacy</code> and <code>/forgetme</code></td>
               </tr>
               <tr>
                 <td><span class="cmd">/briefing</span></td>
@@ -1066,9 +1066,9 @@
       <footer>
         <span class="mono">AI-in-TA Telegram Bot</span>
         <span>·</span>
-        <span>Specification reflects the deployed system as of 2026-08-20</span>
+        <span>Specification reflects the deployed system as of 2026-10-24</span>
         <span>·</span>
-        <span class="mono">v1.9.0</span>
+        <span class="mono">v1.10.0</span>
       </footer>
     </main>
   </body>

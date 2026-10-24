@@ -1,6 +1,6 @@
 # AI-in-TA Telegram Bot — Technical Specification
 
-Version: 1.9.0 · Status: describes the deployed system as of 2026-09-02
+Version: 1.10.0 · Status: describes the deployed system as of 2026-10-24
 
 > This is the interface/requirements-level companion to [`design.md`](./design.md).
 > `design.md` explains _why_ the system is shaped the way it is (narrative,
@@ -42,7 +42,7 @@ Two independent runtimes divide responsibility along a **latency boundary**:
 | Runtime                                       | Owns                                                                     | Why here                                                                              |
 | --------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------- |
 | **Cloudflare Worker** (`worker/src/index.js`) | Telegram webhook, all live commands, daily cron trigger                  | Must answer Telegram in milliseconds; always-on, no local machine                     |
-| **GitHub Actions** (`.github/workflows/`)     | Briefing generation (`claude -p` + WebSearch), fan-out delivery, KV sync | Generation runs tens of seconds to minutes — a poor fit for a request/response Worker |
+| **GitHub Actions** (`.github/workflows/`)     | Briefing generation (Firecrawl news fetch, then one Messages API call), fan-out delivery, KV sync | Generation runs tens of seconds to minutes — a poor fit for a request/response Worker |
 
 ```
 Telegram  ──webhook──▶  Cloudflare Worker ──repository_dispatch──▶  GitHub Actions
@@ -74,7 +74,7 @@ generation-side record. `scripts/sync-kv.mjs` is the one-way bridge
 
 | Command                                                       | Access         | Handler path     | Effect                                                                              |
 | ------------------------------------------------------------- | -------------- | ---------------- | ----------------------------------------------------------------------------------- |
-| `/start`                                                      | anyone         | Worker → DO      | Add sender to `pending`; enforce `MAX_USERS`                                        |
+| `/start`                                                      | anyone         | Worker → DO      | Add sender to `pending`; enforce `MAX_USERS`; reply points at `/privacy`, `/forgetme` |
 | `/briefing`                                                   | allowlisted    | Worker → KV      | Serve cached `today_briefing_md`, no generation                                     |
 | `/newbriefing`                                                | allowlisted    | Worker → Actions | `repository_dispatch` → `on-demand-briefing.yml`; subject to dispatch limits (§6.2) |
 | `/ask <question>`                                             | allowlisted    | Worker → Actions | Validate + rate-limit, then `repository_dispatch` → `ask.yml`; read-only query over `wiki/` (own `ask_rate` limits) |
@@ -114,8 +114,8 @@ enforcement, not just the prompt:
 
 | Job | Model | How | Tools | Cost ceiling |
 | --- | --- | --- | --- | --- |
-| Briefing generation | `claude-opus-4-8` | `scripts/generate-briefing.mjs` (Messages API) | server-side `web_search` | pre-emptive: `BRIEFING_MAX_SEARCHES`, `max_tokens`, paused-turn budget check |
-| Wiki ingest (daily only) | `claude-haiku-4-5-20251001` | `claude -p` | `Read Write Edit Glob Grep` | `--max-budget-usd 1` |
+| Briefing generation | `claude-opus-4-8` | `scripts/generate-briefing.mjs` (Messages API) | none on the daily send (`BRIEFING_SEARCH_MODE=none`): stories come from `scripts/fetch-news.mjs` (Firecrawl, `qdr:w`) and go into the prompt; needs `FIRECRAWL_API_KEY` | pre-emptive: `max_tokens`, paused-turn budget check; `BRIEFING_MAX_SEARCHES` (6) applies only to the search path |
+| Wiki ingest (weekly) | `claude-haiku-4-5-20251001` | `claude -p` | `Read Write Edit Glob Grep` | `--max-budget-usd 1` |
 | `/ask` answer | `claude-sonnet-5` | `claude -p` | `Read Grep Glob` | `--max-budget-usd 1` |
 
 Generation moved off `claude -p` on 2026-08-28. The agent loop carried every
@@ -140,7 +140,7 @@ be priced the money is already spent. Every run appends what it cost to
   [`ask-prompt.md`](../ask-prompt.md) (`/ask`). Editorial rules (sourcing, no
   repeated domains, news-not-evergreen, 48-hour window) live in those prompts
   by design.
-- **Only the briefing gets `WebSearch`.** The ingest and `/ask` are confined to
+- **Only the briefing can reach the web, and the daily send no longer does.** The ingest and `/ask` are confined to
   what the bot has already published; withholding the tool is what makes that a
   guarantee rather than an instruction. `/ask` additionally gets no write tools,
   so a query can never mutate the wiki.
@@ -307,7 +307,7 @@ per-invocation subrequest cap that silently dropped recipients past ~45).
 | `/ask` daily cap             | **10/day per user** (`ASK_DAILY_CAP`)             | Worker (`ask_rate.counts`)                                          |
 | `/ask` daily cap, shared     | **40/day total** (`ASK_GLOBAL_DAILY_CAP`)         | Worker (`ask_rate.total`)                                           |
 | `/ask` question length       | **3–300 chars**                                   | Worker, before dispatch                                             |
-| Per-run LLM spend            | briefing: pre-emptive caps, ~**$1.5** measured; **$1** ingest, **$1** `/ask` | Actions                                                 |
+| Per-run LLM spend            | briefing: pre-emptive caps, ~**$0.10** measured (run 33621909310); **$1** ingest, **$1** `/ask` | Actions                                                 |
 | Models                       | see §3.3                                          | Actions                                                             |
 | Briefing window              | last 48 hours                                     | prompt                                                              |
 
