@@ -922,7 +922,8 @@ const COMMAND_HANDLERS = {
       alreadyPending
         ? `Your access request is still waiting on the owner — no need to send /start again.\n\nYour Telegram ID: <code>${from.id}</code>`
         : `Welcome to AI in TA News!\n\nThis is a private bot. Your access request has been sent to the owner.\n\n` +
-          `Your Telegram ID: <code>${from.id}</code>\n\nYou'll be able to use /briefing, /ask and /subscribe once approved.`,
+          `Your Telegram ID: <code>${from.id}</code>\n\nYou'll be able to use /briefing, /ask and /subscribe once approved.\n\n` +
+          `By requesting access you agree that the bot stores your Telegram ID to run the allowlist. See /privacy for what is kept and how long. Send /forgetme to erase it.`,
       { parse_mode: 'HTML' })
   },
 
