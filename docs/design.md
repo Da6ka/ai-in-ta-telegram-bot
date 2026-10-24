@@ -27,7 +27,7 @@ basic admin.
 **Non-goals**
 
 - Free-form chat with Claude, or group chat support — briefing delivery only.
-- Multi-tenant / public bot — single operator, hard cap of 30 users.
+- Multi-tenant / public bot — single operator, hard cap of 50 users.
 - Real-time news (briefing window is the last 48 hours, generated once daily).
 
 ---

@@ -30,7 +30,7 @@ retrieval, subscription management, and owner/admin tooling.
 ### 1.3 Out of scope (non-goals)
 
 - Free-form chat with Claude; group-chat operation.
-- Multi-tenant / public access — single operator, hard-capped at 30 users.
+- Multi-tenant / public access — single operator, hard-capped at 50 users.
 - Real-time news — the briefing window is a once-daily 48-hour lookback.
 
 ---
@@ -298,8 +298,8 @@ per-invocation subrequest cap that silently dropped recipients past ~45).
 
 | Limit                        | Value                                      | Enforced at                                                          |
 | ---------------------------- | ------------------------------------------ | -------------------------------------------------------------------- |
-| `MAX_USERS`                  | **30**                                            | `BotState.addAllowedUser` (atomic), `/start`, callback-approval path |
-| `MAX_PENDING`                | **50**                                            | Worker, on `/start` (capped independently of `MAX_USERS`)           |
+| `MAX_USERS`                  | **50**                                            | `BotState.addAllowedUser` (atomic), `/start`, callback-approval path |
+| `MAX_PENDING`                | **100**                                           | Worker, on `/start` (capped independently of `MAX_USERS`)           |
 | Generation dispatch cooldown | **60 min**, **5 min** for the owner               | Worker, before `/newbriefing` dispatch                              |
 | Generation daily cap         | **2/day per user** (`DAILY_DISPATCH_CAP`)         | Worker (`briefing_rate.counts`)                                     |
 | Generation daily cap, shared | **2/day total** (`GLOBAL_DAILY_DISPATCH_CAP`)     | Worker (`briefing_rate.total`)                                      |
