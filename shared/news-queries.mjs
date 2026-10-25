@@ -29,15 +29,15 @@ export const NEWS_QUERIES = [
   'HR tech vendor funding OR acquisition',
 ]
 
-// Not news: one search restricted to The Hero (Super Recruiter's newsletter on
-// beehiiv), run through Firecrawl's web source because the news source may not
-// index beehiiv. The prompts treat the result as an optional source with its
-// own rule, not as one of the beats above.
-export const NEWSLETTER_QUERIES = ['site:thehero.beehiiv.com AI tool agent Claude']
+// Not news: The Hero (Super Recruiter's newsletter on beehiiv) is read from its
+// archive page, not searched. Checked live on 2026-10-25: Firecrawl's web
+// search over the domain returns no date at all, answers an empty list under any
+// qdr filter, and surfaced only older issues, never the two newest. The archive
+// page lists every recent issue with its publication date.
+export const NEWSLETTER_ARCHIVE_URL = 'https://thehero.beehiiv.com/'
 
-// The only URLs the newsletter query may contribute. A site: search also
-// returns the archive page, the subscribe page and tag pages; only /p/ posts
-// are issues.
+// The only URLs the archive may contribute. The page also links tag and author
+// pages; only /p/ posts are issues.
 const NEWSLETTER_ISSUE_URL = /^https:\/\/thehero\.beehiiv\.com\/p\//
 
 export function isNewsletterIssue(url) {
@@ -63,6 +63,8 @@ export function widerWindow(tbs) {
   return i === -1 || i === ladder.length - 1 ? null : ladder[i + 1]
 }
 
+const WINDOW_DAYS = { 'qdr:d': 1, 'qdr:w': 7, 'qdr:m': 31 }
+
 // True when the article's own URL dates it outside the search window. The
 // window filter goes by the news index's date, which a re-indexed page resets:
 // in August 2026 the briefing carried an HR Dive survey published 22 Aug 2025
@@ -73,7 +75,7 @@ export function widerWindow(tbs) {
 // URLs carry no date, so that exact case still gets through; reading the
 // article's published date means scraping it.
 export function urlDateTooOld(url, tbs, todayISO) {
-  const days = { 'qdr:d': 1, 'qdr:w': 7, 'qdr:m': 31 }[tbs]
+  const days = WINDOW_DAYS[tbs]
   if (!days) return false
   let path
   try {
@@ -87,6 +89,52 @@ export function urlDateTooOld(url, tbs, todayISO) {
   const published = day ? Date.UTC(year, month - 1, day) : Date.UTC(year, month, 0)
   const today = Date.parse(`${todayISO}T00:00:00Z`)
   return today - published > (days + 1) * 86400000
+}
+
+const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
+const ARCHIVE_DATE = /^([A-Z][a-z]{2}) (\d{1,2}), (20\d\d)$/
+
+// Reads the archive page's markdown into issues. Each card is the issue link
+// (repeated several times by the theme), a "Mon D, YYYY" line, a "### title"
+// heading and a one-line blurb; a card's date therefore belongs to the last /p/
+// link above it. Cards without a date or a title are skipped rather than
+// guessed at. The date is returned as ISO so the model reads it unambiguously.
+// Depends on beehiiv's theme: if the layout changes this returns [] and the
+// caller reports it, it does not invent dates.
+export function parseNewsletterArchive(markdown) {
+  const lines = String(markdown ?? '').split('\n').map((l) => l.trim()).filter(Boolean)
+  const issues = []
+  let url = null
+  for (let i = 0; i < lines.length; i++) {
+    const link = lines[i].match(/\]\((https:\/\/thehero\.beehiiv\.com\/p\/[^)\s]+)\)/g)
+    if (link) url = link[link.length - 1].slice(2, -1)
+    const d = lines[i].match(ARCHIVE_DATE)
+    if (!d || !url) continue
+    const month = MONTHS.indexOf(d[1].toLowerCase())
+    if (month === -1) continue
+    const rest = lines.slice(i + 1)
+    const at = rest.slice(0, 6).findIndex((l) => l.startsWith('### '))
+    if (at === -1) continue
+    const heading = rest[at]
+    const blurb = rest.slice(at + 1).find((l) => !l.startsWith('!['))
+    issues.push({
+      title: heading.slice(4).replace(/^[\p{Extended_Pictographic}\uFE0F\s]+/u, '').trim(),
+      url,
+      date: `${d[3]}-${String(month + 1).padStart(2, '0')}-${String(d[2]).padStart(2, '0')}`,
+      snippet: blurb,
+    })
+    url = null
+  }
+  return dedupeStories(issues)
+}
+
+// True when an issue's ISO publication date falls inside the search window,
+// with the same one day of slack as urlDateTooOld. An unknown window keeps it.
+export function issueInWindow(issue, tbs, todayISO) {
+  const days = WINDOW_DAYS[tbs]
+  const published = Date.parse(`${issue?.date}T00:00:00Z`)
+  if (!days || Number.isNaN(published)) return !days
+  return Date.parse(`${todayISO}T00:00:00Z`) - published <= (days + 1) * 86400000
 }
 
 // Two searches returning the same story is the norm, not the exception -- the

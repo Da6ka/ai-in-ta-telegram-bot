@@ -17,7 +17,7 @@
 // Failure policy: one failed query is survivable and the run continues with
 // whatever the others returned; every query failing is not, and exits non-zero
 // so the workflow's alerting fires instead of composing an empty briefing.
-import { NEWSLETTER_QUERIES, NEWS_QUERIES, dedupeStories, formatStories, isNewsletterIssue, recencyTbs, urlDateTooOld, widerWindow } from '../shared/news-queries.mjs'
+import { NEWSLETTER_ARCHIVE_URL, NEWS_QUERIES, dedupeStories, formatStories, isNewsletterIssue, issueInWindow, parseNewsletterArchive, recencyTbs, urlDateTooOld, widerWindow } from '../shared/news-queries.mjs'
 import { sourceTier } from '../shared/source-allowlist.mjs'
 import { recencyWindowHours } from '../shared/telegram.mjs'
 import { existsSync, readFileSync } from 'node:fs'
@@ -70,31 +70,42 @@ async function search(query, window, sources = [{ type: 'news' }]) {
   return news.map((r) => ({ title: r.title, url: r.url, date: r.date, snippet: r.snippet, query }))
 }
 
-// One pass of all ten news queries plus the newsletter query at a given window.
-// Rejections are reported and tolerated here; whether "all of them failed" is
-// fatal is the caller's call. Each query costs about 2 Firecrawl credits, so a
-// pass is ~22 -- see the README's note on the plan's monthly ceiling before
-// adding queries or passes.
+// The Hero is read from its archive page, one scrape (about 1 credit): search
+// over the domain carries no dates and misses the newest issues. Rejection is
+// survivable, as it was for the newsletter query -- the source is optional.
+async function fetchArchive() {
+  try {
+    const res = await fetch('https://api.firecrawl.dev/v2/scrape', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${API_KEY}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ url: NEWSLETTER_ARCHIVE_URL, formats: ['markdown'] }),
+    })
+    if (!res.ok) throw new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 300)}`)
+    const body = await res.json()
+    if (!body.success || body.data?.metadata?.statusCode !== 200) {
+      throw new Error(`scrape failed: ${JSON.stringify(body).slice(0, 300)}`)
+    }
+    const issues = parseNewsletterArchive(body.data.markdown)
+    if (!issues.length) console.error('The Hero archive parsed to zero issues -- has the page layout changed?')
+    return issues
+  } catch (err) {
+    console.error(`The Hero archive failed: ${err?.message ?? err}`)
+    return []
+  }
+}
+
+// One pass of all ten news queries at a given window. Rejections are reported
+// and tolerated here; whether "all of them failed" is fatal is the caller's
+// call. Each query costs about 2 Firecrawl credits, so a pass is ~20 -- see the
+// README's note on the plan's monthly ceiling before adding queries or passes.
 async function sweep(window) {
-  const jobs = [
-    ...NEWS_QUERIES.map((query) => ({ query, newsletter: false })),
-    ...NEWSLETTER_QUERIES.map((query) => ({ query, newsletter: true })),
-  ]
-  const settled = await Promise.allSettled(
-    jobs.map((job) => search(job.query, window, job.newsletter ? [{ type: 'web' }] : undefined)),
-  )
+  const settled = await Promise.allSettled(NEWS_QUERIES.map((query) => search(query, window)))
   for (const [i, result] of settled.entries()) {
     if (result.status === 'rejected') {
-      console.error(`Query "${jobs[i].query}" failed (window ${window}): ${result.reason?.message ?? result.reason}`)
+      console.error(`Query "${NEWS_QUERIES[i]}" failed (window ${window}): ${result.reason?.message ?? result.reason}`)
     }
   }
-  // A site: search also returns the archive and subscribe pages; only /p/ posts
-  // are issues. Kept apart from the news stories so a newsletter hit neither
-  // takes one of MAX_ITEMS' slots nor hides a thin news day from NEWS_MIN_STORIES.
-  const all = settled.flatMap((s, i) => {
-    if (s.status !== 'fulfilled') return []
-    return jobs[i].newsletter ? s.value.filter((r) => isNewsletterIssue(r.url)) : s.value
-  })
+  const all = settled.flatMap((s) => (s.status === 'fulfilled' ? s.value : []))
   // Dropped here rather than left for the prompt to reject: a denied domain
   // that stays on the list still occupies one of the model's slots, and a
   // stock-analysis rewrite of a real story crowds out the story itself.
@@ -107,14 +118,18 @@ async function sweep(window) {
     console.error(`Dropped ${story.url}: its URL dates it outside the ${window} window.`)
   }
   return {
+    // A beehiiv result from the news queries is not an issue: issues come from
+    // the archive only, with a real date.
     stories: dated.filter((s) => !isNewsletterIssue(s.url)),
-    issues: dated.filter((s) => isNewsletterIssue(s.url)),
-    // Counted over the news queries only: every one of them failing is fatal
-    // even when the newsletter query came back.
-    ok: settled.filter((s, i) => !jobs[i].newsletter && s.status === 'fulfilled').length,
+    ok: settled.filter((s) => s.status === 'fulfilled').length,
     total: NEWS_QUERIES.length,
   }
 }
+
+// Issues are kept apart from the news stories so one neither takes a slot from
+// MAX_ITEMS nor hides a thin news day from NEWS_MIN_STORIES.
+const archive = await fetchArchive()
+const issuesIn = (window) => archive.filter((issue) => issueInWindow(issue, window, todayISO))
 
 const first = await sweep(tbs)
 if (!first.ok) {
@@ -123,7 +138,7 @@ if (!first.ok) {
 }
 
 let stories = dedupeStories(first.stories, MAX_ITEMS)
-let issues = dedupeStories(first.issues, MAX_NEWSLETTER)
+let issues = dedupeStories(issuesIn(tbs), MAX_NEWSLETTER)
 console.error(`Fetched ${stories.length} distinct stories from ${first.ok}/${first.total} queries and ${issues.length} newsletter issue(s) (window ${tbs}).`)
 
 if (MIN_STORIES && stories.length < MIN_STORIES) {
@@ -139,7 +154,7 @@ if (MIN_STORIES && stories.length < MIN_STORIES) {
     // job -- the wider list still carries every story's date, and the prompt
     // still refuses anything outside its own window.
     stories = dedupeStories([...first.stories, ...second.stories], MAX_ITEMS)
-    issues = dedupeStories([...first.issues, ...second.issues], MAX_NEWSLETTER)
+    issues = dedupeStories(issuesIn(wider), MAX_NEWSLETTER)
     console.error(`Now ${stories.length} distinct stories after widening to ${wider} (${second.ok}/${second.total} queries).`)
   }
 }
