@@ -88,7 +88,7 @@ const GENERATION_IN_FLIGHT_MIN = 10
 // heartbeat, fired ~3h after the 09:05 daily dispatch -- long past generation
 // (~10 min) and the 10:30 GitHub watchdog -- so a healthy day has always synced
 // today_briefing_date to KV by the time it runs. See briefingHeartbeat.
-const HEARTBEAT_CRON = '0 12 * * 1-5'
+const HEARTBEAT_CRON = '0 12 * * MON-FRI'
 
 // Capacity cap for the current private, single-operator deployment. The daily
 // send stays comfortably under Telegram's rate limit at this size. Broadcast

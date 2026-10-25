@@ -181,7 +181,7 @@ test('status endpoint', async (t) => {
     assert.equal(body.caps.askGlobal, 40)
     assert.equal(body.cooldownsSec.briefing, 3600)
     assert.equal(body.cooldownsSec.briefingOwner, 300)
-    assert.equal(body.heartbeatCron, '0 12 * * 1-5')
+    assert.equal(body.heartbeatCron, '0 12 * * MON-FRI')
     assert.equal(fetchLog.length, 0, 'a status read costs nothing downstream')
   })
 
@@ -852,7 +852,7 @@ test('maintenance pause', async (t) => {
     kv.map.set('last_delivered_date', '2020-01-01')
     fetchLog = []
     waited = []
-    await worker.default.scheduled({ cron: '0 12 * * 1-5' }, env, { waitUntil: (p) => waited.push(p) })
+    await worker.default.scheduled({ cron: '0 12 * * MON-FRI' }, env, { waitUntil: (p) => waited.push(p) })
     await Promise.all(waited)
     assert.equal(sends().length, 0, 'no heartbeat alert while paused')
   })
@@ -1288,7 +1288,7 @@ test('scheduled cron trigger', async (t) => {
 test('briefing heartbeat cron', async (t) => {
   // Must match HEARTBEAT_CRON in worker/src/index.js and the second entry in
   // worker/wrangler.toml -- the 'cron strings agree' test below guards the pair.
-  const HEARTBEAT = '0 12 * * 1-5'
+  const HEARTBEAT = '0 12 * * MON-FRI'
   await t.test("alerts the owner when today's briefing has not landed", async () => {
     resetState()
     kv.map.set('last_delivered_date', '2020-01-01') // stale: nothing delivered today
@@ -1333,7 +1333,7 @@ test('briefing heartbeat cron', async (t) => {
     resetState()
     fetchLog = []
     const waited = []
-    await worker.default.scheduled({ cron: '5 9 * * 1-5' }, env, { waitUntil: (p) => waited.push(p) })
+    await worker.default.scheduled({ cron: '5 9 * * MON-FRI' }, env, { waitUntil: (p) => waited.push(p) })
     await Promise.all(waited)
     assert.equal(ghDispatches().length, 1, 'the 09:05 cron still dispatches the daily briefing')
     assert.equal(sends().length, 0, 'and sends no heartbeat alert')
@@ -1346,13 +1346,13 @@ test('briefing heartbeat cron', async (t) => {
       await worker.default.scheduled({ cron, scheduledTime: Date.parse(iso) }, env, { waitUntil: (p) => waited.push(p) })
       await Promise.all(waited)
     }
-    await run('2026-10-25T09:05:00Z', '5 9 * * 1-5') // Sunday
+    await run('2026-10-25T09:05:00Z', '5 9 * * MON-FRI') // Sunday
     assert.equal(ghDispatches().length, 0, 'Sunday: no dispatch')
-    await run('2026-10-24T09:05:00Z', '5 9 * * 1-5') // Saturday
+    await run('2026-10-24T09:05:00Z', '5 9 * * MON-FRI') // Saturday
     assert.equal(ghDispatches().length, 0, 'Saturday: no dispatch')
     await run('2026-10-25T12:00:00Z', HEARTBEAT) // Sunday heartbeat
     assert.equal(sends().length, 0, 'Sunday: no heartbeat alert')
-    await run('2026-10-26T09:05:00Z', '5 9 * * 1-5') // Monday
+    await run('2026-10-26T09:05:00Z', '5 9 * * MON-FRI') // Monday
     assert.equal(ghDispatches().length, 1, 'Monday: dispatches')
   })
 })

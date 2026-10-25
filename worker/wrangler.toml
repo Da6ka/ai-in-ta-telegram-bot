@@ -35,6 +35,9 @@ GITHUB_REPO = "Da6ka/ai-in-ta-telegram-bot"
 # Actions) if a day's briefing never landed -- the account-wide Actions-block
 # failure mode that in-Actions guards (workflow retries, watchdog) cannot catch.
 #
+# Cloudflare numbers weekdays 1=Sunday..7=Saturday, so the standard-cron `1-5`
+# ran Sun-Thu here (found 2026-10-25). Use day names, never a numeric range.
+#
 # Mon-Fri only since 2026-08-21 (weekend editions were ~28% of generations and
 # the largest single line in running cost). The heartbeat follows the same
 # days: on a Saturday it would alert about a briefing that was never meant to
@@ -42,7 +45,7 @@ GITHUB_REPO = "Da6ka/ai-in-ta-telegram-bot"
 # character for character -- the `scheduled` handler tells the two crons apart
 # by comparing against it, so a drifted copy silently turns the 12:00 heartbeat
 # into a second briefing dispatch.
-crons = ["5 9 * * 1-5", "0 12 * * 1-5"]
+crons = ["5 9 * * MON-FRI", "0 12 * * MON-FRI"]
 
 # --- Staging deployment -------------------------------------------------------
 # A separate Worker + separate bot for dry-running command changes before they
