@@ -1,6 +1,6 @@
 # Workday
 
-Workday owns Paradox, an AI-driven recruiting platform that sits at the center of many enterprise TA stacks. Workday faces two critical pressure points: first, litigation over AI bias in its screening tools (Mobley v. Workday), establishing vendor liability for algorithmic discrimination alongside employers; second, ownership risk following Silver Lake's proposed $35+ billion takeover of the company, which could trigger roadmap and compliance shifts affecting both the core HCM suite and Paradox's product direction. For TA teams running Workday's recruiting modules or Paradox directly, procurement risk spans both legal exposure and potential leadership changes under new ownership.
+Workday sits at the center of many enterprise TA stacks and owns Paradox, an AI-driven recruiting platform. Workday faces two critical pressure points: first, litigation over AI bias in its screening tools (Mobley v. Workday), where a judge let claims proceed that treat the vendor as liable for algorithmic discrimination alongside employers; second, ownership risk following Silver Lake's reported talks to take the company private, which could trigger roadmap and compliance shifts affecting both the core HCM suite and Paradox's product direction. For TA teams running Workday's recruiting modules or Paradox directly, procurement risk spans both legal exposure and potential leadership changes under new ownership.
 
 ## Timeline
 

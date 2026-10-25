@@ -1,6 +1,6 @@
 # iCIMS
 
-iCIMS is embedding AI across its core ATS and talent management platform, with a focus on high-volume hiring. The Summer 2026 release moved High-Volume Hiring to general availability, bundling AI-powered apply experiences, streamlined workflows, and embedded analytics. For high-volume TA teams (retail, hospitality, logistics, seasonal hiring), iCIMS is the incumbent ATS trying to keep pace with agentic new entrants by baking automation closer to the application experience. The key risk: embedded analytics need real visibility into adverse-impact patterns before they scale.
+iCIMS is embedding AI across its core ATS and talent management platform, with a focus on high-volume hiring. The Summer 2026 release moved High-Volume Hiring to general availability, bundling AI-powered apply experiences, streamlined workflows, and embedded analytics. For high-volume TA teams (seasonal and frontline roles), iCIMS is the incumbent ATS trying to keep pace with agentic new entrants by baking automation closer to the application experience. The key risk: embedded analytics need real visibility into adverse-impact patterns before they scale.
 
 ## Timeline
 

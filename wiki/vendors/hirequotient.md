@@ -1,6 +1,6 @@
 # HireQuotient
 
-HireQuotient is an AI-native applicant tracking system purpose-built for high-volume, frontline hiring. It combines autonomous outbound candidate discovery, pre-verified contact enrichment, and personalized AI outreach with a consolidated system of record that replaces fragmented stacks of spreadsheets, legacy databases, and point solutions. The platform integrates directly into Paylocity, expanding access to manufacturing, building services, construction, healthcare, and insurance sectors historically underserved by AI recruiting tools. Early customers report 70–80% reductions in manual sourcing and screening effort, with time-to-hire cuts of 50% or more.
+HireQuotient is an AI-native applicant tracking system purpose-built for high-volume, frontline hiring. It combines autonomous outbound candidate discovery, pre-verified contact enrichment, and personalized AI outreach with a consolidated system of record that replaces fragmented stacks of spreadsheets, legacy databases, and point solutions. The platform integrates directly into Paylocity, expanding access to manufacturing, building services, construction, healthcare, and insurance sectors historically underserved by AI recruiting tools. Per HireQuotient's own announcements, early customers report 70–80% reductions in manual sourcing and screening effort, with time-to-hire cuts of 50% or more.
 
 ## Timeline
 

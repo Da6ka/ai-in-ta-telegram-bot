@@ -1,6 +1,6 @@
 # Vendor Consolidation & Capital Flows
 
-Capital is flowing to HR services roll-ups and enterprise-scale talent platforms, not just point-solution startups. Korn Ferry's $1.1B acquisition of UK RPO giant AMS, HR Path's $1B funding round for international expansion, and Mercor's valuation doubling to $20B within nine months all signal that the vendor landscape is consolidating around scale and integration. TA leaders should expect more vendor churn in outsourced layers and broader bundling of AI capabilities.
+Capital is flowing to HR services roll-ups and enterprise-scale talent platforms, not just point-solution startups. Korn Ferry's agreed ~$1.1B acquisition of UK RPO giant AMS, HR Path's $1B funding round for international expansion, and Mercor's talks to double its valuation to $20B within nine months all signal that the vendor landscape is consolidating around scale and integration. TA leaders should expect more vendor churn in outsourced layers and broader bundling of AI capabilities.
 
 ## Timeline
 
