@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.10.1] - 2026-10-25
+
 ### Briefing summaries: more snippet text, no generic takeaways
 
 The model writes each bullet from the candidate list alone, and the list cut
