@@ -6,8 +6,9 @@
 
 `docs/design.md` and `docs/technical-spec.md` still described a 30-user cap and
 "approaching" it; the code has been at 50 since 1.10.0. `docs/wiki-design.md`
-still called the wiki ingest "not yet observed on a real run" although it has
-been running daily since July. Docs only, no behavior change.
+still called the wiki ingest "not yet observed on a real run"; it ran through
+2026-08-29 (the last entry in `wiki/log.md`), has not run since the 2026-09-02
+pause, and has had one manual lint pass. Docs only, no behavior change.
 
 ### Review hardening
 
