@@ -376,11 +376,24 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          claude -p "$(cat wiki-ingest-prompt.md)" \
+          # The model reads news-derived bullets (untrusted) and has Write/Edit,
+          # and the next steps run repo scripts with the Cloudflare token. So it
+          # works in a scratch dir holding only a copy of wiki/, same pattern as
+          # ask.yml: it cannot reach scripts/, shared/ or .git, and the wiki/**
+          # rules are belt and braces. Only wiki/ is copied back afterwards.
+          INGESTROOT="$(mktemp -d)"
+          cp -r wiki "$INGESTROOT/wiki"
+          (cd "$INGESTROOT" && claude -p "$(cat "$GITHUB_WORKSPACE/wiki-ingest-prompt.md")" \
             --model claude-haiku-4-5-20251001 \
-            --allowedTools "Read Write Edit Glob Grep" \
+            --allowedTools "Read(wiki/**) Glob(wiki/**) Grep(wiki/**) Write(wiki/**) Edit(wiki/**)" \
             --max-budget-usd 2.5 \
-            --setting-sources user
+            --setting-sources user)
+          # Model output is data: take back markdown pages only, never scripts
+          # or the jsonl/state files the prompt reserves for scripts.
+          (cd "$INGESTROOT" && find wiki -type f -name '*.md') | while read -r f; do
+            mkdir -p "$(dirname "$f")"
+            cp "$INGESTROOT/$f" "$f"
+          done
 
       # Separate step so a failed or half-finished ingest never marks its
       # records done -- they'd never be retried. Reads .outcome, not

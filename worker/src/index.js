@@ -505,6 +505,15 @@ export class BotState extends DurableObject {
   }
 }
 
+// Constant-time string compare for the webhook secret (no early exit on the
+// first differing character). A missing header or unset secret never matches.
+function safeEqual(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false
+  let diff = 0
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i)
+  return diff === 0
+}
+
 async function getJSON(env, key, fallback) {
   // A corrupt value (invalid JSON) would otherwise throw here, bubble up, be
   // swallowed by the top-level handler catch, and leave the user with no reply
@@ -1409,14 +1418,15 @@ async function handleCallbackQuery(env, stub, callbackQuery) {
   }
   const [, decision, targetId] = am
   const msg = callbackQuery.message
+  // Stale-button guard: if the target is no longer pending (already handled,
+  // or removed since this card was sent), don't silently re-add them (BUG-6)
+  // or send a second, contradicting verdict to the applicant. Covers Deny too.
+  if (!access.pending[targetId]) {
+    await tg(env, 'answerCallbackQuery', { callback_query_id: callbackQuery.id, text: 'No longer pending' })
+    if (msg?.text) await tg(env, 'editMessageText', { chat_id: msg.chat.id, message_id: msg.message_id, text: `${msg.text}\n\nNo longer pending — ignored.` })
+    return
+  }
   if (decision === 'Y') {
-    // Stale-button guard: if the target is no longer pending (already handled,
-    // or removed since this card was sent), don't silently re-add them (BUG-6).
-    if (!access.pending[targetId]) {
-      await tg(env, 'answerCallbackQuery', { callback_query_id: callbackQuery.id, text: 'No longer pending' })
-      if (msg?.text) await tg(env, 'editMessageText', { chat_id: msg.chat.id, message_id: msg.message_id, text: `${msg.text}\n\nNo longer pending — ignored.` })
-      return
-    }
     const { atCapacity } = await stub.addAllowedUser(targetId)
     if (atCapacity) {
       // Leave them pending so the owner can approve once a slot frees up.
@@ -1611,7 +1621,7 @@ export default {
     }
     if (request.method !== 'POST') return new Response('ok')
     const secret = request.headers.get('X-Telegram-Bot-Api-Secret-Token')
-    if (secret !== env.TELEGRAM_WEBHOOK_SECRET) return new Response('unauthorized', { status: 401 })
+    if (!safeEqual(secret, env.TELEGRAM_WEBHOOK_SECRET)) return new Response('unauthorized', { status: 401 })
 
     let update
     try {
@@ -1626,6 +1636,11 @@ export default {
       const isNew = await stub.recordSeenUpdate(update.update_id)
       if (!isNew) return new Response('ok') // Telegram redelivery of an update we already processed
     }
+
+    // Marked seen BEFORE handling, on purpose: a retry would re-run a
+    // non-idempotent command (/broadcast, /newbriefing), which is worse than
+    // dropping one command after a transient failure. The handler error below
+    // is logged and the user can resend.
 
     try {
       if (update.callback_query) await handleCallbackQuery(env, stub, update.callback_query)
