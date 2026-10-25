@@ -1,6 +1,6 @@
 # Bullhorn
 
-Bullhorn is one of the largest staffing-CRM and high-volume ATS platforms, and its August 2026 leadership restructuring signals a pivot toward agentic hiring at scale. The elevation of Jon Novich to CTO and Tamar Epstein to EVP of product indicates the vendor is reorganizing squarely around autonomous sourcing, screening, and coordination workflows. For TA leaders running Bullhorn-based high-volume hiring, this is a signal to audit the vendor's AI roadmap and evaluate which agentic capabilities are coming to your stack and what compliance guardrails they'll include.
+Bullhorn is one of the largest staffing-CRM and high-volume ATS platforms, and its August 2026 promotion of four senior leaders signals a pivot toward agentic hiring at scale. The elevation of Jon Novich to CTO and Tamar Epstein to EVP of product indicates the vendor is reorganizing squarely around agentic hiring. For TA leaders running Bullhorn-based high-volume hiring, this is a signal to audit the vendor's AI roadmap and evaluate which agentic capabilities are coming to your stack and what compliance guardrails they'll include.
 
 ## Timeline
 

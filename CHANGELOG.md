@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+### Wiki lint: standing summaries checked against sources
+
+The intro paragraph of every theme and vendor page was compared with the bullets
+it summarizes; 10 pages were brought back in line. Fixes drop claims no bullet
+makes (Workday $35B takeover, Sonnet 5 as "budget baseline", the SMB
+"mismatch" inference), soften overstatements (Mobley v. Workday as an "agent"
+theory a judge let proceed, not established liability; Korn Ferry and Mercor
+deals as agreed or in talks; Claude Tag in Slack, Teams only reported), and add
+the vendor attribution rule 5 requires (HireQuotient). The Gibson Dunn EU AI Act
+entry moved from 3 Jul to 27 May 2026, the article's date: the article
+describes a provisional agreement still awaiting formal adoption, which the
+briefing had carried on 4 Jul as the Council's final sign-off. That resolves
+the "contested" EU deadline in the summary and open questions. The Resume.org
+figures (57%, 74%) match the HR Dive article. Raw layer untouched; one `lint`
+line in `wiki/log.md`.
+
 ### Wiki lint: dates and summaries checked against sources
 
 Every timeline entry (171) was compared with the raw-layer bullet it cites, and
@@ -14,7 +30,7 @@ entry now says so and uses the article's headline ("1 in 3 companies", not
 story's text under the wrong link (Josh Bersin, 7 Jul), one said "launched" for
 a profile, and the rest dropped an attribution or added implications the bullet
 doesn't make. Raw layer untouched; one `lint` line in `wiki/log.md`. Standing
-summaries at the top of pages were not checked.
+summaries were checked in a follow-up pass (entry above).
 
 ### broadcast.yml: duplicate dispatches of one /broadcast now run serially
 

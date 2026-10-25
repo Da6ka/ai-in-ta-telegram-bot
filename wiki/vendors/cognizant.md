@@ -1,6 +1,6 @@
 # Cognizant
 
-Cognizant is building AI-native workforce pipelines at scale: a "Frontier" initiative pairing internal certifications (5,000 AI engineers, 10,000 business operators by Q4 2026) with dedicated campus hiring (1,500 US graduates annually), plus workforce reskilling across its 350,000+ headcount. As a major services firm standardizing delivery teams on AI, Cognizant signals how large employers are moving from lateral-hire competition to internal cultivation — a template for TA leaders designing early-career and mid-career progression around AI-adjacent roles.
+Cognizant is building AI-native workforce pipelines at scale: a "Frontier" initiative pairing internal certifications (5,000 AI engineers, 10,000 business operators by Q4 2026) with dedicated campus hiring (1,500 US graduates in 2026), plus Claude certification for 30,000+ associates, targeting its full 350,000+ headcount. As a major services firm standardizing delivery teams on AI, Cognizant signals how large employers are moving from lateral-hire competition to internal cultivation — a template for TA leaders designing early-career and mid-career progression around AI-adjacent roles.
 
 ## Timeline
 
