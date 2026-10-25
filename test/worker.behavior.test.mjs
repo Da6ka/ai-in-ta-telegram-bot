@@ -311,6 +311,12 @@ test('pairing flow', async (t) => {
     assert.ok(!doStorage.map.get('access').allowFrom.includes('222'), 'removed user not re-added')
     assert.equal(tgCalls('answerCallbackQuery')[0].body.text, 'No longer pending', 'owner told the button is stale')
   })
+  await t.test('stale deny button is ignored and the applicant gets no second verdict', async () => {
+    fetchLog = []
+    await send(cb(OWNER, 'acc:N:222'))
+    assert.equal(tgCalls('answerCallbackQuery')[0].body.text, 'No longer pending')
+    assert.equal(sends().length, 0, 'no message to the applicant')
+  })
 })
 
 // =============== user commands ===============

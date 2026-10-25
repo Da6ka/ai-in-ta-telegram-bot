@@ -89,8 +89,15 @@ jobs:
           fi
 
       - name: Score the candidate
+        # Inputs go through env, not ${{ }} inside the script, so a crafted
+        # input value cannot be parsed as shell.
+        env:
+          IN_MODEL: ${{ inputs.model }}
+          IN_EFFORT: ${{ inputs.effort }}
+          IN_SEARCH_MODE: ${{ inputs.search_mode }}
+          IN_DOMAINS: ${{ inputs.domains }}
         run: |
-          echo "### Candidate (${{ inputs.model }}, effort ${{ inputs.effort }}, search ${{ inputs.search_mode }}, domains ${{ inputs.domains }})" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Candidate (${IN_MODEL}, effort ${IN_EFFORT}, search ${IN_SEARCH_MODE}, domains ${IN_DOMAINS})" >> "$GITHUB_STEP_SUMMARY"
           node scripts/score-briefing.mjs state/candidate_briefing.md | tee -a "$GITHUB_STEP_SUMMARY"
 
       # The incumbent is scored from the committed file, so this costs nothing

@@ -35,6 +35,10 @@ if (!CF_ACCOUNT_ID || !CF_API_TOKEN || !CF_KV_NAMESPACE_ID) {
 const key = `dispatch_seen:${DISPATCH_ID}`
 const base = `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/storage/kv/namespaces/${CF_KV_NAMESPACE_ID}/values/${key}`
 
+// simplification: GET-then-PUT is not atomic (KV has no compare-and-set), so two
+// runs of one dispatch that start in the same instant can both pass. Retries
+// arrive seconds apart, not simultaneously, so the window is accepted. Ceiling:
+// a truly concurrent duplicate. Upgrade path: claim the id in the BotState DO.
 const getRes = await fetch(base, { headers: { Authorization: `Bearer ${CF_API_TOKEN}` } })
 if (getRes.status === 200) {
   console.log(`Dispatch ${DISPATCH_ID} already processed -- skipping duplicate delivery.`)

@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+### Review fixes: wiki ingest sandboxed, Deny guard, constant-time secret check
+
+The Friday wiki ingest now runs in a scratch directory holding only a copy of
+`wiki/`, with Read/Write/Edit/Glob/Grep scoped to `wiki/**`, and only `.md`
+pages are copied back. Before, the model had Write/Edit over the whole checkout
+while reading untrusted news bullets, and the next step ran repo scripts with
+the Cloudflare token. The access-request Deny button now has the same stale
+guard as Approve, so a second click no longer sends the applicant a second
+verdict. The webhook secret is compared in constant time. `compare-generators`
+passes its inputs through `env:` instead of `${{ }}` inside the script.
+Comments now record why an update is marked seen before handling and the
+accepted ceiling of the dispatch dedupe.
+
 ### Candidate list kept for every edition; stories dated out by their URL dropped
 
 Every daily and `/newbriefing` run now uploads `state/today_stories.md`, the
