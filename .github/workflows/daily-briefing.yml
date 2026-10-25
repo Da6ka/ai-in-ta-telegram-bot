@@ -241,6 +241,20 @@ jobs:
             echo "ok=false" >> "$GITHUB_OUTPUT"
           fi
 
+      # The candidate list the model composed from, kept for every run, not only
+      # rejected ones. Each bullet is written from its entry alone, so checking a
+      # thin or wrong summary means reading what the model was given; for the
+      # 2026-10-24 edition that list was gone and had to be rebuilt by searching
+      # again, which returns a different list.
+      - name: Keep the candidate list
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: candidate-list-daily
+          path: state/today_stories.md
+          retention-days: 30
+          if-no-files-found: ignore
+
       # The turn-by-turn response blocks, kept only when the gate rejected the
       # run. The dump above renders what the searches returned; this keeps the
       # structure -- which text block carried which citation -- and that is the
