@@ -66,6 +66,18 @@ test('formatStories renders a numbered, dated, linked list', () => {
   assert.match(block, /Body text/, 'whitespace in snippets is collapsed')
 })
 
+test('formatStories strips markdown so the snippet budget goes to text', () => {
+  // Shape of the ERE result Firecrawl returned for the 2026-10-24 edition.
+  const snippet =
+    '# Inside Anthropic\n## Employees shift to managing agents, hiring managers prioritize judgment over expertise.\n' +
+    '- [Artificial Intelligence](https://www.ere.net/categories/artificial-intelligence)\n\n' +
+    '![Article main image](https://www.ere.net/_next/image?url=https%3A%2F%2Fapi.eremedia.com%2Fa.jpg&w=3840&q=75)\n\n' +
+    'By [David Manaster](https://www.ere.net/authors/david-manaster)\n\nThe report is a **marketing document**.'
+  const block = formatStories([{ title: 'Inside Anthropic', url: 'https://www.ere.net/a', snippet }])
+  assert.doesNotMatch(block, /\]\(|!\[|^\s*#/m, 'no link, image or heading markup left')
+  assert.match(block, /judgment over expertise\. Artificial Intelligence By David Manaster The report is a marketing document\./)
+})
+
 test('formatStories says so plainly when the search came back empty', () => {
   // The model must be able to tell "nothing was found" from "here is a list",
   // or it will compose a briefing out of an empty section header.

@@ -43,7 +43,7 @@ Date format is exact and load-bearing: day-of-month as a plain number (no leadin
 
 Rules:
 
-- Each bullet: 1-2 sentences max, actionable insight over hype
+- Each bullet: 1-2 sentences max. Say what happened, as the list gives it. Add what it means for a TA team only when the snippet itself supports it; a generic tail ("a signal of", "continued consolidation", "a practical example of") is padding, so end on the fact instead
 - Within each section, order items by impact on a TA leader's decisions, highest first — not by the order of the candidate list
 - Every source as a clickable Markdown link: [Title](https://url), using the URL exactly as given in the list
 - Never list bare URLs
