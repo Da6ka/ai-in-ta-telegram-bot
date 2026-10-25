@@ -66,6 +66,13 @@ name = "ai-in-ta-telegram-bot-staging"
 [env.staging.observability]
 enabled = true
 
+# Wrangler inherits `triggers` into an env, so without this the staging Worker
+# also ran both prod crons: a 12:00 UTC heartbeat reading the empty staging KV
+# (false "not delivered" DM from the staging bot, 2026-10-25) and a second
+# 09:05 UTC dispatch of the daily briefing.
+[env.staging.triggers]
+crons = []
+
 [[env.staging.kv_namespaces]]
 binding = "BOT_STATE"
 id = "5b93a48b300f4da4be177ff3504596c3"

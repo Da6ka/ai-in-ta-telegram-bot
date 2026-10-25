@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### Staging Worker no longer runs the prod crons
+
+The 12:00 UTC "briefing hasn't been delivered" DM on 2026-10-25 came from the
+staging bot, not prod: `[env.staging]` inherited the top-level `crons`, so the
+staging Worker ran the heartbeat against its own empty KV (`Last delivery: none`)
+while prod had delivered (`last_delivered_date` = 2026-10-25 in the prod KV, the
+09:05 run green). The same inheritance made staging dispatch the daily briefing
+workflow a second time at 09:05 UTC (the idempotency check was the only thing
+stopping a duplicate). `[env.staging.triggers] crons = []` removes both. Takes
+effect on the next `npx wrangler deploy --env staging`.
+
 ### The Hero newsletter as an optional source
 
 `scripts/fetch-news.mjs` scrapes the archive page of The Hero
