@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### CI no longer writes `usage_stats`, so it cannot undo an erasure
+
+`sync-kv.mjs` used to read the whole `usage_stats` blob, bump the briefing
+counters and write it back. The blob also holds the per-user `last_seen` and
+`usernames` that `/forgetme` erases, so a CI write landing just after an erasure
+could restore the erased entry. The counters now live under their own KV key,
+`briefing_stats`, written only by CI; `usage_stats` is written only by the
+Worker. The first run after the split seeds `briefing_stats` from the old blob.
+`/admin` reads `briefing_stats` and falls back to `usage_stats` until then. The
+committed `state/usage_stats.json` is unchanged.
+
 ### Review fixes: wiki ingest sandboxed, Deny guard, constant-time secret check
 
 The Friday wiki ingest now runs in a scratch directory holding only a copy of

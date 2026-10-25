@@ -207,10 +207,12 @@ generation side, and by the DO's usage writers):
 today_briefing_md:   <string>
 today_briefing_date: <YYYY-MM-DD>  # an edition is CACHED (daily OR on-demand)
 last_delivered_date: <YYYY-MM-DD>  # the daily send REACHED SUBSCRIBERS (§8)
-usage_stats:
-  command_counts: { <command>: <int> }
+briefing_stats:                    # written only by sync-kv.mjs (CI)
   briefings_sent: <int>
   last_briefing_at: <YYYY-MM-DD>
+  briefing_history: [{ date, recipients }]
+usage_stats:                       # written only by the Worker (BotState DO)
+  command_counts: { <command>: <int> }
   last_seen: { <chat_id>: <YYYY-MM-DD> }
   usernames: { <chat_id>: <telegram handle, no @> }  # pruned in lockstep with last_seen
 ```
@@ -219,7 +221,7 @@ usage_stats:
 on-demand `/newbriefing` writes the first while delivering to one requester, and
 only the daily send writes the second. §8's heartbeat depends on that split.
 
-Note `usage_stats.last_briefing_at` here is the KV copy, written by `sync-kv.mjs`
+Note `briefing_stats.last_briefing_at` here is the KV copy, written by `sync-kv.mjs`
 on **both** the daily and on-demand paths. It is not the idempotency marker —
 that is the git-versioned copy in §4.3, which only the daily workflow advances.
 

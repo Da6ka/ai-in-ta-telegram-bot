@@ -635,6 +635,18 @@ test('admin commands', async (t) => {
       assert.ok(sends()[0].body.text.includes('only available to the bot owner'), cmd + ' must be owner-gated')
     }
   })
+  await t.test('/admin shows CI briefing counters from briefing_stats, falling back to usage_stats', async () => {
+    kv.map.set('usage_stats', JSON.stringify({ briefings_sent: 3, last_briefing_at: '2026-10-01', briefing_history: [], command_counts: {}, last_seen: {}, usernames: {} }))
+    fetchLog = []
+    await send(upd(OWNER, '/admin'))
+    assert.ok(sends()[0].body.text.includes('Total sent: 3'), 'fallback to the old blob before the first CI run')
+    kv.map.set('briefing_stats', JSON.stringify({ briefings_sent: 8, last_briefing_at: '2026-10-25', briefing_history: [] }))
+    fetchLog = []
+    await send(upd(OWNER, '/admin'))
+    assert.ok(sends()[0].body.text.includes('Total sent: 8') && sends()[0].body.text.includes('Last sent: 2026-10-25'))
+    kv.map.delete('briefing_stats')
+    kv.map.delete('usage_stats')
+  })
   await t.test('F15 /adduser validation: no arg, non-numeric, valid, duplicate', async () => {
     fetchLog = []
     await send(upd(OWNER, '/adduser'))
