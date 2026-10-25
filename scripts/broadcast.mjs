@@ -4,15 +4,20 @@
 // silently dropped recipients past ~45 on the Workers free plan (BUG-4). The
 // runner has no such cap and reuses the shared paced/retried sender.
 //
-// The message is passed as an env var (not interpolated into the shell), so a
+// The message is read from the event file (not interpolated into the shell), so a
 // message containing shell metacharacters can't do anything. The recipient list
 // is the live `subscribers` KV key the bot maintains — same source as the daily
 // send — so /unsubscribe and /removeuser take effect immediately.
+import { readFileSync } from 'node:fs'
 import { sendTextToMany, tgRequest } from '../shared/telegram.mjs'
 import { isPermanentlyUnreachable, recordBlocked } from '../shared/blocked-subscribers.mjs'
 
 const token = process.env.TELEGRAM_BOT_TOKEN
-const message = process.env.MESSAGE
+// Read from the event file, not a step env value: Actions prints the env block
+// into the (public) run log. MESSAGE stays as a local-run fallback.
+const message = process.env.GITHUB_EVENT_PATH
+  ? JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8')).client_payload?.message
+  : process.env.MESSAGE
 const owner = process.env.OWNER_CHAT_ID
 const { CF_ACCOUNT_ID, CF_API_TOKEN, CF_KV_NAMESPACE_ID } = process.env
 

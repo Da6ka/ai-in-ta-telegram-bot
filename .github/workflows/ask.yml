@@ -22,6 +22,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-node@v7
         with:
@@ -107,13 +109,21 @@ jobs:
           # --setting-sources user skips this repo's .claude/settings.json Stop
           # hook (npm test), which otherwise silently eats the output (the
           # 2026-07-14 outage).
+          # Claude Code reads anything inside its working directory without an
+          # allow rule, so run it from a scratch dir holding only a copy of
+          # wiki/: no .git/config, workflow files or scripts to read, whatever
+          # a hostile question says. Reads outside the cwd (/proc/self/environ,
+          # which holds the API key) are not allowed in -p mode. The wiki/**
+          # rules are belt and braces.
+          ASKROOT="$(mktemp -d)"
+          cp -r wiki "$ASKROOT/wiki"
           for attempt in 1 2; do
-            if claude -p "$(cat state/ask-input.md)" \
+            if (cd "$ASKROOT" && claude -p "$(cat "$GITHUB_WORKSPACE/state/ask-input.md")" \
                 --model claude-sonnet-5 \
-                --allowedTools "Read Grep Glob" \
+                --allowedTools "Read(wiki/**) Grep(wiki/**) Glob(wiki/**)" \
                 --max-budget-usd 1 \
-                --debug-file state/ask_debug.log \
-                --setting-sources user > state/ask-answer.md 2> state/ask_stderr.log; then
+                --debug-file "$GITHUB_WORKSPACE/state/ask_debug.log" \
+                --setting-sources user) > state/ask-answer.md 2> state/ask_stderr.log; then
               break
             fi
             echo "Answer attempt $attempt failed. stdout/stderr follow so the cause (rate limit, budget, auth) is visible:"

@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Review hardening
+
+- A failed usage-stats write no longer swallows the user's reply. Only allowlisted users are recorded in `usage_stats`; strangers' commands are no longer stored.
+- `/ask` runs from a scratch directory holding only a copy of `wiki/` (Claude Code reads anything in its cwd without an allow rule), tools are scoped to `wiki/**`, and the checkout no longer persists the git token.
+- `/broadcast` text is read from the event file, not a step env value, so it stays out of the public run log.
+- `/adduser`, `/removeuser`, `/addadmin`, `/removeadmin` take positive numeric ids only (negative group ids are rejected).
+- The `/status` comment now says deploys come from CI.
+
 ### README: approval wording, `/newbriefing` caps, spec covers
 
 The README no longer asks every applicant to DM the owner after requesting access. Approval comes in due course; a DM is only for someone who needs it immediately. The `/newbriefing` limits now match the code (2 per person and 2 across everyone per day, not 3 and 5). The two spec cover images are re-rendered from the v1.10.0 spec page (they still showed v1.8.1 and a 30-user cap). The stale "Paused for now." line is removed (the bot is live again). Docs only, no behavior change.
