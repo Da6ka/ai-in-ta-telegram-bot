@@ -37,3 +37,4 @@ Newest last, one line per pass. Format: `- YYYY-MM-DD — ingest — N record(s)
 - 2026-08-27 — ingest — 2 record(s) → [[anthropic]], [[agentic-recruiting]] (0 new pages)
 - 2026-08-28 — ingest — 3 record(s) → [[hirequotient]], [[agentic-recruiting]], [[vendor-consolidation]] (1 new page)
 - 2026-08-29 — ingest — 5 record(s) → [[anthropic]], [[agentic-recruiting]], [[ai-ethics-and-compliance]] (0 new pages)
+- 2026-10-25 — lint — 15 fixes (4 dates checked against the articles, 11 entries brought back to their source bullets) → [[agentic-recruiting]], [[ai-ethics-and-compliance]], [[skills-based-hiring]], [[anthropic]]

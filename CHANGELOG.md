@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+### Wiki lint: dates and summaries checked against sources
+
+Every timeline entry (171) was compared with the raw-layer bullet it cites, and
+the flagged dates with the articles themselves. Four dates were wrong: Folks
+(15 Jul, published 2 Jul), Claude Tag (4 Jul, published 23 Jun), Claude Academy
+(20 Aug, published 21 Aug), and an HR Dive piece dated 19 Aug 2026 that HR Dive
+published on 22 Aug 2025. The briefing carried that year-old survey as new; the
+entry now says so and uses the article's headline ("1 in 3 companies", not
+"workers"). Eleven entries had drifted from their bullets: one carried another
+story's text under the wrong link (Josh Bersin, 7 Jul), one said "launched" for
+a profile, and the rest dropped an attribution or added implications the bullet
+doesn't make. Raw layer untouched; one `lint` line in `wiki/log.md`. Standing
+summaries at the top of pages were not checked.
+
 ### broadcast.yml: duplicate dispatches of one /broadcast now run serially
 
 The idempotency guard from #28 is a KV check-then-set, which is not atomic, so
