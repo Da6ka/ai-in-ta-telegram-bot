@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+### broadcast.yml: duplicate dispatches of one /broadcast now run serially
+
+The idempotency guard from #28 is a KV check-then-set, which is not atomic, so
+two copies of the same dispatch starting within a few hundred milliseconds could
+both pass and every subscriber would get the message twice. `broadcast.yml` now
+has a concurrency group keyed on `dispatch_id` (falling back to the run id for a
+manual dispatch with none), so copies of one dispatch queue behind each other
+and the second finds the key the first wrote. Distinct broadcasts get distinct
+groups, so the AUD-3 problem (a shared group dropping a queued run) does not
+return. Who can invoke: unchanged, owner or admin via `/broadcast`. Effect on
+the 12:00 UTC daily run: none. No spend cap changes.
+
 ### Docs: stale user-cap and wiki-ingest statements refreshed
 
 `docs/design.md` and `docs/technical-spec.md` still described a 30-user cap and
@@ -17,18 +29,6 @@ pause, and has had one manual lint pass. Docs only, no behavior change.
 - `/broadcast` text is read from the event file, not a step env value, so it stays out of the public run log.
 - `/adduser`, `/removeuser`, `/addadmin`, `/removeadmin` take positive numeric ids only (negative group ids are rejected).
 - The `/status` comment now says deploys come from CI.
-
-### broadcast.yml: duplicate dispatches of one /broadcast now run serially
-
-The idempotency guard from #28 is a KV check-then-set, which is not atomic, so
-two copies of the same dispatch starting within a few hundred milliseconds could
-both pass and every subscriber would get the message twice. `broadcast.yml` now
-has a concurrency group keyed on `dispatch_id` (falling back to the run id for a
-manual dispatch with none), so copies of one dispatch queue behind each other
-and the second finds the key the first wrote. Distinct broadcasts get distinct
-groups, so the AUD-3 problem (a shared group dropping a queued run) does not
-return. Who can invoke: unchanged, owner or admin via `/broadcast`. Effect on
-the 12:00 UTC daily run: none. No spend cap changes.
 
 ### README: approval wording, `/newbriefing` caps, spec covers
 
