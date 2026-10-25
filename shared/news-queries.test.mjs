@@ -3,7 +3,7 @@
 // is the part that decides which stories reach the model and how they read.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { NEWS_QUERIES, dedupeStories, formatStories, recencyTbs, storyKey, widerWindow } from './news-queries.mjs'
+import { NEWS_QUERIES, dedupeStories, formatStories, recencyTbs, storyKey, urlDateTooOld, widerWindow } from './news-queries.mjs'
 
 test('the query set covers every beat the prompt asks for', () => {
   assert.ok(NEWS_QUERIES.length >= 8, 'thin query sets produce thin briefings')
@@ -82,4 +82,17 @@ test('formatStories says so plainly when the search came back empty', () => {
   // The model must be able to tell "nothing was found" from "here is a list",
   // or it will compose a briefing out of an empty section header.
   assert.match(formatStories([]), /No candidate stories/)
+})
+
+test('urlDateTooOld drops a story whose own URL dates it outside the window', () => {
+  const today = '2026-10-25'
+  assert.equal(urlDateTooOld('https://e.com/2025/08/22/survey/', 'qdr:w', today), true, 'a year-old article')
+  assert.equal(urlDateTooOld('https://e.com/2026/10/10/x', 'qdr:w', today), true)
+  assert.equal(urlDateTooOld('https://e.com/2026/10/10/x', 'qdr:m', today), false, 'the widened window allows it')
+  assert.equal(urlDateTooOld('https://e.com/2026/10/18/x', 'qdr:w', today), false, 'seven days back plus slack')
+  assert.equal(urlDateTooOld('https://e.com/2026/09/story', 'qdr:w', today), true, 'month-only, counted from 30 Sep')
+  assert.equal(urlDateTooOld('https://e.com/2026/10/story', 'qdr:w', today), false, 'month-only, this month')
+  assert.equal(urlDateTooOld('https://www.hrdive.com/news/ai-survey/', 'qdr:w', today), false, 'no date in the URL')
+  assert.equal(urlDateTooOld('https://e.com/products/2025-model', 'qdr:w', today), false)
+  assert.equal(urlDateTooOld('not a url', 'qdr:w', today), false)
 })

@@ -17,7 +17,7 @@
 // Failure policy: one failed query is survivable and the run continues with
 // whatever the others returned; every query failing is not, and exits non-zero
 // so the workflow's alerting fires instead of composing an empty briefing.
-import { NEWS_QUERIES, dedupeStories, formatStories, recencyTbs, widerWindow } from '../shared/news-queries.mjs'
+import { NEWS_QUERIES, dedupeStories, formatStories, recencyTbs, urlDateTooOld, widerWindow } from '../shared/news-queries.mjs'
 import { sourceTier } from '../shared/source-allowlist.mjs'
 import { recencyWindowHours } from '../shared/telegram.mjs'
 import { existsSync, readFileSync } from 'node:fs'
@@ -86,7 +86,11 @@ async function sweep(window) {
   if (kept.length < stories.length) {
     console.error(`Dropped ${stories.length - kept.length} result(s) from denylisted domains.`)
   }
-  return { stories: kept, ok: settled.filter((s) => s.status === 'fulfilled').length, total: settled.length }
+  const dated = kept.filter((story) => !urlDateTooOld(story.url, window, todayISO))
+  for (const story of kept.filter((s) => !dated.includes(s))) {
+    console.error(`Dropped ${story.url}: its URL dates it outside the ${window} window.`)
+  }
+  return { stories: dated, ok: settled.filter((s) => s.status === 'fulfilled').length, total: settled.length }
 }
 
 const first = await sweep(tbs)

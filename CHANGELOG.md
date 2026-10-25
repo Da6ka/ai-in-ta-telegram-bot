@@ -2,6 +2,26 @@
 
 ## [Unreleased]
 
+### Candidate list kept for every edition; stories dated out by their URL dropped
+
+Every daily and `/newbriefing` run now uploads `state/today_stories.md`, the
+list the model composed from, as a `candidate-list-daily` or
+`candidate-list-on-demand` artifact kept 30 days. Before, it was kept only when
+the freshness gate rejected the run, so the 24 October edition's thin ERE
+summary had to be diagnosed by searching again, which returns a different list.
+
+`fetch-news.mjs` also drops a story whose URL carries a date (`/YYYY/MM/` or
+`/YYYY/MM/DD/`) outside the search window, with a log line per drop. The
+window filter goes by the news index's date, which a re-indexed page resets;
+the wiki lint found an HR Dive survey from 22 Aug 2025 carried as August 2026
+news. Firecrawl's `date` field is relative ("3 days ago") and is what the
+filter already used, so the URL is the one independent signal. It does not
+catch that HR Dive case itself: HR Dive URLs carry no date, and reading the
+article's published date means scraping it. Who can invoke: unchanged. Effect
+on the daily run: one more artifact upload, possibly fewer candidates; same
+searches, Firecrawl credits and model calls. No spend cap changes. Test in
+`shared/news-queries.test.mjs`.
+
 ## [1.10.1] - 2026-10-25
 
 ### Briefing summaries: more snippet text, no generic takeaways

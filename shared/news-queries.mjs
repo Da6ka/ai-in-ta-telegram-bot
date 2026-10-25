@@ -48,6 +48,32 @@ export function widerWindow(tbs) {
   return i === -1 || i === ladder.length - 1 ? null : ladder[i + 1]
 }
 
+// True when the article's own URL dates it outside the search window. The
+// window filter goes by the news index's date, which a re-indexed page resets:
+// in August 2026 the briefing carried an HR Dive survey published 22 Aug 2025
+// as new. Firecrawl's `date` field is relative ("3 days ago") and already what the
+// filter used, so the URL is the one independent signal. A month-only path
+// counts from the month's last day, and one day of slack covers time zones.
+// simplification: only /YYYY/MM/ and /YYYY/MM/DD/ paths are read. HR Dive's
+// URLs carry no date, so that exact case still gets through; reading the
+// article's published date means scraping it.
+export function urlDateTooOld(url, tbs, todayISO) {
+  const days = { 'qdr:d': 1, 'qdr:w': 7, 'qdr:m': 31 }[tbs]
+  if (!days) return false
+  let path
+  try {
+    path = new URL(String(url)).pathname
+  } catch {
+    return false
+  }
+  const m = path.match(/\/(20\d\d)\/(0?[1-9]|1[0-2])(?:\/(0?[1-9]|[12]\d|3[01]))?(?=\/|$)/)
+  if (!m) return false
+  const [, year, month, day] = m.map(Number)
+  const published = day ? Date.UTC(year, month - 1, day) : Date.UTC(year, month, 0)
+  const today = Date.parse(`${todayISO}T00:00:00Z`)
+  return today - published > (days + 1) * 86400000
+}
+
 // Two searches returning the same story is the norm, not the exception -- the
 // beats overlap by design. Dedupe on host + path so a tracking query string or
 // a trailing slash doesn't smuggle the same article in twice and burn one of
