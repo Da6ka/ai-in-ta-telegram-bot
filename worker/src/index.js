@@ -1195,7 +1195,7 @@ const COMMAND_HANDLERS = {
       await reply(env, senderId, 'Usage: /adduser <chat_id>')
       return
     }
-    if (!/^-?\d+$/.test(id)) {
+    if (!/^\d+$/.test(id)) {
       await reply(env, senderId, `"${id}" doesn't look like a Telegram chat id (should be numeric). Usage: /adduser <chat_id>`)
       return
     }
@@ -1220,6 +1220,10 @@ const COMMAND_HANDLERS = {
     const id = args[0]
     if (!id) {
       await reply(env, senderId, 'Usage: /removeuser <chat_id>')
+      return
+    }
+    if (!/^\d+$/.test(id)) {
+      await reply(env, senderId, `"${id}" doesn't look like a Telegram chat id (should be numeric). Usage: /removeuser <chat_id>`)
       return
     }
     if (args.length > 1) {
@@ -1253,6 +1257,10 @@ const COMMAND_HANDLERS = {
       await reply(env, senderId, 'Usage: /addadmin <chat_id>')
       return
     }
+    if (!/^\d+$/.test(id)) {
+      await reply(env, senderId, `"${id}" doesn't look like a Telegram chat id (should be numeric). Usage: /addadmin <chat_id>`)
+      return
+    }
     if (args.length > 1) {
       await reply(env, senderId, `/addadmin takes exactly one chat id — no change made (ignoring extra argument(s): ${args.slice(1).join(' ')}). Send: /addadmin <chat_id>`)
       return
@@ -1275,6 +1283,10 @@ const COMMAND_HANDLERS = {
     const id = args[0]
     if (!id) {
       await reply(env, senderId, 'Usage: /removeadmin <chat_id>')
+      return
+    }
+    if (!/^\d+$/.test(id)) {
+      await reply(env, senderId, `"${id}" doesn't look like a Telegram chat id (should be numeric). Usage: /removeadmin <chat_id>`)
       return
     }
     if (args.length > 1) {
@@ -1494,7 +1506,15 @@ async function handleMessage(env, stub, message) {
   }
 
   const argStr = m[2]
-  await stub.recordCommand(gated.senderId, cmd, message.from.username)
+  // Best-effort telemetry: a failed KV write must not swallow the user's reply,
+  // and strangers (not on the allowlist) must not grow the usage_stats blob.
+  if (gated.isAllowed) {
+    try {
+      await stub.recordCommand(gated.senderId, cmd, message.from.username)
+    } catch (err) {
+      console.error('recordCommand failed', err)
+    }
+  }
 
   const args = (argStr ?? '').split(/\s+/).filter(Boolean)
   await handler(env, message, gated, args, text)
@@ -1502,9 +1522,9 @@ async function handleMessage(env, stub, message) {
 
 // GET /status -- what this Worker is actually running.
 //
-// Deploys are manual and git-independent (`npx wrangler deploy`; no CI ships
-// the Worker), so "merged to main" and "live in production" are separate
-// facts with nothing connecting them. Verifying a cap change otherwise means
+// Deploys come from CI on merge to main (deploy-worker.yml) but can also be
+// run by hand (`npx wrangler deploy`), so "merged to main" and "live in
+// production" can still diverge. Verifying a cap change otherwise means
 // spending real /newbriefing dispatches to see where the limit bites.
 //
 // It reports the live constants rather than a hand-maintained version string

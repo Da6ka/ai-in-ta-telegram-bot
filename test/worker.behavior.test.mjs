@@ -643,6 +643,14 @@ test('admin commands', async (t) => {
     await send(upd(OWNER, '/adduser 555'))
     assert.ok(sends()[0].body.text.includes('already on the allowlist'))
   })
+  await t.test('id commands take positive numeric ids only (no negative group ids, no junk)', async () => {
+    for (const cmd of ['/adduser -100123', '/removeuser abc', '/removeuser -5', '/addadmin x1', '/removeadmin -7']) {
+      fetchLog = []
+      await send(upd(OWNER, cmd))
+      assert.ok(sends()[0].body.text.includes("doesn't look like"), cmd + ' rejected')
+    }
+    assert.ok(!doStorage.map.get('access').allowFrom.includes('-100123'))
+  })
   await t.test('/adduser with extra arguments warns instead of silently dropping them', async () => {
     fetchLog = []
     await send(upd(OWNER, '/adduser 556 557'))
@@ -988,6 +996,22 @@ test('hostile and malformed input', async (t) => {
     const stats = JSON.parse(kv.map.get('usage_stats') ?? '{}')
     assert.ok(!String(stats.command_counts?.constructor ?? '').includes('native code'), 'no garbage in KV')
     kv.map.delete('usage_stats')
+  })
+  await t.test('stranger commands are not recorded in usage_stats', async () => {
+    kv.map.delete('usage_stats')
+    fetchLog = []
+    await send(upd('9998', '/help', { from: { id: 9998, first_name: 'X', username: 'stranger' } }))
+    assert.equal(kv.map.get('usage_stats'), undefined, 'no stats written for a non-allowlisted sender')
+  })
+  await t.test('a failing usage_stats write still delivers the reply', async () => {
+    const realPut = kv.put
+    kv.put = async (k, v) => { if (k === 'usage_stats') throw new Error('KV 429'); return realPut.call(kv, k, v) }
+    try {
+      fetchLog = []
+      const r = await send(upd(OWNER, '/help'))
+      assert.equal(r.status, 200)
+      assert.equal(sends().length, 1, 'user still gets the reply')
+    } finally { kv.put = realPut }
   })
   await t.test('C9 /broadcast message is dispatched verbatim (HTML not interpreted Worker-side)', async () => {
     fetchLog = []
