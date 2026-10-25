@@ -19,9 +19,10 @@
 //     hand-maintained TELEGRAM_SUBSCRIBER_CHAT_IDS repo secret.
 //   - `usage_stats` stays in the BOT_STATE KV namespace as before. It's also
 //     written directly by the GitHub Actions pipeline (scripts/sync-kv.mjs),
-//     which can't be made to go through the Durable Object -- that
-//     Worker-vs-CI race on the KV blob is a known, accepted limitation
-//     (slightly-off admin stats at worst). recordCommand/purgeUsageStats are
+//     which can't be made to go through the Durable Object. To keep CI from
+//     racing an erasure, CI no longer touches this key: its briefing counters
+//     live in `briefing_stats`, so the Worker is the only writer here.
+//     recordCommand/purgeUsageStats are
 //     DO methods (below) serialized via an explicit in-memory mutex
 //     (withUsageLock), so the Worker-vs-Worker race is closed: a real erasure
 //     (/forgetme, /removeuser) can no longer be silently undone by a
@@ -444,9 +445,8 @@ export class BotState extends DurableObject {
     return true
   }
 
-  // usage_stats lives in KV (not DO storage -- see the top-of-file note: the
-  // CI pipeline's scripts/sync-kv.mjs writes it directly via the REST API, so
-  // it can never be fully race-free). Routing every Worker-side writer
+  // usage_stats lives in KV (not DO storage -- see the top-of-file note: CI
+  // no longer writes it). Routing every Worker-side writer
   // through this singleton DO closes the Worker-vs-Worker race, but only
   // because of withUsageLock() below -- Cloudflare's automatic input/output
   // gating serializes ctx.storage calls, not the KV access these methods make
@@ -1155,6 +1155,9 @@ const COMMAND_HANDLERS = {
     const subs = await stub.getSubscribers()
     const stats = await getJSON(env, 'usage_stats', DEFAULT_USAGE)
     const c = stats.command_counts
+    // Briefing counters are written by CI under their own key (sync-kv.mjs);
+    // before its first run after the split they still sit in usage_stats.
+    const briefings = await getJSON(env, 'briefing_stats', stats)
     const paused = (await env.BOT_STATE.get('maintenance')) === 'on'
     await reply(env, senderId,
       `Bot Admin Panel\n\n` +
@@ -1166,8 +1169,8 @@ const COMMAND_HANDLERS = {
       `Status\n` +
       `- Maintenance pause: ${paused ? 'ON (non-admins see a notice; /briefing still works)' : 'off'}\n\n` +
       `Briefings\n` +
-      `- Total sent: ${stats.briefings_sent}\n` +
-      `- Last sent: ${stats.last_briefing_at ?? 'never'}\n\n` +
+      `- Total sent: ${briefings.briefings_sent ?? 0}\n` +
+      `- Last sent: ${briefings.last_briefing_at ?? 'never'}\n\n` +
       `Command usage\n` +
       // Derived from the handler map so a newly-added command is counted here
       // automatically instead of silently missing from a hand-maintained list.

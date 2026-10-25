@@ -1,7 +1,7 @@
 // Pushes the freshly generated briefing into Cloudflare KV so the Worker's
 // /briefing command can serve it from cache without re-triggering generation.
 import { readFileSync } from 'node:fs'
-import { isValidBriefing, countBriefingItems, MIN_BRIEFING_ITEMS } from '../shared/telegram.mjs'
+import { isValidBriefing, countBriefingItems, MIN_BRIEFING_ITEMS, applyBriefingToUsageStats } from '../shared/telegram.mjs'
 
 const { CF_ACCOUNT_ID, CF_API_TOKEN, CF_KV_NAMESPACE_ID, RECIPIENT_COUNT } = process.env
 if (!CF_ACCOUNT_ID || !CF_API_TOKEN || !CF_KV_NAMESPACE_ID) {
@@ -64,16 +64,22 @@ if (process.env.MARK_DELIVERED === 'true') {
   await kvPut('last_delivered_date', today)
 }
 
-const existingRaw = await kvGet('usage_stats')
-const existing = existingRaw
-  ? JSON.parse(existingRaw)
-  : { briefings_sent: 0, last_briefing_at: null, briefing_history: [], command_counts: {}, last_seen: {}, usernames: {} }
-existing.briefings_sent = (existing.briefings_sent ?? 0) + 1
-existing.last_briefing_at = today
-existing.briefing_history = [
-  ...(existing.briefing_history ?? []),
-  { date: today, recipients: Number(RECIPIENT_COUNT ?? 0) },
-].slice(-30)
-await kvPut('usage_stats', JSON.stringify(existing))
+// CI's briefing counters live under their OWN key, never inside `usage_stats`.
+// That blob also holds the per-user last_seen/usernames the Worker erases on
+// /forgetme, and a CI read-modify-write of the whole blob could write an erased
+// entry back. With a separate key the Worker is the only writer of
+// `usage_stats`. First run after the split seeds the counters from the old
+// blob (read only).
+const briefingRaw = await kvGet('briefing_stats')
+let counters
+if (briefingRaw) {
+  counters = JSON.parse(briefingRaw)
+} else {
+  const oldRaw = await kvGet('usage_stats')
+  const old = oldRaw ? JSON.parse(oldRaw) : {}
+  counters = { briefings_sent: old.briefings_sent ?? 0, last_briefing_at: old.last_briefing_at ?? null, briefing_history: old.briefing_history ?? [] }
+}
+const updated = applyBriefingToUsageStats(counters, { today, recipients: Number(RECIPIENT_COUNT ?? 0) })
+await kvPut('briefing_stats', JSON.stringify(updated))
 
 console.log('Synced briefing to Cloudflare KV.')
