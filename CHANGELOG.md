@@ -10,6 +10,18 @@
 - `/adduser`, `/removeuser`, `/addadmin`, `/removeadmin` take positive numeric ids only (negative group ids are rejected).
 - The `/status` comment now says deploys come from CI.
 
+### broadcast.yml: duplicate dispatches of one /broadcast now run serially
+
+The idempotency guard from #28 is a KV check-then-set, which is not atomic, so
+two copies of the same dispatch starting within a few hundred milliseconds could
+both pass and every subscriber would get the message twice. `broadcast.yml` now
+has a concurrency group keyed on `dispatch_id` (falling back to the run id for a
+manual dispatch with none), so copies of one dispatch queue behind each other
+and the second finds the key the first wrote. Distinct broadcasts get distinct
+groups, so the AUD-3 problem (a shared group dropping a queued run) does not
+return. Who can invoke: unchanged, owner or admin via `/broadcast`. Effect on
+the 12:00 UTC daily run: none. No spend cap changes.
+
 ### README: approval wording, `/newbriefing` caps, spec covers
 
 The README no longer asks every applicant to DM the owner after requesting access. Approval comes in due course; a DM is only for someone who needs it immediately. The `/newbriefing` limits now match the code (2 per person and 2 across everyone per day, not 3 and 5). The two spec cover images are re-rendered from the v1.10.0 spec page (they still showed v1.8.1 and a 30-user cap). The stale "Paused for now." line is removed (the bot is live again). Docs only, no behavior change.
