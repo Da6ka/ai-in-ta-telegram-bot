@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.10.2] - 2026-10-25
+
 ### Worker crons were Sun-Thu, not Mon-Fri; weekend guard added
 
 On Sunday 2026-10-25 the Worker dispatched a briefing. The Cloudflare dashboard
