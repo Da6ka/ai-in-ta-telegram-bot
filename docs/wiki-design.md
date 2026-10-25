@@ -237,9 +237,10 @@ Stages
    `scripts/backfill-wiki-sources.mjs`. **Done 2026-07-16** — 91 records, 11
    days.
 2. **Ingest step.** Append-on-send + the Haiku ingest into `wiki/`. **Built
-   2026-07-16**, not yet observed on a real run. Watch a week: are pages
-   growing sensibly, or is it generating slop? The first ingests drain the
-   backfill, so judge quality there before trusting it unattended.
+   2026-07-16**, running daily since: `wiki/log.md` shows ingest entries
+   through August and the pages have grown by folding bullets onto existing
+   pages (new pages are rare). Quality is spot-checked by the monthly manual
+   lint pass.
 3. **`/ask` in the bot.** Built (see `docs/ask-design.md`). Shipped ahead of
    the ~3-month guideline because stage 2's pages proved worth querying early;
    a read-only Haiku `claude -p` over `wiki/`, no vector store. The command is

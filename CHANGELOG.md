@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Docs: stale user-cap and wiki-ingest statements refreshed
+
+`docs/design.md` and `docs/technical-spec.md` still described a 30-user cap and
+"approaching" it; the code has been at 50 since 1.10.0. `docs/wiki-design.md`
+still called the wiki ingest "not yet observed on a real run" although it has
+been running daily since July. Docs only, no behavior change.
+
 ### Review hardening
 
 - A failed usage-stats write no longer swallows the user's reply. Only allowlisted users are recorded in `usage_stats`; strangers' commands are no longer stored.

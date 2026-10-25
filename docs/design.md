@@ -276,7 +276,7 @@ Reliability
   a briefing by 10:30 UTC.
 - **Broadcast fan-out cap**: moved from Worker to Actions runner after
   silent drops past ~45 recipients from the Worker's per-invocation
-  subrequest limit — not currently a risk at the 30-user cap, but the fix is
+  subrequest limit. Not a risk at the current 50-user cap, and the fix is
   in place regardless.
 
 ---
@@ -292,7 +292,8 @@ Current limitations / open items
   managing admins themselves — that stays owner-only so an admin can't grant
   themselves further privilege. Removing a user via `/removeuser` (or their
   own `/forgetme`) also revokes admin status.
-- ~~30-user cap is a design assumption, not an enforced limit.~~ Corrected on
+- ~~User cap is a design assumption, not an enforced limit.~~ (The cap was 30
+  when this was written and is now 50.) Corrected on
   investigation: it **is** code-enforced (`MAX_USERS` in
   `worker/src/index.js`), checked atomically in `BotState.addAllowedUser` (so
   two concurrent approvals can't both slip past it), and independently in the
@@ -301,11 +302,11 @@ Current limitations / open items
   (`test/worker.behavior.test.mjs`, "capacity cap holds"). The earlier
   "not enforced anywhere" claim in this doc was wrong — filed here as a
   correction, not a re-opened item.
-- Real user base is now 12 allowlisted accounts (4 subscribed) — past the
-  single-user testing phase this bot started in, and approaching the 30-user
-  cap closely enough that the cap and the admin tooling (`/pending`,
-  `/adduser`, `/listusers`) are worth actually exercising rather than treating
-  as speculative.
+- The user base is well past the single-user testing phase this bot started
+  in. `MAX_USERS` was raised from 30 to 50 (and `MAX_PENDING` from 50 to 100)
+  in 1.10.0 for a lecture cohort, with 16 seats already taken at the time. The
+  cap and the admin tooling (`/pending`, `/adduser`, `/listusers`) are in
+  real use, not speculative.
 - ~~No automated test coverage for the GitHub Actions workflows.~~ Partially
   resolved: CI now runs `actionlint` against every workflow file
   (`.github/workflows/ci.yml`), which catches YAML/schema errors, unknown
@@ -331,7 +332,7 @@ Future considerations
 - If the user base grows past a handful, the owner-only admin commands
   (`/pending`, `/adduser`, etc.) will need to move from "one owner reads a
   Telegram list" to something more structured (e.g. a lightweight admin web
-  view) — not needed yet at 2 real users.
+  view). Not needed yet: a Telegram list is still workable at the 50-user cap.
 - The daily/on-demand generation path could converge (on-demand currently
   reuses `on-demand-briefing.yml` + `sync-kv.mjs` as a near-duplicate of the
   daily flow) if the two prompts and idempotency logic ever need to diverge
