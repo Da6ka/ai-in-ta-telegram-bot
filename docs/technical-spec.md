@@ -569,8 +569,8 @@ Staging is at migration tag **v3** for this reason; prod stays at **v1**.
 
 ## 12. Open items / future considerations
 
-- Approaching the 30-user cap: admin tooling (`/pending`, `/adduser`,
-  `/listusers`) is now worth exercising rather than treating as speculative.
+- The user cap is 50 (`MAX_USERS`, raised from 30 in 1.10.0). Admin tooling
+  (`/pending`, `/adduser`, `/listusers`) is in real use at this size.
 - If the user base grows further, owner/admin management may need to move from
   "read a Telegram list" to a lightweight admin web view.
 - The daily and on-demand generation paths are near-duplicates
