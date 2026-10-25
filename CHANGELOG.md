@@ -2,6 +2,30 @@
 
 ## [Unreleased]
 
+### The Hero newsletter as an optional source
+
+`scripts/fetch-news.mjs` runs one extra Firecrawl query,
+`site:thehero.beehiiv.com AI tool agent Claude`, through the web source (the
+news source may not index beehiiv). Only `https://thehero.beehiiv.com/p/` URLs
+are kept, at most three, and they sit after the news stories rather than inside
+the 40-story cap, so a full news list cannot crowd them out. `formatStories`
+marks them `[newsletter issue]`. Both curated prompts gain a rule: an issue is
+not news, at most one per edition, only if it covers a specific AI tool, agent
+pack, feature or workflow for recruiters inside the window, never legal risk,
+fraud statistics, philosophy or general advice, and named as a newsletter in the
+bullet. It is the one exception to the evergreen-guide ban, and the Super
+Recruiter lead-funnel concern is why it is capped and worded that narrowly.
+
+Failure policy is unchanged: a failed newsletter query is survivable, and "every
+query failed" is still counted over the ten news queries only. No admin, allowlist
+or broadcast change; no command changes; the 12:00 UTC run is affected only by
+one more search. Cost: about 2 more Firecrawl credits per sweep, so about 22
+instead of 20 per edition and roughly 480 a month of weekday editions instead
+of 440, against the free plan's 1,000. Anthropic spend and caps are untouched
+beyond a few hundred extra prompt tokens when an issue is listed. Beehiiv URLs
+carry no date, so `urlDateTooOld` neither keeps nor drops them by path; the
+window rests on the search's `qdr` filter. Tests in `shared/news-queries.test.mjs`.
+
 ## [1.10.2] - 2026-10-25
 
 ### Worker crons were Sun-Thu, not Mon-Fri; weekend guard added

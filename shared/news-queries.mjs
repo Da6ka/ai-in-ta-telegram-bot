@@ -29,6 +29,21 @@ export const NEWS_QUERIES = [
   'HR tech vendor funding OR acquisition',
 ]
 
+// Not news: one search restricted to The Hero (Super Recruiter's newsletter on
+// beehiiv), run through Firecrawl's web source because the news source may not
+// index beehiiv. The prompts treat the result as an optional source with its
+// own rule, not as one of the beats above.
+export const NEWSLETTER_QUERIES = ['site:thehero.beehiiv.com AI tool agent Claude']
+
+// The only URLs the newsletter query may contribute. A site: search also
+// returns the archive page, the subscribe page and tag pages; only /p/ posts
+// are issues.
+const NEWSLETTER_ISSUE_URL = /^https:\/\/thehero\.beehiiv\.com\/p\//
+
+export function isNewsletterIssue(url) {
+  return NEWSLETTER_ISSUE_URL.test(String(url ?? ''))
+}
+
 // Firecrawl's time filter. The briefing's hard rule is "published in the past 7
 // days", so a week window is the honest default; a day window exists for a
 // same-day rerun that should only surface what is genuinely new.
@@ -131,7 +146,10 @@ export function formatStories(stories) {
     // allowlist (shared/source-allowlist.mjs): the prompts' "prefer strong
     // sources" rule is advisory, and this is what it reads.
     const tier = sourceTier(story.url) === 'preferred' ? ' [preferred source]' : ''
-    return `${i + 1}. ${story.title}${date}${tier}\n   ${story.url}${snippet}`
+    // Issues are marked, not filtered: most are guides, and which of them is
+    // worth a bullet is the prompt rule's call (see "newsletter issue").
+    const issue = isNewsletterIssue(story.url) ? ' [newsletter issue]' : ''
+    return `${i + 1}. ${story.title}${date}${tier}${issue}\n   ${story.url}${snippet}`
   })
   return `Candidate stories from today's news search, newest first within each query. These are the only stories you may use:\n\n${lines.join('\n\n')}`
 }
