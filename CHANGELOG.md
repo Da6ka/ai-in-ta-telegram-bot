@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+### Briefing summaries: more snippet text, no generic takeaways
+
+The model writes each bullet from the candidate list alone, and the list cut
+every snippet at 400 characters with its markdown intact. When Firecrawl
+returned a page's markdown as the snippet, image and link URLs used up about
+half of that: the ERE story in the 24 October edition reached the model as its
+title, one subtitle and two category links, and the bullet came out vaguer than
+the subtitle and without the article's own caveat. `formatStories` now strips
+images, link targets, heading and list markers before the cut, so the same
+story arrives with its byline, date and the start of the body. Both curated
+prompts now say to add what a story means for a TA team only when the snippet
+supports it; every bullet in that edition had ended on a generic tail
+("continued consolidation", "a practical example of"). The daily prompt also
+gets the "summarize from what the list gives you" rule the on-demand one
+already had. Who can invoke: unchanged. Effect on the daily run: same searches,
+same Firecrawl credits, same model calls; only the prompt text changes. No
+spend cap changes. Test in `shared/news-queries.test.mjs`.
+
 ### Wiki lint: standing summaries checked against sources
 
 The intro paragraph of every theme and vendor page was compared with the bullets

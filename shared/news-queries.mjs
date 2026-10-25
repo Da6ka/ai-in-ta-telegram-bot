@@ -76,6 +76,22 @@ export function dedupeStories(stories, limit = Infinity) {
   return out
 }
 
+// Firecrawl sometimes returns a page's markdown as the snippet. Left raw, image
+// and link URLs eat the 400-character budget: on 2026-10-24 an ERE story reached
+// the model as its title, one subtitle and two category links. Keep the words,
+// drop the markup. simplification: link text survives, so site chrome such as
+// share buttons still costs a few dozen characters; scraping the chosen
+// articles is the upgrade if summaries stay thin.
+function snippetText(snippet) {
+  return String(snippet)
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/^\s*(?:#{1,6}|[-*+])\s+/gm, '')
+    .replace(/\*\*|__/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 // The block appended to the composition prompt. One line of metadata per story
 // plus its snippet: enough for the model to judge relevance, recency and beat,
 // and small enough that a whole day's candidates cost a few thousand tokens
@@ -84,7 +100,7 @@ export function formatStories(stories) {
   if (!stories?.length) return 'No candidate stories were returned by the news search.'
   const lines = stories.map((story, i) => {
     const date = story.date ? ` (${story.date})` : ''
-    const snippet = story.snippet ? `\n   ${String(story.snippet).replace(/\s+/g, ' ').trim().slice(0, 400)}` : ''
+    const snippet = story.snippet ? `\n   ${snippetText(story.snippet).slice(0, 400)}` : ''
     // The marker is the only thing that survives of the API-enforced source
     // allowlist (shared/source-allowlist.mjs): the prompts' "prefer strong
     // sources" rule is advisory, and this is what it reads.
