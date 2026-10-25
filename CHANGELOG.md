@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+### Worker crons were Sun-Thu, not Mon-Fri; weekend guard added
+
+On Sunday 2026-10-25 the Worker dispatched a briefing. The Cloudflare dashboard
+showed its triggers as "Sunday through Thursday": Cloudflare numbers weekdays
+1=Sunday to 7=Saturday, so `1-5` meant Sun-Thu, not the standard-cron Mon-Fri.
+Since 2026-08-21 the Worker's 09:05 dispatch therefore ran on Sundays and never
+on Fridays (the GitHub backup schedule and the watchdog covered Fridays), and
+the 12:00 heartbeat followed the same wrong days. Both crons now use `MON-FRI`.
+The `scheduled` handler also returns on Saturday and Sunday (UTC, from the
+event's `scheduledTime`), so a wrong trigger cannot send a weekend edition
+again. Admin gating, the allowlist and spend caps are untouched; `/newbriefing`
+and `/briefing` still work on weekends. GitHub Actions crons are standard cron
+and were correct.
+
 ### CI no longer writes `usage_stats`, so it cannot undo an erasure
 
 `sync-kv.mjs` used to read the whole `usage_stats` blob, bump the briefing
