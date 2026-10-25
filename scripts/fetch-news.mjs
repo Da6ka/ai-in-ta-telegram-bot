@@ -17,7 +17,7 @@
 // Failure policy: one failed query is survivable and the run continues with
 // whatever the others returned; every query failing is not, and exits non-zero
 // so the workflow's alerting fires instead of composing an empty briefing.
-import { NEWS_QUERIES, dedupeStories, formatStories, recencyTbs, urlDateTooOld, widerWindow } from '../shared/news-queries.mjs'
+import { NEWSLETTER_ARCHIVE_URL, NEWS_QUERIES, dedupeStories, formatStories, isNewsletterIssue, issueInWindow, parseNewsletterArchive, recencyTbs, urlDateTooOld, widerWindow } from '../shared/news-queries.mjs'
 import { sourceTier } from '../shared/source-allowlist.mjs'
 import { recencyWindowHours } from '../shared/telegram.mjs'
 import { existsSync, readFileSync } from 'node:fs'
@@ -27,6 +27,9 @@ if (!API_KEY) throw new Error('FIRECRAWL_API_KEY is not set')
 
 const PER_QUERY = Number(process.env.NEWS_LIMIT_PER_QUERY || 8)
 const MAX_ITEMS = Number(process.env.NEWS_MAX_ITEMS || 40)
+// Newsletter issues get their own slots on top of MAX_ITEMS: appended after a
+// full news list they would be cut by the cap every day.
+const MAX_NEWSLETTER = 3
 const COUNTRY = process.env.NEWS_COUNTRY || 'US'
 // Below this many distinct stories, sweep again at the next wider window and
 // merge. 0 (the default, and what the daily uses) disables it entirely.
@@ -46,14 +49,14 @@ if (existsSync('state/usage_stats.json')) {
 }
 const tbs = process.env.NEWS_TBS || recencyTbs(recencyWindowHours(todayISO, lastBriefingISO))
 
-async function search(query, window) {
+async function search(query, window, sources = [{ type: 'news' }]) {
   const res = await fetch('https://api.firecrawl.dev/v2/search', {
     method: 'POST',
     headers: { authorization: `Bearer ${API_KEY}`, 'content-type': 'application/json' },
     body: JSON.stringify({
       query,
       limit: PER_QUERY,
-      sources: [{ type: 'news' }],
+      sources,
       tbs: window,
       country: COUNTRY,
     }),
@@ -67,9 +70,33 @@ async function search(query, window) {
   return news.map((r) => ({ title: r.title, url: r.url, date: r.date, snippet: r.snippet, query }))
 }
 
-// One pass of all ten queries at a given window. Rejections are reported and
-// tolerated here; whether "all ten failed" is fatal is the caller's call.
-// Each query costs about 2 Firecrawl credits, so a pass is ~20 -- see the
+// The Hero is read from its archive page, one scrape (about 1 credit): search
+// over the domain carries no dates and misses the newest issues. Rejection is
+// survivable, as it was for the newsletter query -- the source is optional.
+async function fetchArchive() {
+  try {
+    const res = await fetch('https://api.firecrawl.dev/v2/scrape', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${API_KEY}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ url: NEWSLETTER_ARCHIVE_URL, formats: ['markdown'] }),
+    })
+    if (!res.ok) throw new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 300)}`)
+    const body = await res.json()
+    if (!body.success || body.data?.metadata?.statusCode !== 200) {
+      throw new Error(`scrape failed: ${JSON.stringify(body).slice(0, 300)}`)
+    }
+    const issues = parseNewsletterArchive(body.data.markdown)
+    if (!issues.length) console.error('The Hero archive parsed to zero issues -- has the page layout changed?')
+    return issues
+  } catch (err) {
+    console.error(`The Hero archive failed: ${err?.message ?? err}`)
+    return []
+  }
+}
+
+// One pass of all ten news queries at a given window. Rejections are reported
+// and tolerated here; whether "all of them failed" is fatal is the caller's
+// call. Each query costs about 2 Firecrawl credits, so a pass is ~20 -- see the
 // README's note on the plan's monthly ceiling before adding queries or passes.
 async function sweep(window) {
   const settled = await Promise.allSettled(NEWS_QUERIES.map((query) => search(query, window)))
@@ -78,20 +105,31 @@ async function sweep(window) {
       console.error(`Query "${NEWS_QUERIES[i]}" failed (window ${window}): ${result.reason?.message ?? result.reason}`)
     }
   }
-  const stories = settled.flatMap((s) => (s.status === 'fulfilled' ? s.value : []))
+  const all = settled.flatMap((s) => (s.status === 'fulfilled' ? s.value : []))
   // Dropped here rather than left for the prompt to reject: a denied domain
   // that stays on the list still occupies one of the model's slots, and a
   // stock-analysis rewrite of a real story crowds out the story itself.
-  const kept = stories.filter((story) => sourceTier(story.url) !== 'denied')
-  if (kept.length < stories.length) {
-    console.error(`Dropped ${stories.length - kept.length} result(s) from denylisted domains.`)
+  const kept = all.filter((story) => sourceTier(story.url) !== 'denied')
+  if (kept.length < all.length) {
+    console.error(`Dropped ${all.length - kept.length} result(s) from denylisted domains.`)
   }
   const dated = kept.filter((story) => !urlDateTooOld(story.url, window, todayISO))
   for (const story of kept.filter((s) => !dated.includes(s))) {
     console.error(`Dropped ${story.url}: its URL dates it outside the ${window} window.`)
   }
-  return { stories: dated, ok: settled.filter((s) => s.status === 'fulfilled').length, total: settled.length }
+  return {
+    // A beehiiv result from the news queries is not an issue: issues come from
+    // the archive only, with a real date.
+    stories: dated.filter((s) => !isNewsletterIssue(s.url)),
+    ok: settled.filter((s) => s.status === 'fulfilled').length,
+    total: NEWS_QUERIES.length,
+  }
 }
+
+// Issues are kept apart from the news stories so one neither takes a slot from
+// MAX_ITEMS nor hides a thin news day from NEWS_MIN_STORIES.
+const archive = await fetchArchive()
+const issuesIn = (window) => archive.filter((issue) => issueInWindow(issue, window, todayISO))
 
 const first = await sweep(tbs)
 if (!first.ok) {
@@ -100,7 +138,8 @@ if (!first.ok) {
 }
 
 let stories = dedupeStories(first.stories, MAX_ITEMS)
-console.error(`Fetched ${stories.length} distinct stories from ${first.ok}/${first.total} queries (window ${tbs}).`)
+let issues = dedupeStories(issuesIn(tbs), MAX_NEWSLETTER)
+console.error(`Fetched ${stories.length} distinct stories from ${first.ok}/${first.total} queries and ${issues.length} newsletter issue(s) (window ${tbs}).`)
 
 if (MIN_STORIES && stories.length < MIN_STORIES) {
   const wider = widerWindow(tbs)
@@ -115,8 +154,10 @@ if (MIN_STORIES && stories.length < MIN_STORIES) {
     // job -- the wider list still carries every story's date, and the prompt
     // still refuses anything outside its own window.
     stories = dedupeStories([...first.stories, ...second.stories], MAX_ITEMS)
+    issues = dedupeStories(issuesIn(wider), MAX_NEWSLETTER)
     console.error(`Now ${stories.length} distinct stories after widening to ${wider} (${second.ok}/${second.total} queries).`)
   }
 }
 
-process.stdout.write(asJson ? `${JSON.stringify(stories, null, 2)}\n` : `${formatStories(stories)}\n`)
+const out = [...stories, ...issues]
+process.stdout.write(asJson ? `${JSON.stringify(out, null, 2)}\n` : `${formatStories(out)}\n`)

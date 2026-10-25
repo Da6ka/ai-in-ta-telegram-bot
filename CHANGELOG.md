@@ -2,6 +2,36 @@
 
 ## [Unreleased]
 
+### The Hero newsletter as an optional source
+
+`scripts/fetch-news.mjs` scrapes the archive page of The Hero
+(`https://thehero.beehiiv.com/`, Super Recruiter's newsletter on beehiiv) once
+per run through Firecrawl and keeps at most three issues published inside the
+search window. A search was tried first and rejected after checking it live on
+2026-10-25: over `site:thehero.beehiiv.com` Firecrawl returns no `date`, answers
+an empty list under `qdr:w`, and without a filter returned only older issues, not
+the two newest. The archive lists every recent issue with its publication date,
+which `parseNewsletterArchive` turns into an ISO date; `issueInWindow` applies
+the same window and day of slack as `urlDateTooOld`. Issues sit after the news
+stories rather than inside the 40-story cap, and `formatStories` marks them
+`[newsletter issue]`. Both curated prompts gain a rule: an issue is not news, at
+most one per edition, only if it covers a specific AI tool, agent pack, feature
+or workflow for recruiters inside the window, never legal risk, fraud
+statistics, philosophy or general advice, and named as a newsletter in the
+bullet. It is the one exception to the evergreen-guide ban, and the Super
+Recruiter lead-funnel concern is why it is capped and worded that narrowly.
+
+Failure policy: a failed archive fetch, or a page that parses to zero issues
+(logged, in case beehiiv changes its theme), costs only this source; "every
+query failed" is still counted over the ten news queries. No admin, allowlist or
+broadcast change; no command changes; the 12:00 UTC run gains one scrape per run.
+Cost: about 1 more Firecrawl credit per run, so about 21 per edition and roughly
+460 a month of weekday editions, against the free plan's 1,000; the archive is
+fetched once even when a thin day widens the window. Anthropic spend and caps are
+untouched beyond a few hundred extra prompt tokens when an issue is listed.
+Beehiiv URLs carry no date, so `urlDateTooOld` neither keeps nor drops them by
+path. Tests in `shared/news-queries.test.mjs`.
+
 ## [1.10.2] - 2026-10-25
 
 ### Worker crons were Sun-Thu, not Mon-Fri; weekend guard added

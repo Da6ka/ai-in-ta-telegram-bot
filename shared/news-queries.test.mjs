@@ -3,7 +3,7 @@
 // is the part that decides which stories reach the model and how they read.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { NEWS_QUERIES, dedupeStories, formatStories, recencyTbs, storyKey, urlDateTooOld, widerWindow } from './news-queries.mjs'
+import { NEWSLETTER_ARCHIVE_URL, NEWS_QUERIES, dedupeStories, formatStories, isNewsletterIssue, issueInWindow, parseNewsletterArchive, recencyTbs, storyKey, urlDateTooOld, widerWindow } from './news-queries.mjs'
 
 test('the query set covers every beat the prompt asks for', () => {
   assert.ok(NEWS_QUERIES.length >= 8, 'thin query sets produce thin briefings')
@@ -95,4 +95,107 @@ test('urlDateTooOld drops a story whose own URL dates it outside the window', ()
   assert.equal(urlDateTooOld('https://www.hrdive.com/news/ai-survey/', 'qdr:w', today), false, 'no date in the URL')
   assert.equal(urlDateTooOld('https://e.com/products/2025-model', 'qdr:w', today), false)
   assert.equal(urlDateTooOld('not a url', 'qdr:w', today), false)
+})
+
+test('the newsletter is read from its own archive page, not searched', () => {
+  assert.equal(NEWSLETTER_ARCHIVE_URL, 'https://thehero.beehiiv.com/')
+  assert.ok(NEWS_QUERIES.every((q) => !q.includes('beehiiv')))
+})
+
+// Shape of the archive page's markdown as Firecrawl returned it on 2026-10-25:
+// the theme repeats each issue link, then a date line, a "###" title and a blurb.
+const ARCHIVE = `
+### LATEST
+
+[Fresh Issue](https://thehero.beehiiv.com/p/fresh-issue)
+
+[Fresh Issue](https://thehero.beehiiv.com/p/fresh-issue)[Tag](https://thehero.beehiiv.com/t/tag)
+
+![](https://media.beehiiv.com/x.png)
+
+Oct 22, 2026
+
+•
+
+3 min read
+
+### Fresh Issue...
+
+A blurb about a tool.
+
+![Author](https://media.beehiiv.com/a.jpg)
+
+Super Recruiter
+
+[Older Issue](https://thehero.beehiiv.com/p/older-issue)
+
+[Older Issue](https://thehero.beehiiv.com/p/older-issue)
+
+Sep 5, 2026
+
+•
+
+4 min read
+
+### Older Issue
+
+Another blurb.
+
+[Undated](https://thehero.beehiiv.com/p/undated)
+
+### Not a card
+`
+
+test('parseNewsletterArchive reads each dated issue once, with ISO date, title and blurb', () => {
+  const issues = parseNewsletterArchive(ARCHIVE)
+  assert.deepEqual(issues, [
+    { title: 'Fresh Issue...', url: 'https://thehero.beehiiv.com/p/fresh-issue', date: '2026-10-22', snippet: 'A blurb about a tool.' },
+    { title: 'Older Issue', url: 'https://thehero.beehiiv.com/p/older-issue', date: '2026-09-05', snippet: 'Another blurb.' },
+  ])
+})
+
+test('parseNewsletterArchive returns nothing, not guesses, for a page it does not recognise', () => {
+  assert.deepEqual(parseNewsletterArchive(''), [])
+  assert.deepEqual(parseNewsletterArchive(undefined), [])
+  assert.deepEqual(parseNewsletterArchive('Oct 22, 2026\n\n### Title but no link above'), [])
+  assert.deepEqual(parseNewsletterArchive('[x](https://thehero.beehiiv.com/p/x)\n\nSmarch 5, 2026\n\n### T'), [])
+})
+
+test('issueInWindow keeps an issue inside the window plus a day of slack and drops older ones', () => {
+  const today = '2026-10-25'
+  assert.equal(issueInWindow({ date: '2026-10-22' }, 'qdr:w', today), true)
+  assert.equal(issueInWindow({ date: '2026-10-17' }, 'qdr:w', today), true, 'seven days back plus slack')
+  assert.equal(issueInWindow({ date: '2026-10-16' }, 'qdr:w', today), false)
+  assert.equal(issueInWindow({ date: '2026-10-22' }, 'qdr:d', today), false)
+  assert.equal(issueInWindow({ date: '2026-10-01' }, 'qdr:m', today), true, 'the widened window')
+  assert.equal(issueInWindow({}, 'qdr:w', today), false, 'no date, no entry')
+})
+
+test('isNewsletterIssue accepts issue posts only', () => {
+  assert.equal(isNewsletterIssue('https://thehero.beehiiv.com/p/15-recruiting-agents-free-yours'), true)
+  assert.equal(isNewsletterIssue('https://thehero.beehiiv.com/'), false, 'the archive page')
+  assert.equal(isNewsletterIssue('https://thehero.beehiiv.com/subscribe'), false)
+  assert.equal(isNewsletterIssue('https://thehero.beehiiv.com/t/ai'), false, 'a tag page')
+  assert.equal(isNewsletterIssue('http://thehero.beehiiv.com/p/x'), false, 'https only')
+  assert.equal(isNewsletterIssue('https://other.beehiiv.com/p/x'), false, 'another newsletter')
+  assert.equal(isNewsletterIssue('https://thehero.beehiiv.com.evil.example/p/x'), false, 'lookalike host')
+  assert.equal(isNewsletterIssue(undefined), false)
+})
+
+test('formatStories marks newsletter issues, and only those', () => {
+  const block = formatStories([
+    { title: 'Issue', url: 'https://thehero.beehiiv.com/p/an-issue', date: '3 days ago' },
+    { title: 'News', url: 'https://www.hrdive.com/news/x/', date: '1 day ago' },
+  ])
+  assert.match(block, /1\. Issue \(3 days ago\) \[newsletter issue\]\n/)
+  assert.match(block, /2\. News \(1 day ago\) \[preferred source\]\n/)
+  assert.doesNotMatch(block, /News[^\n]*\[newsletter issue\]/)
+})
+
+test('urlDateTooOld neither keeps nor drops an issue by its slug: beehiiv paths carry no date', () => {
+  const today = '2026-10-25'
+  // The window rests on the archive's own date (issueInWindow); a year in the slug is not a date.
+  assert.equal(urlDateTooOld('https://thehero.beehiiv.com/p/1-in-4-candidates-will-be-fake-by-2028', 'qdr:w', today), false)
+  assert.equal(urlDateTooOld('https://thehero.beehiiv.com/p/the-2025-2026-hiring-playbook', 'qdr:w', today), false)
+  assert.equal(urlDateTooOld('https://thehero.beehiiv.com/p/an-issue', 'qdr:d', today), false)
 })
