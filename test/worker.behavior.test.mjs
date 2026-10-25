@@ -1338,6 +1338,23 @@ test('briefing heartbeat cron', async (t) => {
     assert.equal(ghDispatches().length, 1, 'the 09:05 cron still dispatches the daily briefing')
     assert.equal(sends().length, 0, 'and sends no heartbeat alert')
   })
+  await t.test('weekend cron events dispatch nothing, weekday ones do', async () => {
+    const run = async (iso, cron) => {
+      resetState()
+      fetchLog = []
+      const waited = []
+      await worker.default.scheduled({ cron, scheduledTime: Date.parse(iso) }, env, { waitUntil: (p) => waited.push(p) })
+      await Promise.all(waited)
+    }
+    await run('2026-10-25T09:05:00Z', '5 9 * * 1-5') // Sunday
+    assert.equal(ghDispatches().length, 0, 'Sunday: no dispatch')
+    await run('2026-10-24T09:05:00Z', '5 9 * * 1-5') // Saturday
+    assert.equal(ghDispatches().length, 0, 'Saturday: no dispatch')
+    await run('2026-10-25T12:00:00Z', HEARTBEAT) // Sunday heartbeat
+    assert.equal(sends().length, 0, 'Sunday: no heartbeat alert')
+    await run('2026-10-26T09:05:00Z', '5 9 * * 1-5') // Monday
+    assert.equal(ghDispatches().length, 1, 'Monday: dispatches')
+  })
 })
 
 // =============== username capture & retention ===============

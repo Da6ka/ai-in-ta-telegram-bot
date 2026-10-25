@@ -1580,6 +1580,13 @@ export default {
   // daily-briefing.yml's last_briefing_at idempotency check makes this safe
   // to race with (or duplicate) GitHub's own schedule/watchdog firing.
   async scheduled(event, env, ctx) {
+    // Weekdays only. The crons in wrangler.toml say Mon-Fri, but the deployed
+    // triggers fired a Sunday dispatch (2026-10-25), so don't rely on them
+    // alone. Cloudflare always sets scheduledTime; a bare test event has none.
+    if (typeof event?.scheduledTime === 'number') {
+      const day = new Date(event.scheduledTime).getUTCDay()
+      if (day === 0 || day === 6) return
+    }
     // Bot paused (/pause): don't dispatch the daily briefing (no generation, no
     // spend) and don't run the heartbeat (which would otherwise alert every day
     // about a briefing that was never meant to land). GitHub's own backup

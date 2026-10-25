@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### Worker skips Saturday and Sunday itself
+
+On Sunday 2026-10-25 the Worker's 09:05 UTC trigger dispatched a briefing even
+though `wrangler.toml` says Mon-Fri. The `scheduled` handler had no day check
+and trusted the cron expression alone. It now returns on Saturday and Sunday
+(UTC, from the event's `scheduledTime`) for both the daily dispatch and the
+heartbeat, so a stray trigger cannot send a weekend edition. Admin gating,
+the allowlist and spend caps are untouched; `/newbriefing` and `/briefing` still
+work on weekends. Why the deployed triggers differed from `wrangler.toml` was
+not established.
+
 ### CI no longer writes `usage_stats`, so it cannot undo an erasure
 
 `sync-kv.mjs` used to read the whole `usage_stats` blob, bump the briefing
