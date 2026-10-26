@@ -1,15 +1,13 @@
-# Daily AI Recruitment Briefing — 25 October 2026
+# Daily AI Recruitment Briefing — 26 October 2026
 
 ## AI in Recruitment — What's New
 
-- [Hireology Launches AI Hiring Intelligence Suite; AI Match Customers See 20% Reduction in Time to Hire](https://www.fidelity.com/news/article/default/202610211112PR_NEWS_USPR_____CG77866) — Hireology launched a suite of AI Match, AI Candidate Summary and AI Interview tools aimed at helping frontline employers evaluate candidates faster while keeping hiring decisions with humans. (21 October)
-- [EU AI Act and recruitment – where should HR draw the Line?](https://www.thehrdirector.com/features/hiring/eu-ai-act-recruitment-hr-draw-line/) — A feature examines where HR should set boundaries on AI in hiring as high-risk AI system rules under the EU AI Act approach. (24 October)
-- [Uber puts all 30,000 employees on ChatGPT Work](https://techcrunch.com/2026/10/22/uber-puts-all-30000-employees-on-chatgpt-work/) — Uber rolled out OpenAI's enterprise agent ChatGPT Work, introduced in July for corporate workflows, to its entire 30,000-person workforce. (22 October)
-- [Companies cutting jobs as investments shift toward AI](https://www.reuters.com/business/world-at-work/companies-cutting-jobs-investments-shift-toward-ai-2026-10-22/) — Reuters reports employers from Microsoft to Barclays have announced layoffs this year amid concern that AI adoption will upend how work is staffed. (22 October)
-- [Jooba Emerges to Slash The $30,000 Headhunter Fee For High-Growth Companies](https://www.citybiz.co/article/921326/jooba-emerges-to-slash-the-30000-headhunter-fee-for-high-growth-companies/) — Jooba launched into general availability alongside a $4 million seed round backed by a16z Speedrun, Scribble Ventures and Genius Ventures, pitching itself as an alternative to traditional headhunter fees. (21 October)
+- The EEOC has sent OIRA a final rule rescinding the interpretive portions of its Uniform Guidelines on Employee Selection Procedures (UGESP), the long-standing framework behind adverse-impact analysis in hiring and selection. [EEOC Sends OIRA Final Rule Rescinding Uniform Guidelines on Employee Selection Procedures](https://ogletree.com/insights-resources/blog-posts/eeoc-sends-oira-final-rule-rescinding-uniform-guidelines-on-employee-selection-procedures/) (22 October)
+- At HR Tech 2026, Oracle, ServiceNow and Deloitte outlined workforce-management approaches built on governed automation, connected data and manager oversight. [How Oracle and ServiceNow are Reshaping WFM at HR Tech 2026](https://www.cxtoday.com/how-oracle-and-servicenow-are-reshaping-wfm-at-hr-tech-2026) (26 October)
+- Broadbean by Veritone launched Career Sites, unifying recruitment marketing, career-site performance and hiring outcomes in one platform to reduce fragmented reporting. [Broadbean by Veritone Launches Career Sites to Power Smarter, Outcome-Based Candidate Sourcing](https://investingnews.com/broadbean-by-veritone-launches-career-sites-to-power-smarter-outcome-based-candidate-sourcing/) (21 October)
 
 ## Worth Reading
 
-- [Is an 'AI war' complicating your job search?](https://www.bbc.co.uk/news/articles/cm9qzgg5z89no) — The BBC looks at how recruiters' growing use of AI at the CV-screening stage is colliding with candidates' own AI tools, and what rules apply. (23 October)
+- Staffing Industry examines new lawsuits that test AI's role in layoffs and rehiring, widening legal scrutiny of the technology beyond recruiting bias and candidate screening. [New lawsuits test AI's role in layoffs and rehiring](https://www.staffingindustry.com/editorial/staffing-industry-review/new-lawsuits-test-ai-s-role-in-layoffs-and-rehiring) (23 October)
 
-**Bottom line:** With recruiting-specific AI tooling, blanket enterprise rollouts and tightening EU rules all landing in the same week, TA leaders should pair any new screening tool with a clear human-in-the-loop and compliance stance before scaling it.
+**Bottom line:** With the EEOC moving to rescind the Uniform Guidelines and litigation extending into AI-driven workforce decisions, TA leaders should pin down how their selection and automation choices will be defended under a shifting compliance baseline.
