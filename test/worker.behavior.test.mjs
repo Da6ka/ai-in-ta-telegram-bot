@@ -498,6 +498,23 @@ test('briefing and rate limiting', async (t) => {
     await send(upd('333', '/newbriefing'))
     assert.equal(ghDispatches().length, 1, 'the second shared slot is still free for someone else')
   })
+  // The owner is exempt from the per-person cap so a thin edition can be re-run,
+  // but not from the shared one: the daily total stays at 2 whoever spends it.
+  await t.test('F12g owner is exempt from the per-user cap but not the global cap', async () => {
+    doStorage.map.set('briefing_rate', { lastDispatchAt: 0, date: todayUTC(), counts: {}, total: 0 })
+    fetchLog = []
+    await send(upd(OWNER, '/newbriefing'))
+    assert.equal(ghDispatches().length, 1, 'owner first run')
+    const rl = doStorage.map.get('briefing_rate'); rl.lastDispatchAt = 0; doStorage.map.set('briefing_rate', rl)
+    fetchLog = []
+    await send(upd(OWNER, '/newbriefing'))
+    assert.equal(ghDispatches().length, 1, 'owner second run the same day is allowed')
+    const rl2 = doStorage.map.get('briefing_rate'); rl2.lastDispatchAt = 0; doStorage.map.set('briefing_rate', rl2)
+    fetchLog = []
+    await send(upd(OWNER, '/newbriefing'))
+    assert.equal(ghDispatches().length, 0, 'third run hits the shared cap of 2')
+    assert.ok(sends()[0].body.text.includes('shared daily limit'))
+  })
   // The per-user cap (F12) bounds hogging, not spend: each allowlisted user
   // gets their own 1/day, so total cost scales with the allowlist. The global
   // cap is the actual cost ceiling. Driven with distinct senders so the

@@ -40,15 +40,15 @@ import { BLOCKED_PENDING_KEY } from '../../shared/blocked-subscribers.mjs'
 // /newbriefing every hour all day.
 const DISPATCH_COOLDOWN_MS = 60 * 60 * 1000
 // The owner gets a much shorter cooldown so on-demand refreshes aren't blocked
-// for an hour. The per-user daily cap (below) still applies to the owner as a
-// cost backstop, since every run is a paid generation.
+// for an hour. The owner is also exempt from the per-user daily cap (below);
+// the global cap still bounds the owner, so total spend per day does not change.
 const OWNER_DISPATCH_COOLDOWN_MS = 5 * 60 * 1000
 // One fresh briefing per person per day. It was 2, level with the global cap
 // below, and that let one person spend the whole shared allowance before anyone
 // else could ask. At 1 the second shared slot is always left for a different
 // person, and a repeat user still gets the accurate message because this check
-// runs first. The owner is bound by it too; the owner's 5-minute cooldown does
-// not buy a second run on the same day.
+// runs first. The owner is exempt from this per-person cap (not from the global
+// one below), so a thin edition can be re-run; delegated admins are not exempt.
 const DAILY_DISPATCH_CAP = 1
 // Hard cost ceiling across everyone, per UTC day. The per-user cap above stops
 // one user hogging generations, but it does not bound total spend: the limits
@@ -350,7 +350,7 @@ export class BotState extends DurableObject {
       rl.counts = {}
       rl.total = 0
     }
-    if ((rl.counts[senderId] ?? 0) >= DAILY_DISPATCH_CAP) {
+    if (!isOwner && (rl.counts[senderId] ?? 0) >= DAILY_DISPATCH_CAP) {
       return { allowed: false, reason: 'daily_cap' }
     }
     // Checked after the per-user cap so a user who has spent their own quota

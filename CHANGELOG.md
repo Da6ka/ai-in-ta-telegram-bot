@@ -8,12 +8,15 @@ The per-person cap was level with the global cap, so one person could spend the
 whole shared allowance of two and leave everyone else with nothing, and the
 per-person number said nothing a reader could use. `DAILY_DISPATCH_CAP` goes
 2 -> 1; `GLOBAL_DAILY_DISPATCH_CAP` stays 2, so the second slot is always left
-for a different person. Who can invoke: every allowlisted user, and the owner is
-bound by the per-person cap too (the owner's 5-minute cooldown is unchanged but
-no longer buys a second run the same day). Effect on the 12:00 UTC daily run:
-none. Spend: lower or equal, never higher (total per day is still 2). `/status`
+for a different person. Who can invoke: every allowlisted user. The owner (not
+delegated admins) is exempt from the per-person cap so a thin edition can be
+re-run, but still counts against the global 2, so the daily total is unchanged.
+Effect on the 12:00 UTC daily run: none. Spend: lower or equal, never higher
+(total per day is still 2). Owner-only enforcement on admin commands is
+untouched. `/status`
 reports `briefingPerUser: 1`. Tests F12 and S1 updated; F12 now also asserts a
-second person is still served after the first has used their one.
+second person is still served after the first has used their one, and F12g
+covers the owner exemption and that the global cap still binds.
 
 ### Tests for the dispatch guard and the workflows that depend on it
 
