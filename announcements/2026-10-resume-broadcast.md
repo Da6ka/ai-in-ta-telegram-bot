@@ -5,7 +5,7 @@ limit line is waiting on the limits decision, see 2026-10-resume-notes.md.
 
 ---
 
-The AI-in-TA briefing is back after a pause from 2 September to 24 October, with a few changes.
+The AI-in-TA briefing is back after a pause from 2 September to 24 October. Here is what changed in releases 1.10.0 to 1.10.2.
 
 What is different in your daily briefing
 - Fresher news. The stories are now picked from a live news search limited to the past week, instead of the model searching on its own.
