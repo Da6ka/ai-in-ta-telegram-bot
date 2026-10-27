@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+### Tests for the dispatch guard and the workflows that depend on it
+
+`scripts/check-dispatch-once.mjs`, which stops a retried `repository_dispatch`
+from sending a `/broadcast` or generating a `/newbriefing` twice (#28), had no
+test. `test/check-dispatch-once.test.mjs` now runs it for real against the
+in-memory KV fixture (first-seen id proceeds and is recorded, repeat id is a
+duplicate and not rewritten, other ids are unaffected, no id proceeds without
+KV, missing credentials fail loudly). It also checks that `broadcast.yml` and
+`on-demand-briefing.yml` run the guard before any work and gate the work on it,
+and that `broadcast.yml` groups runs by `dispatch_id`. Tests only, no behavior
+change; actual GitHub Actions scheduling still cannot be exercised locally.
+
 ### Staging Worker no longer runs the prod crons
 
 The 12:00 UTC "briefing hasn't been delivered" DM on 2026-10-25 came from the
