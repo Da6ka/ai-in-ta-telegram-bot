@@ -175,7 +175,7 @@ test('status endpoint', async (t) => {
     const { r, body } = await status()
     assert.equal(r.status, 200)
     assert.equal(r.headers.get('content-type')?.includes('application/json'), true)
-    assert.equal(body.caps.briefingPerUser, 2)
+    assert.equal(body.caps.briefingPerUser, 1)
     assert.equal(body.caps.briefingGlobal, 2)
     assert.equal(body.caps.askPerUser, 10)
     assert.equal(body.caps.askGlobal, 40)
@@ -481,24 +481,42 @@ test('briefing and rate limiting', async (t) => {
     assert.equal(ghDispatches().length, 0)
     assert.ok(sends().some(c => c.body.parse_mode === 'HTML'), 'cached briefing served during cooldown')
   })
-  // One user spending their 2 also spends the shared 2, so both caps trip on
-  // the same request. The per-user check runs first, which is what decides the
-  // message -- and is the point of keeping the two level (worker/src/index.js).
-  await t.test('F12 daily cap: 2 dispatches per user, 3rd refused even after cooldown', async () => {
+  // One person gets one fresh briefing a day, so a single user can never spend
+  // the whole shared allowance of 2. The per-user check runs first, which is
+  // what decides the message the repeat user sees. A different person is still
+  // served afterwards: that is the point of the cap being below the global one.
+  await t.test('F12 daily cap: 1 dispatch per user, 2nd refused even after cooldown, another user still served', async () => {
     doStorage.map.set('briefing_rate', { lastDispatchAt: 0, date: todayUTC(), counts: {}, total: 0 })
-    for (let i = 0; i < 2; i++) {
-      const rl = doStorage.map.get('briefing_rate'); rl.lastDispatchAt = 0; doStorage.map.set('briefing_rate', rl)
-      await send(upd('222', '/newbriefing'))
-    }
+    await send(upd('222', '/newbriefing'))
     const rl = doStorage.map.get('briefing_rate'); rl.lastDispatchAt = 0; doStorage.map.set('briefing_rate', rl)
-    assert.equal(rl.counts['222'], 2, 'sanity: 222 has 2 dispatches counted')
+    assert.equal(rl.counts['222'], 1, 'sanity: 222 has 1 dispatch counted')
     fetchLog = []
     await send(upd('222', '/newbriefing'))
     assert.equal(ghDispatches().length, 0)
     assert.ok(sends()[0].body.text.includes("reached today's limit"))
+    fetchLog = []
+    await send(upd('333', '/newbriefing'))
+    assert.equal(ghDispatches().length, 1, 'the second shared slot is still free for someone else')
+  })
+  // The owner is exempt from the per-person cap so a thin edition can be re-run,
+  // but not from the shared one: the daily total stays at 2 whoever spends it.
+  await t.test('F12g owner is exempt from the per-user cap but not the global cap', async () => {
+    doStorage.map.set('briefing_rate', { lastDispatchAt: 0, date: todayUTC(), counts: {}, total: 0 })
+    fetchLog = []
+    await send(upd(OWNER, '/newbriefing'))
+    assert.equal(ghDispatches().length, 1, 'owner first run')
+    const rl = doStorage.map.get('briefing_rate'); rl.lastDispatchAt = 0; doStorage.map.set('briefing_rate', rl)
+    fetchLog = []
+    await send(upd(OWNER, '/newbriefing'))
+    assert.equal(ghDispatches().length, 1, 'owner second run the same day is allowed')
+    const rl2 = doStorage.map.get('briefing_rate'); rl2.lastDispatchAt = 0; doStorage.map.set('briefing_rate', rl2)
+    fetchLog = []
+    await send(upd(OWNER, '/newbriefing'))
+    assert.equal(ghDispatches().length, 0, 'third run hits the shared cap of 2')
+    assert.ok(sends()[0].body.text.includes('shared daily limit'))
   })
   // The per-user cap (F12) bounds hogging, not spend: each allowlisted user
-  // gets their own 2/day, so total cost scales with the allowlist. The global
+  // gets their own 1/day, so total cost scales with the allowlist. The global
   // cap is the actual cost ceiling. Driven with distinct senders so the
   // per-user cap can't be what refuses the request.
   await t.test('F12b global cap: shared limit refuses a user who is under their own cap', async () => {
@@ -509,7 +527,7 @@ test('briefing and rate limiting', async (t) => {
       total: 2,
     })
     fetchLog = []
-    await send(upd('444', '/newbriefing')) // 444 has spent 0 of its own 2
+    await send(upd('444', '/newbriefing')) // 444 has spent 0 of its own 1
     assert.equal(ghDispatches().length, 0, 'no dispatch once the shared cap is spent')
     assert.ok(
       sends()[0].body.text.includes('shared daily limit'),

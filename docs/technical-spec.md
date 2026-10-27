@@ -303,7 +303,7 @@ per-invocation subrequest cap that silently dropped recipients past ~45).
 | `MAX_USERS`                  | **50**                                            | `BotState.addAllowedUser` (atomic), `/start`, callback-approval path |
 | `MAX_PENDING`                | **100**                                           | Worker, on `/start` (capped independently of `MAX_USERS`)           |
 | Generation dispatch cooldown | **60 min**, **5 min** for the owner               | Worker, before `/newbriefing` dispatch                              |
-| Generation daily cap         | **2/day per user** (`DAILY_DISPATCH_CAP`)         | Worker (`briefing_rate.counts`)                                     |
+| Generation daily cap         | **1/day per user, owner exempt** (`DAILY_DISPATCH_CAP`) | Worker (`briefing_rate.counts`)                                     |
 | Generation daily cap, shared | **2/day total** (`GLOBAL_DAILY_DISPATCH_CAP`)     | Worker (`briefing_rate.total`)                                      |
 | `/ask` cooldown              | **30 s** (`ASK_COOLDOWN_MS`)                      | Worker, before `ask` dispatch                                       |
 | `/ask` daily cap             | **10/day per user** (`ASK_DAILY_CAP`)             | Worker (`ask_rate.counts`)                                          |
@@ -322,7 +322,7 @@ one wins:
   because the result is shared (one `today_briefing` for all). The owner's window
   is 5 min rather than 60 so on-demand refreshes aren't blocked for an hour.
 - **Per-user daily cap.** Bounds *hogging*, not spend: it stops one user
-  hammering `/newbriefing` all day. Each user has their own 3, so this alone does
+  hammering `/newbriefing` all day. Each user has their own 1, so this alone does
   **not** bound total cost — it scales with the allowlist.
 - **Global daily cap.** The actual cost ceiling, since every dispatch is a paid
   Actions + Claude run. Without it the only real bound was the cooldown, at ~24
