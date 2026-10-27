@@ -1,13 +1,13 @@
-# Daily AI Recruitment Briefing — 26 October 2026
+# Daily AI Recruitment Briefing — 27 October 2026
 
 ## AI in Recruitment — What's New
 
-- The EEOC has sent OIRA a final rule rescinding the interpretive portions of its Uniform Guidelines on Employee Selection Procedures (UGESP), the long-standing framework behind adverse-impact analysis in hiring and selection. [EEOC Sends OIRA Final Rule Rescinding Uniform Guidelines on Employee Selection Procedures](https://ogletree.com/insights-resources/blog-posts/eeoc-sends-oira-final-rule-rescinding-uniform-guidelines-on-employee-selection-procedures/) (22 October)
-- At HR Tech 2026, Oracle, ServiceNow and Deloitte outlined workforce-management approaches built on governed automation, connected data and manager oversight. [How Oracle and ServiceNow are Reshaping WFM at HR Tech 2026](https://www.cxtoday.com/how-oracle-and-servicenow-are-reshaping-wfm-at-hr-tech-2026) (26 October)
-- Broadbean by Veritone launched Career Sites, unifying recruitment marketing, career-site performance and hiring outcomes in one platform to reduce fragmented reporting. [Broadbean by Veritone Launches Career Sites to Power Smarter, Outcome-Based Candidate Sourcing](https://investingnews.com/broadbean-by-veritone-launches-career-sites-to-power-smarter-outcome-based-candidate-sourcing/) (21 October)
+- A court dismissed — for now — the complaint of an applicant who alleged Sirius XM's hiring software repeatedly screened him out because he is Black. [Sirius XM Wins Dismissal of AI Hiring Bias Lawsuit](https://www.hrmorning.com/news/ai-hiring-bias-sirius-xm-harper/) (27 October 2026)
+- SeekOut named co-founder John Tippett President to accelerate its AI recruiting strategy, centred on embedding recruiting intelligence into existing enterprise AI platforms so recruiters move between fewer tools. [SeekOut Appoints Co-Founder John Tippett President to Accelerate AI Recruiting Strategy](https://www.citybiz.co/article/924250/seekout-appoints-co-founder-john-tippett-president-to-accelerate-ai-recruiting-strategy/) (26 October 2026)
+- UK RegTech startup CoComply raised £1.9M from Mercia and Haatch to find contractors hidden inside supplier agreements. [UK RegTech CoComply raises £1.9M from Mercia and Haatch to expose hidden contractors](https://techfundingnews.com/uk-regtech-cocomply-raises-1-9m-from-mercia-and-haatch-to-expose-hidden-contractors/) (21 October 2026)
 
 ## Worth Reading
 
-- Staffing Industry examines new lawsuits that test AI's role in layoffs and rehiring, widening legal scrutiny of the technology beyond recruiting bias and candidate screening. [New lawsuits test AI's role in layoffs and rehiring](https://www.staffingindustry.com/editorial/staffing-industry-review/new-lawsuits-test-ai-s-role-in-layoffs-and-rehiring) (23 October)
+- A legal analysis walks through employer lessons from a recent discrimination lawsuit in which an AI meeting notetaker's transcript became evidence, flagging the exposure created by automated recording of internal conversations. [When Your AI Notetaker Becomes a Plaintiff's Lawyer's New Best Friend](https://www.jdsupra.com/legalnews/when-your-ai-notetaker-becomes-a-4563004/) (26 October 2026)
 
-**Bottom line:** With the EEOC moving to rescind the Uniform Guidelines and litigation extending into AI-driven workforce decisions, TA leaders should pin down how their selection and automation choices will be defended under a shifting compliance baseline.
+**Bottom line:** With an AI hiring-bias suit dismissed but new fronts opening around recorded AI tools, TA leaders should keep tightening documentation and vendor accountability for every AI touchpoint in the hiring process.
