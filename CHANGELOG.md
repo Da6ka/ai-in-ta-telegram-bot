@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.11.0] - 2026-10-27
+
 ### /newbriefing: one per person per day, two across everyone (was two and two)
 
 The per-person cap was level with the global cap, so one person could spend the
