@@ -43,15 +43,16 @@ const DISPATCH_COOLDOWN_MS = 60 * 60 * 1000
 // for an hour. The per-user daily cap (below) still applies to the owner as a
 // cost backstop, since every run is a paid generation.
 const OWNER_DISPATCH_COOLDOWN_MS = 5 * 60 * 1000
-// Held level with the global cap below. Above it the constant is dead -- the
-// shared ceiling always bites first -- and a solo user who spent both slots is
-// told about a "shared" limit they are the only party to. Equal caps keep the
-// per-user check meaningful (it runs first, so a repeat user gets the accurate
-// message) and let the global one do its real job: two different users.
-const DAILY_DISPATCH_CAP = 2
+// One fresh briefing per person per day. It was 2, level with the global cap
+// below, and that let one person spend the whole shared allowance before anyone
+// else could ask. At 1 the second shared slot is always left for a different
+// person, and a repeat user still gets the accurate message because this check
+// runs first. The owner is bound by it too; the owner's 5-minute cooldown does
+// not buy a second run on the same day.
+const DAILY_DISPATCH_CAP = 1
 // Hard cost ceiling across everyone, per UTC day. The per-user cap above stops
 // one user hogging generations, but it does not bound total spend: the limits
-// are independent, so N allowlisted users each get their own 3/day. Before this
+// are independent, so N allowlisted users each get their own per-user quota. Before this
 // existed, the only real ceiling was the global cooldown -- ~24 dispatches/day
 // at 60-min spacing, and every dispatch is a paid Actions + Claude run. A user
 // who trips it is served the cached edition, not an error.
