@@ -8,6 +8,8 @@ Eightfold is shipping agent-driven end-to-end evaluation and workforce analytics
 
 - **15 Jul 2026** — Josh Bersin cites Eightfold among multi-agent AI platforms shipping in TA, with early results showing time-to-hire dropping from two weeks to three days. — [Josh Bersin Company](https://joshbersin.com/2026/07/multi-agent-ai-for-talent-acquisition-arrives-eightfold-paradox-maki-radancy-and-more/)
 
+- **29 Oct 2026** — Eightfold AI named a new CEO as it builds an "intelligent action layer" on top of its talent intelligence platform. — [Eightfold AI welcomes new CEO as the talent intelligence platform grows and scales](https://www.hr-brew.com/stories/eightfold-ai-welcomes-new-ceo-as-the-talent-intelligence-platform-grows-and-scales)
+
 ## Open questions
 
 - How does 360 Interviews handle role-specific assessment fairness when it collapses distinct evaluation dimensions into a single agent flow?

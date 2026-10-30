@@ -90,6 +90,34 @@ AI-powered agents are automating recruitment workflows end-to-end: sourcing, scr
 
 - **27 Aug 2026** — **AccuKnox launched AgentZ, an agent-governance platform** relevant to any TA team moving recruiting agents past pilot. AgentZ is a platform for building, running, and governing AI agents across teams and workflows, bringing the agent, its execution environment, tools, workflows, permissions, and governance into a single platform so organizations can move agents from experiment to production. It explicitly targets HR use cases and supports SaaS, on-prem, and air-gapped deployment, alongside bring-your-own-LLM — useful framing when your security team asks where a recruiting agent runs and which model powers it. — [AccuKnox Launches AgentZ](https://www.globenewswire.com/news-release/2026/08/27/3351759/0/en/accuknox-launches-agentz-to-help-enterprises-build-run-and-govern-ai-agents-at-scale.html)
 
+- **19 Oct 2026** — Workday and Anthropic are connecting Claude with Sana agents while keeping HR permissions, approvals and audit controls anchored in Workday — relevant for TA teams that want governed AI inside an existing HCM rather than a bolt-on. — [Workday Extends Governed HR and Finance Workflows Into Claude](https://futurumgroup.com/insights/workday-extends-governed-hr-and-finance-workflows-into-claude/)
+
+- **23 Oct 2026** — Dayforce has agreed to acquire Ribbon AI, folding conversational voice and video AI interviewers into its agentic recruiting portfolio — continued consolidation of screening tech into core HCM suites. — [Dayforce to acquire Ribbon AI to bolster AI recruitment capabilities](https://betakit.com/dayforce-to-acquire-ribbon-ai-to-bolster-ai-recruitment-capabilities/)
+
+- **23 Oct 2026** — Paylocity launched an AI-powered Recruiting Optimizer to automate recruiting workflows and speed hiring, adding to the wave of HCM vendors embedding agentic recruiting features. — [Paylocity Launches AI-Powered Recruiting Optimizer](https://www.moomoo.com/news/post/1002098005/paylocity-launches-ai-powered-recruiting-optimizer-to-automate-recruiting-workflows)
+
+- **23 Oct 2026** — Gap is using a new AI tool to streamline hiring as it recruits holiday workers, a practical example of AI applied to high-volume seasonal frontline recruiting. — [Gap streamlines hiring with AI tool; recruits holiday workers](https://chainstoreage.com/gap-streamlines-hiring-ai-tool-recruits-holiday-workers)
+
+- **21 Oct 2026** — Hireology launched a suite of AI Match, AI Candidate Summary and AI Interview tools aimed at helping frontline employers evaluate candidates faster while keeping hiring decisions with humans. — [Hireology Launches AI Hiring Intelligence Suite; AI Match Customers See 20% Reduction in Time to Hire](https://www.fidelity.com/news/article/default/202610211112PR_NEWS_USPR_____CG77866)
+
+- **21 Oct 2026** — Jooba launched into general availability alongside a $4 million seed round backed by a16z Speedrun, Scribble Ventures and Genius Ventures, pitching itself as an alternative to traditional headhunter fees. — [Jooba Emerges to Slash The $30,000 Headhunter Fee For High-Growth Companies](https://www.citybiz.co/article/921326/jooba-emerges-to-slash-the-30000-headhunter-fee-for-high-growth-companies/)
+
+- **26 Oct 2026** — SeekOut named co-founder John Tippett President to accelerate its AI recruiting strategy, centred on embedding recruiting intelligence into existing enterprise AI platforms so recruiters move between fewer tools. — [SeekOut Appoints Co-Founder John Tippett President to Accelerate AI Recruiting Strategy](https://www.citybiz.co/article/924250/seekout-appoints-co-founder-john-tippett-president-to-accelerate-ai-recruiting-strategy/)
+
+- **21 Oct 2026** — IBM Ventures made a strategic investment in Leena AI to back its "AI Colleague" platform as enterprises shift from AI assistants to autonomous agents for HR, IT and finance operations. — [IBM Ventures Invests in Leena AI to Accelerate Agentic AI Across the Enterprise Back Office](https://www.hpcwire.com/aiwire/2026/10/21/ibm-ventures-invests-in-leena-ai-to-accelerate-agentic-ai-across-the-enterprise-back-office/)
+
+- **27 Oct 2026** — Double Nickel launched Vera, an AI agent that automates driver employment verifications for trucking carriers' recruiting and safety departments. — [Double Nickel launches AI agent to automate driver employment checks](https://www.freightwaves.com/news/double-nickel-launches-ai-agent-to-automate-driver-employment-checks)
+
+- **26 Oct 2026** — At HR Tech 2026, Oracle, ServiceNow and Deloitte outlined workforce-management approaches built on governed automation, connected data and manager oversight. — [How Oracle and ServiceNow are Reshaping WFM at HR Tech 2026](https://www.cxtoday.com/how-oracle-and-servicenow-are-reshaping-wfm-at-hr-tech-2026)
+
+- **21 Oct 2026** — Broadbean by Veritone launched Career Sites, unifying recruitment marketing, career-site performance and hiring outcomes in one platform to reduce fragmented reporting. — [Broadbean by Veritone Launches Career Sites to Power Smarter, Outcome-Based Candidate Sourcing](https://investingnews.com/broadbean-by-veritone-launches-career-sites-to-power-smarter-outcome-based-candidate-sourcing/)
+
+- **29 Oct 2026** — A Dayforce connector will let joint customers query and complete work using trusted Dayforce data inside Claude, applying the same permissions and controls. — [Dayforce in Anthropic's Claude to Help You Finish Work – Where You Work](https://techrseries.com/hrtechnology/dayforce-in-anthropics-claude-to-help-you-finish-work-where-you-work/)
+
+- **29 Oct 2026** — Hanoi People's Committee plans to automate recruitment processes with AI, aiming to reduce average corporate hiring timelines. — [Hanoi to deploy AI in recruitment to cut hiring time by up to 50%](https://sea.peoplemattersglobal.com/amp/news/workforce-planning/hanoi-to-deploy-ai-in-recruitment-to-cut-hiring-time-by-up-to-50percent-53040)
+
+- **29 Oct 2026** — Eightfold AI named a new CEO as it builds an "intelligent action layer" on top of its talent intelligence platform. — [Eightfold AI welcomes new CEO as the talent intelligence platform grows and scales](https://www.hr-brew.com/stories/eightfold-ai-welcomes-new-ceo-as-the-talent-intelligence-platform-grows-and-scales)
+
 ## Open questions
 
 - How do multi-agent systems distribute decision authority between agents, between agents and humans, and across orgs? Who is liable when an agent makes an adverse-impact decision?

@@ -74,6 +74,20 @@ Resumes and credentials are losing signal. AI screening is pushing organizations
 
 - **13 Jul 2026** — PsyMetrics launched "AI Test Architect," a chat tool that turns an uploaded job description into a role-specific pre-employment assessment, pitched as anchoring generative test-building in established psychometric science and compliance. As AI-generated assessments proliferate, this is the direction of travel — but validate that any auto-built test is job-related and defensible before it gates candidates, rather than trusting the "compliance-supportive" label. — [GlobeNewswire](https://www.globenewswire.com/news-release/2026/07/13/3326119/0/en/The-Antidote-to-Hiring-Bias-PsyMetrics-Launches-AI-Test-Architect-to-Anchor-Generative-Assessment-Building-in-30-Years-of-Psychometric-Science.html)
 
+- **19 Oct 2026** — Anthropic's own report on AI and work finds employees shifting from doing tasks to managing agents, alongside fewer junior hires and hiring managers reprioritizing what they screen for — a preview of how agent-heavy orgs may restructure entry-level pipelines. — [Inside Anthropic, Every Employee Now Manages Agents](https://www.ere.net/articles/inside-anthropic-every-employee-now-manages-agents)
+
+- **19 Oct 2026** — California launched an AI matching tool that pairs job seekers' skills with state job openings to cut time spent navigating classifications — a public-sector signal on skills-based matching at scale. — [Governor Newsom announces new tool to make it easier to access and find a state job](https://www.gov.ca.gov/2026/10/19/governor-newsom-announces-new-tool-to-make-it-easier-to-access-and-find-a-state-job/)
+
+- **21 Oct 2026** — Staffing Industry argues AI is pushing workforce leaders beyond hiring efficiency toward rethinking talent models, human accountability and how work gets done — a useful frame for TA leaders whose remit is expanding past the req. — [AI poised to reshape programs beyond recruiting](https://www.staffingindustry.com/editorial/cws-30-contingent-workforce-strategies/ai-poised-to-reshape-programs-beyond-recruiting)
+
+- **26 Oct 2026** — Colare raised a pre-seed round, backed by Afore Capital, Garage Capital and Acadian Ventures, to help companies hire a new generation of hardware engineers. — [Hiring A New Generation Of Hardware Engineers With Colare](https://www.forbes.com/sites/davidprosser/2026/10/26/hiring-a-new-generation-of-hardware-engineers-with-colare/)
+
+- **27 Oct 2026** — The AI boom has quant and finance firms competing with tech for mathematicians and physicists, pushing some of finance's most secretive employers into unusually public recruitment drives. — [AI talent war has quant firms racing to recruit top talent](https://www.staffingindustry.com/news/global-daily-news/ai-talent-war-has-quant-firms-racing-to-recruit-top-talent)
+
+- **27 Oct 2026** — A report from Korea finds employers increasingly want workers who can check and correct AI's output rather than simply operate the tools, reframing what "AI skills" mean for hiring criteria. — [Knowing how to use AI isn't enough. Companies want employees who can check its work.](https://www.koreajoongangdaily.com/business/knowing-how-to-use-ai-isnt-enough-companies-want-employees-who-can-check-its-work/12938201)
+
+- **29 Oct 2026** — Ravical, an AI startup for accounting and tax firms, raised $17 million in seed funding to support product development. — [Ravical raises $17M to break the link between accounting firms' growth and hiring](https://tech.eu/2026/10/29/ravical-raises-17m-to-break-the-link-between-accounting-firms-growth-and-hiring/)
+
 ## Open questions
 
 - Which "skills" are actually job-predictive, and which are just current-fad proxies that will fade as AI fluency becomes baseline?

@@ -10,6 +10,8 @@ Workday sits at the center of many enterprise TA stacks and owns Paradox, an AI-
 
 - **13 Aug 2026** — Private equity firm Silver Lake is in talks to take Workday private in what would rank among the largest software buyouts ever, sending the stock up sharply before a volatility halt. Workday owns Paradox and sits at the center of many enterprise TA stacks, so any leadership or roadmap shift under new ownership is a procurement risk to raise in your next vendor review. — [CNBC](https://www.cnbc.com/2026/08/13/workday-skyrockets-25percent-before-trading-halted-on-report-of-silver-lake-takeover.html)
 
+- **19 Oct 2026** — Workday and Anthropic are connecting Claude with Sana agents while keeping HR permissions, approvals and audit controls anchored in Workday — relevant for TA teams that want governed AI inside an existing HCM rather than a bolt-on. — [Workday Extends Governed HR and Finance Workflows Into Claude](https://futurumgroup.com/insights/workday-extends-governed-hr-and-finance-workflows-into-claude/)
+
 ## Open questions
 
 - How will Workday's compliance posture and Paradox investment roadmap change under private equity ownership?

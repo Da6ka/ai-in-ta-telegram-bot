@@ -66,6 +66,28 @@ Legal and regulatory pressure on AI hiring is accelerating, though federal enfor
 
 - **27 Aug 2026** — **HR leaders now use AI almost universally but are actively managing its blind spots**, per a new Paylocity report. 91% say they actively use the technology "somewhere in their recruitment process," and the remaining leaders say they intend to implement the tech "within the next 18 months." The oversight gap is the story: while 85% said they trusted AI to assess applicants "regardless of background," more than a quarter (26%) said they were concerned about not seeing some candidates due to AI screening. The emerging division of labor — automated tools handle the volume work; recruiters decide who's actually worth a conversation — is a defensible default to document now. — [Hiring managers say they trust AI — but actively manage issues with it](https://www.hrdive.com/news/hiring-managers-say-they-trust-ai-but-actively-manage-issues-with-it/828884/)
 
+- **24 Oct 2026** — A feature examines where HR should set boundaries on AI in hiring as high-risk AI system rules under the EU AI Act approach. — [EU AI Act and recruitment – where should HR draw the Line?](https://www.thehrdirector.com/features/hiring/eu-ai-act-recruitment-hr-draw-line/)
+
+- **22 Oct 2026** — Reuters reports employers from Microsoft to Barclays have announced layoffs this year amid concern that AI adoption will upend how work is staffed. — [Companies cutting jobs as investments shift toward AI](https://www.reuters.com/business/world-at-work/companies-cutting-jobs-investments-shift-toward-ai-2026-10-22/)
+
+- **23 Oct 2026** — The BBC looks at how recruiters' growing use of AI at the CV-screening stage is colliding with candidates' own AI tools, and what rules apply. — [Is an 'AI war' complicating your job search?](https://www.bbc.co.uk/news/articles/cm9qzgg5z89no)
+
+- **22 Oct 2026** — The EEOC has sent OIRA a final rule rescinding the interpretive portions of its Uniform Guidelines on Employee Selection Procedures (UGESP), the long-standing framework behind adverse-impact analysis in hiring and selection. — [EEOC Sends OIRA Final Rule Rescinding Uniform Guidelines on Employee Selection Procedures](https://ogletree.com/insights-resources/blog-posts/eeoc-sends-oira-final-rule-rescinding-uniform-guidelines-on-employee-selection-procedures/)
+
+- **23 Oct 2026** — Staffing Industry examines new lawsuits that test AI's role in layoffs and rehiring, widening legal scrutiny of the technology beyond recruiting bias and candidate screening. — [New lawsuits test AI's role in layoffs and rehiring](https://www.staffingindustry.com/editorial/staffing-industry-review/new-lawsuits-test-ai-s-role-in-layoffs-and-rehiring)
+
+- **27 Oct 2026** — A court dismissed — for now — the complaint of an applicant who alleged Sirius XM's hiring software repeatedly screened him out because he is Black. — [Sirius XM Wins Dismissal of AI Hiring Bias Lawsuit](https://www.hrmorning.com/news/ai-hiring-bias-sirius-xm-harper/)
+
+- **26 Oct 2026** — A legal analysis walks through employer lessons from a recent discrimination lawsuit in which an AI meeting notetaker's transcript became evidence, flagging the exposure created by automated recording of internal conversations. — [When Your AI Notetaker Becomes a Plaintiff's Lawyer's New Best Friend](https://www.jdsupra.com/legalnews/when-your-ai-notetaker-becomes-a-4563004/)
+
+- **27 Oct 2026** — Indeed's Lisa Henken argued AI can cut recruitment inefficiencies through better candidate matching while hiring decisions stay with people. — [Indeed Urges Human Oversight in AI-Powered Recruitment](https://mexicobusiness.news/cloudanddata/news/indeed-urges-human-oversight-ai-powered-recruitment)
+
+- **28 Oct 2026** — As AI adoption rises, a new study finds candidate confidence in AI-led recruitment remains limited, with many preferring human-led hiring. — [Rise of AI in Recruitment Creating Trust Gap Between Employers and Jobseekers, Study Finds](https://hrnews.co.uk/rise-of-ai-in-recruitment-creating-trust-gap-between-employers-and-jobseekers-study-finds/)
+
+- **28 Oct 2026** — From 1 January 2027, California will generally bar employers from using AI surveillance tools to infer or predict an individual's emotional state or to collect neural data, among four new workplace AI laws. — [California Expands Workplace AI Regulation: What Employers Need to Know About Four New Laws](https://www.hunton.com/hunton-employment-labor-perspectives/california-expands-workplace-ai-regulation-what-employers-need-to-know-about-four-new-laws)
+
+- **28 Oct 2026** — Two federal courts dismissed AI and keyword hiring bias claims, including one from an applicant who alleged an insurer's AI tools screened out all 21 of her applications on grounds of race and age; the piece sets out five steps for employers. — [Two Federal Courts Dismiss AI and Keyword Hiring Bias Claims: 5 Steps for Employers](https://www.jdsupra.com/legalnews/two-federal-courts-dismiss-ai-and-8414738/)
+
 ## Open questions
 
 - Which state AIs acts will survive preemption challenges or federal harmonization attempts?

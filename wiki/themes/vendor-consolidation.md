@@ -14,6 +14,8 @@ Capital is flowing to HR services roll-ups and enterprise-scale talent platforms
 
 - **21 Aug 2026** — **Anthropic-backed Ode acquired AI-services firm Casper Studios**, deepening the "forward-deployed engineering" model that embeds Claude into employee workflows and operational processes. For TA leaders, the signal is that integrators are consolidating implementation capability, and the shift from experimentation to production deployment means you should define which recruiting decisions stay human before an integrator scopes your hiring processes. — [Forbes](https://www.forbes.com/sites/ronschmelzer/2026/08/21/anthropic-backed-ode-buys-casper-as-ai-services-race-heats-up/)
 
+- **23 Oct 2026** — Dayforce has agreed to acquire Ribbon AI, folding conversational voice and video AI interviewers into its agentic recruiting portfolio — continued consolidation of screening tech into core HCM suites. — [Dayforce to acquire Ribbon AI to bolster AI recruitment capabilities](https://betakit.com/dayforce-to-acquire-ribbon-ai-to-bolster-ai-recruitment-capabilities/)
+
 ## Open questions
 
 - Will AI-driven RPO bundling (KF/AMS) outcompete pure-play agentic platforms?

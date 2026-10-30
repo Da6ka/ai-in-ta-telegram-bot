@@ -86,6 +86,12 @@ Anthropic is shipping Claude across every layer of the recruiting tech stack and
 
 - **26 Aug 2026** — Salesforce and Anthropic launched **Claudeforce**, the first time Salesforce has appended its "force" suffix to another company's product, shipping as a plugin with 37 pre-built sales skills that let Claude users compose emails, update records, and take other relevant actions. The companies plan to introduce more integrations across Claude, Salesforce, and Slack. For TA teams, watch how this lands in Slack and CRM-adjacent workflows — Amodei said Anthropic put a "huge amount of effort" into managing permissions and building "Enterprise Frontier Safeguards" to ensure customer data remains private, so pressure-test the same controls before wiring Claude into candidate data. — [Salesforce, Anthropic expand partnership](https://www.cnbc.com/2026/08/26/salesforce-anthropic-partnership-claudeforce.html)
 
+- **19 Oct 2026** — Anthropic's own report on AI and work finds employees shifting from doing tasks to managing agents, alongside fewer junior hires and hiring managers reprioritizing what they screen for — a preview of how agent-heavy orgs may restructure entry-level pipelines. — [Inside Anthropic, Every Employee Now Manages Agents](https://www.ere.net/articles/inside-anthropic-every-employee-now-manages-agents)
+
+- **19 Oct 2026** — Workday and Anthropic are connecting Claude with Sana agents while keeping HR permissions, approvals and audit controls anchored in Workday — relevant for TA teams that want governed AI inside an existing HCM rather than a bolt-on. — [Workday Extends Governed HR and Finance Workflows Into Claude](https://futurumgroup.com/insights/workday-extends-governed-hr-and-finance-workflows-into-claude/)
+
+- **28 Oct 2026** — A Dayforce connector will let joint customers query and complete work using trusted Dayforce data inside Claude, applying the same permissions and controls. — [Dayforce in Anthropic's Claude to Help You Finish Work – Where You Work](https://techrseries.com/hrtechnology/dayforce-in-anthropics-claude-to-help-you-finish-work-where-you-work/)
+
 ## Open questions
 
 - As Claude becomes ubiquitous via partnerships (UST, LTM) and integrations (Azure, Foundry, Slack), how do TA leaders differentiate hiring for "Claude fluency" from hiring for underlying problem-solving?

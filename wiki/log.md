@@ -39,3 +39,4 @@ Newest last, one line per pass. Format: `- YYYY-MM-DD — ingest — N record(s)
 - 2026-08-29 — ingest — 5 record(s) → [[anthropic]], [[agentic-recruiting]], [[ai-ethics-and-compliance]] (0 new pages)
 - 2026-10-25 — lint — 15 fixes (4 dates checked against the articles, 11 entries brought back to their source bullets) → [[agentic-recruiting]], [[ai-ethics-and-compliance]], [[skills-based-hiring]], [[anthropic]]
 - 2026-10-25 — lint — standing summaries checked: 10 pages fixed, Gibson Dunn EU entry redated to 27 May 2026 → [[agentic-recruiting]], [[ai-ethics-and-compliance]], [[skills-based-hiring]], [[vendor-consolidation]], [[anthropic]], [[bullhorn]], [[cognizant]], [[hirequotient]], [[icims]], [[workday]]
+- 2026-10-30 — ingest — 32 record(s) → [[agentic-recruiting]], [[ai-ethics-and-compliance]], [[skills-based-hiring]], [[vendor-consolidation]], [[anthropic]], [[workday]], [[eightfold]], [[dayforce]] (1 new page)

@@ -14,6 +14,7 @@ A persistent, compounding view of AI-in-recruitment news. Read `CLAUDE.md` for t
 - [[anthropic]] — Claude across the stack: agents, governance, partnerships, and workforce development
 - [[bullhorn]] — Large staffing-CRM/ATS vendor pivoting toward agentic hiring at scale
 - [[cognizant]] — Services giant building AI-native workforce pipelines through certifications and campus hiring
+- [[dayforce]] — Core HCM platform consolidating agentic recruiting via Ribbon AI acquisition and Claude integration
 - [[eightfold]] — Agent-driven end-to-end evaluation and workforce analytics
 - [[hirequotient]] — AI-native ATS with autonomous sourcing, screening, and outreach; particularly strong in high-volume frontline hiring
 - [[icims]] — High-volume hiring with AI-powered apply experiences and embedded analytics
